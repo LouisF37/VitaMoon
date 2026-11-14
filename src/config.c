@@ -191,8 +191,7 @@ void config_save(const char* filename, PCONFIGURATION config) {
     write_config_int(fd, "fps", config->stream.fps);
   if (config->stream.bitrate != -1)
     write_config_int(fd, "bitrate", config->stream.bitrate);
-  if (config->stream.packetSize != 1024)
-    write_config_int(fd, "packetsize", config->stream.packetSize);
+  write_config_int(fd, "packetsize", config->stream.packetSize);
   if (!config->sops)
     write_config_bool(fd, "sops", config->sops);
   if (config->localaudio)
@@ -265,7 +264,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->stream.height = 720;
   config->stream.fps = 60;
   config->stream.bitrate = -1;
-  config->stream.packetSize = 1024;
+  config->stream.packetSize = 1392; // beta default: fewer packets per frame on a home LAN
   config->stream.streamingRemotely = 0;
   config->stream.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
   config->stream.supportedVideoFormats = VIDEO_FORMAT_H264;
@@ -299,7 +298,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->boost_clocks = true;
   config->match_refresh_rate = true;
   config->low_latency_audio = true;
-  config->display_mode = DISPLAY_MODE_DIRECT;
+  config->display_mode = DISPLAY_MODE_SMOOTH; // beta default
   config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;
 

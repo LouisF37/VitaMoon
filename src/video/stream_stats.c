@@ -12,6 +12,7 @@
 #include "../config.h"
 #include "../debug.h"
 #include "../gui/guilib.h"
+#include "../gui/theme.h"
 
 #include <Limelight.h>
 
@@ -119,6 +120,11 @@ static SceUID s_fd = -1;
 static int s_width, s_height, s_fps;
 
 static char s_overlay[2][OVERLAY_LINES][OVERLAY_LINE_LEN];
+
+/* Whole-session totals (stats thread only), saved per app at the end. */
+static int s_app_id = 0;
+static SceDateTime s_start_time;
+static uint64_t sess_ms, sess_shown, sess_lost, sess_r2p_sum, sess_r2p_n;
 static volatile int s_overlay_idx = 0;
 static volatile bool s_overlay_valid = false;
 
@@ -386,6 +392,12 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
            aud_buf.avg, aud_buf.max, aud_underrun, aud_skip_us, replaced, idle, qd.avg_x100, qd.max);
   write_fd(s_fd, line);
 
+  sess_ms += win_ms;
+  sess_shown += shown;
+  sess_lost += lost;
+  sess_r2p_sum += (uint64_t)r2p.avg * r2p.n;
+  sess_r2p_n += r2p.n;
+
   /* Overlay: compact, refreshed once per second. */
   int next = s_overlay_idx ^ 1;
   float hz = win_us ? (float)vblanks * 1000000.0f / (float)win_us : 0.0f;
@@ -443,6 +455,8 @@ void stream_stats_session_start(int width, int height, int fps) {
     stream_stats_session_end();
 
   memset(&c, 0, sizeof(c));
+  sess_ms = sess_shown = sess_lost = sess_r2p_sum = sess_r2p_n = 0;
+  sceRtcGetCurrentClockLocalTime(&s_start_time);
   memset(rx_ring_us, 0, sizeof(rx_ring_us));
   for (int i = 0; i < RX_RING; i++)
     rx_ring_fn[i] = -1;
@@ -479,17 +493,66 @@ void stream_stats_session_end(void) {
     s_fd = -1;
   }
   s_overlay_valid = false;
+
+  /* Keep a short summary per app for the library screen (sessions >= 10 s). */
+  if (was_running && s_app_id != 0 && sess_ms >= 10000) {
+    char path[640], line[160];
+    snprintf(path, sizeof(path), "%.400s/stats/last_%d.txt", config.key_dir, s_app_id);
+    SceUID fd = sceIoOpen(path, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
+    if (fd >= 0) {
+      snprintf(line, sizeof(line), "%u;%u;%u;%u;%04d-%02d-%02d %02d:%02d\n",
+               (unsigned)(sess_shown * 10000 / sess_ms),
+               (unsigned)(sess_r2p_n ? sess_r2p_sum / sess_r2p_n / 100 : 0),
+               (unsigned)sess_lost, (unsigned)(sess_ms / 1000),
+               s_start_time.year, s_start_time.month, s_start_time.day,
+               s_start_time.hour, s_start_time.minute);
+      sceIoWrite(fd, line, strlen(line));
+      sceIoClose(fd);
+    }
+  }
+}
+
+void stream_stats_set_app(int app_id) {
+  s_app_id = app_id;
+}
+
+bool stream_stats_read_last(int app_id, stream_last_session *out) {
+  char path[640], buf[160];
+  snprintf(path, sizeof(path), "%.400s/stats/last_%d.txt", config.key_dir, app_id);
+  SceUID fd = sceIoOpen(path, SCE_O_RDONLY, 0);
+  if (fd < 0)
+    return false;
+  int n = sceIoRead(fd, buf, sizeof(buf) - 1);
+  sceIoClose(fd);
+  if (n <= 0)
+    return false;
+  buf[n] = 0;
+  unsigned fps, r2p, lost, secs;
+  char when[20] = "";
+  if (sscanf(buf, "%u;%u;%u;%u;%19[^\n]", &fps, &r2p, &lost, &secs, when) < 4)
+    return false;
+  out->shown_fps_x10 = (int)fps;
+  out->r2p_ms_x10 = (int)r2p;
+  out->lost = lost;
+  out->seconds = secs;
+  snprintf(out->when, sizeof(out->when), "%s", when);
+  return true;
 }
 
 void stream_stats_draw_overlay(void) {
-  const unsigned int white = RGBA8(0xFF, 0xFF, 0xFF, 0xFF);
+  vita2d_font *f = theme_font();
   if (!s_overlay_valid) {
-    vita2d_draw_rectangle(6, 6, 300, 24, RGBA8(0, 0, 0, 0xA0));
-    vita2d_font_draw_text(font, 12, 24, white, 16, "stats: first second...");
+    theme_rounded_rect(8, 8, 220, 26, 8, TH_PANEL);
+    vita2d_font_draw_text(f, 18, 26, TH_TEXT2, 14, "stats : première seconde...");
     return;
   }
   int idx = s_overlay_idx;
-  vita2d_draw_rectangle(6, 6, 640, OVERLAY_LINES * 20 + 8, RGBA8(0, 0, 0, 0xA0));
+  int w = 0;
+  for (int i = 0; i < OVERLAY_LINES; i++) {
+    int lw = theme_text_width(f, 14, s_overlay[idx][i]);
+    if (lw > w) w = lw;
+  }
+  theme_rounded_rect(8, 8, w + 22, OVERLAY_LINES * 19 + 12, 10, TH_PANEL);
   for (int i = 0; i < OVERLAY_LINES; i++)
-    vita2d_font_draw_text(font, 12, 24 + i * 20, white, 16, s_overlay[idx][i]);
+    vita2d_font_draw_text(f, 19, 26 + i * 19, i == 0 ? TH_TEXT : TH_TEXT2, 14, s_overlay[idx][i]);
 }

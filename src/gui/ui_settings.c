@@ -1,4 +1,5 @@
 #include "ui_settings.h"
+#include "theme.h"
 
 #include "guilib.h"
 #include "ime.h"
@@ -523,8 +524,54 @@ static int move_idx_in_array(char *array[], int count, char *find, int index_dis
 }
 
 
+static int settings_hover_id = -1;
+
+/* One or two lines explaining the selected option, under the settings panel. */
+static const char *settings_description(int id) {
+  switch (id) {
+    case SETTINGS_BITRATE: return "Débit vidéo. En 960x544, essaie entre 6 et 10 Mb/s : moins de débit, c'est moins de pertes en Wi-Fi.";
+    case SETTINGS_DISPLAY_MODE: return "direct : comme l'original. low latency : affiche tout de suite la dernière image. smooth : une image par rafraîchissement, plus régulier (+1 image de latence).";
+    case SETTINGS_LOW_LATENCY_AUDIO: return "Son par tranches de 5 ms au lieu de 20 ms, retard rattrapé automatiquement. Désactive si le son craque.";
+    case SETTINGS_BOOST_CLOCKS: return "Processeur à 444 MHz et puce graphique à 222 MHz pendant le stream. Consomme un peu plus de batterie.";
+    case SETTINGS_MATCH_REFRESH_RATE: return "Le PC encode à la fréquence exacte de l'écran de la Vita, pour éviter doublons et trous réguliers.";
+    case SETTINGS_PACKET_SIZE: return "1392 : moins de paquets par image, conseillé sur un réseau local. 1024 : valeur d'origine.";
+    case SETTINGS_ENABLE_FRAME_PACER: return "Régulateur d'images d'origine. Sert uniquement en mode d'affichage direct.";
+    case SETTINGS_ENABLE_VITA_VBLANK_WAIT: return "Mode direct uniquement : attend le rafraîchissement de l'écran. Moins de déchirures, un peu plus de latence.";
+    case SETTINGS_SHOW_FPS: return "Affiche les statistiques du stream en haut de l'écran (images, latence, réseau, son).";
+    case SETTINGS_SAVE_DEBUG_LOG: return "Journal détaillé dans le dossier de Moonlight. Ralentit un peu : à n'activer que pour un diagnostic.";
+    default: return NULL;
+  }
+}
+
+static void settings_draw(void) {
+  const char *text = settings_description(settings_hover_id);
+  if (!text)
+    return;
+  vita2d_font *f = theme_font();
+  /* simple two-line wrap at the last space that fits */
+  char line1[256], line2[256];
+  snprintf(line1, sizeof(line1), "%s", text);
+  line2[0] = 0;
+  int max_w = 640;
+  if (theme_text_width(f, 14, line1) > max_w) {
+    int cut = (int)strlen(line1);
+    while (cut > 0) {
+      while (cut > 0 && line1[cut] != ' ') cut--;
+      line1[cut] = 0;
+      if (theme_text_width(f, 14, line1) <= max_w) break;
+      line1[cut] = ' ';
+      cut--;
+    }
+    snprintf(line2, sizeof(line2), "%s", text + cut + 1);
+  }
+  vita2d_font_draw_text(f, 160, 488, TH_TEXT3, 14, line1);
+  if (line2[0])
+    vita2d_font_draw_text(f, 160, 506, TH_TEXT3, 14, line2);
+}
+
 static int settings_loop(int id, void *context, const input_data *input) {
   menu_entry *menu = context;
+  settings_hover_id = id;
   bool did_change = 0;
   bool left = (input->buttons & SCE_CTRL_LEFT) && (input->buttons & SCE_CTRL_HOLD) == 0;
   bool right = (input->buttons & SCE_CTRL_RIGHT) && (input->buttons & SCE_CTRL_HOLD) == 0;
@@ -1060,7 +1107,7 @@ static int settings_back(void *context) {
 // Eliminado: hotkeys_menu y referencias, ya que los atajos ahora son fijos
 
 int ui_settings_menu() {
-  menu_entry menu[40]; // was 32 and exactly full; room for the phase 2 entries
+  menu_entry menu[44]; // was 32 and exactly full; room for the new entries and categories
   int idx = 0;
 #define MENU_CATEGORY(NAME) \
   do { \
@@ -1086,16 +1133,16 @@ int ui_settings_menu() {
   MENU_ENTRY(SETTINGS_SOPS, SETTINGS_VIEW_SOPS, "Change graphical game settings for performance", "");
   MENU_ENTRY(SETTINGS_ENABLE_FRAME_INVAL, SETTINGS_VIEW_ENABLE_FRAME_INVAL, "Enable reference frame invalidation", "");
   MENU_ENTRY(SETTINGS_ENABLE_STREAM_OPTIMIZE, SETTINGS_VIEW_ENABLE_STREAM_OPTIMIZE, "Enable stream optimization", "");
-  MENU_ENTRY(SETTINGS_ENABLE_VITA_VBLANK_WAIT, SETTINGS_VIEW_ENABLE_VITA_VBLANK_WAIT, "Enable VITA vblank", "");
+  MENU_ENTRY(SETTINGS_LOCAL_AUDIO, SETTINGS_VIEW_LOCAL_AUDIO, "Enable local audio", "");
 
-
-  MENU_ENTRY(SETTINGS_ENABLE_FRAME_PACER, SETTINGS_VIEW_ENABLE_FRAME_PACER, "Enable frame pacer", "");
+  MENU_CATEGORY("Performance");
+  MENU_ENTRY(SETTINGS_DISPLAY_MODE, SETTINGS_VIEW_DISPLAY_MODE, "Display mode", "");
+  MENU_ENTRY(SETTINGS_LOW_LATENCY_AUDIO, SETTINGS_VIEW_LOW_LATENCY_AUDIO, "Low-latency audio", "");
   MENU_ENTRY(SETTINGS_BOOST_CLOCKS, SETTINGS_VIEW_BOOST_CLOCKS, "Max CPU/GPU clocks while streaming", "");
   MENU_ENTRY(SETTINGS_MATCH_REFRESH_RATE, SETTINGS_VIEW_MATCH_REFRESH_RATE, "Send Vita refresh rate to host", "");
-  MENU_ENTRY(SETTINGS_LOW_LATENCY_AUDIO, SETTINGS_VIEW_LOW_LATENCY_AUDIO, "Low-latency audio", "");
-  MENU_ENTRY(SETTINGS_DISPLAY_MODE, SETTINGS_VIEW_DISPLAY_MODE, "Display mode", "");
   MENU_ENTRY(SETTINGS_PACKET_SIZE, SETTINGS_VIEW_PACKET_SIZE, "Video packet size", "");
-  MENU_ENTRY(SETTINGS_LOCAL_AUDIO, SETTINGS_VIEW_LOCAL_AUDIO, "Enable local audio", "");
+  MENU_ENTRY(SETTINGS_ENABLE_FRAME_PACER, SETTINGS_VIEW_ENABLE_FRAME_PACER, "Enable frame pacer", "");
+  MENU_ENTRY(SETTINGS_ENABLE_VITA_VBLANK_WAIT, SETTINGS_VIEW_ENABLE_VITA_VBLANK_WAIT, "Enable VITA vblank", "");
 
   MENU_CATEGORY("System");
   MENU_ENTRY(SETTINGS_SAVE_DEBUG_LOG, SETTINGS_VIEW_SAVE_DEBUG_LOG, "Enable debug log", "");
@@ -1154,7 +1201,8 @@ int ui_settings_menu() {
 
   settings_loop_setup = 1;
   assert(idx < 48);
-  int ret = display_menu(menu, idx, NULL, &settings_loop, &settings_back, NULL, &menu);
+  settings_hover_id = -1;
+  int ret = display_menu(menu, idx, NULL, &settings_loop, &settings_back, &settings_draw, &menu);
   return ret;
 }
 

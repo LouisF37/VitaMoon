@@ -47,5 +47,18 @@ void stream_stats_on_audio_fill(uint32_t buffered_us);  /* low-latency mode */
 void stream_stats_on_audio_underrun(void);
 void stream_stats_on_audio_skip(uint32_t dropped_us);
 
+/* Summary of the last session of an app, shown on the library screen. */
+typedef struct {
+  int shown_fps_x10;     /* average frames shown per second, x10 */
+  int r2p_ms_x10;        /* average first packet -> screen, ms x10 */
+  unsigned lost;         /* frames lost on the network during the session */
+  unsigned seconds;      /* session length */
+  char when[20];         /* "YYYY-MM-DD HH:MM" */
+} stream_last_session;
+
+/* App being streamed: its session summary is saved when the stream ends. */
+void stream_stats_set_app(int app_id);
+bool stream_stats_read_last(int app_id, stream_last_session *out);
+
 /* Draws the latest per-second summary; call between vita2d_start/end_drawing. */
 void stream_stats_draw_overlay(void);

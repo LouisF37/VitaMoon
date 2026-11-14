@@ -6,6 +6,8 @@
 #include "ime.h"
 #include "ui_settings.h"
 #include "boxart.h"
+#include "ui_library.h"
+#include "../video/stream_stats.h"
 
 #include "../connection.h"
 #include "../configuration.h"
@@ -117,6 +119,7 @@ void ui_connect_stream(int appId) {
     vita_debug_log("screen %.4f Hz -> clientRefreshRateX100 = %d\n", screen_hz, config.stream.clientRefreshRateX100);
   }
 
+  stream_stats_set_app(appId);
   vita_debug_log("Running LiStartConnection...");
   ret = LiStartConnection(&server.serverInfo, &config.stream, &connection_callbacks,
                           video_callback, platform_get_audio(system),
@@ -144,6 +147,55 @@ enum {
   CONNECT_DISCONNECT,
   CONNECT_QUITAPP
 };
+
+static char connected_host_name[128] = "";
+
+/* Start (or resume) an app and wait for the stream to end. Returns QUIT_RELOAD
+ * to show the library/menu again, 1 if the connection was lost. */
+static int ui_launch_app(int id) {
+  int status = connection_get_status();
+  vitapower_config(config);
+  vitainput_config(config);
+
+  switch (status) {
+    case LI_MINIMIZED:
+      if (server.currentGame == id) {
+        sceKernelDelayThread(500 * 1000);
+        connection_resume();
+        break;
+      }
+      // TODO: stop previous stream
+    case LI_PAIRED:
+      flash_message("Lancement du stream...");
+      ui_connect_stream(id);
+      break;
+  }
+
+  while (connection_is_connected()) {
+    sceKernelDelayThread(500 * 1000);
+  }
+
+  if (connection_get_status() == LI_DISCONNECTED) {
+    flash_message("Déconnexion...");
+    connection_terminate();
+    sceKernelDelayThread(1000 * 1000);
+    return 1;
+  }
+  return QUIT_RELOAD;
+}
+
+/* Quit the app running on the host. */
+static int ui_quit_app(void) {
+  flash_message("Fermeture du jeu...");
+  int ret = gs_quit_app(&server);
+  if (ret == GS_OK) {
+    connection_paired();
+    server.currentGame = 0;
+    return QUIT_RELOAD;
+  }
+  display_error("Impossible de fermer le jeu : %d", ret);
+  return 0;
+}
 
 #define QUIT_RELOAD 2
 
@@ -223,47 +275,11 @@ int ui_connect_loop(int id, void *context, const input_data *input) {
       goto disconnect;
 
     case CONNECT_QUITAPP:
-      flash_message("Quitting...");
-      ret = gs_quit_app(&server);
-      if (ret == GS_OK) {
-        connection_paired();
-        server.currentGame = 0;
-        return QUIT_RELOAD;
-      }
-      display_error("Quitting failed: %d", ret);
-      return 0;
+      return ui_quit_app();
 
     // application launcher / resume
     default:
-      vitapower_config(config);
-      vitainput_config(config);
-
-      switch (status) {
-        case LI_MINIMIZED:
-          if (server.currentGame == id) {
-            sceKernelDelayThread(500 * 1000);
-            connection_resume();
-            break;
-          }
-          // TODO: stop previous stream
-        case LI_PAIRED:
-          flash_message("Stream starting...");
-          ui_connect_stream(id);
-          break;
-      }
-
-//mainloop:
-      while (connection_is_connected()) {
-        sceKernelDelayThread(500 * 1000);
-      }
-
-      int status = connection_get_status();
-
-      if (status == LI_DISCONNECTED) {
-          goto disconnect;
-      }
-
-      return QUIT_RELOAD;
+      return ui_launch_app(id);
   }
 
 disconnect:
@@ -275,6 +291,7 @@ disconnect:
 
 int ui_connect(char *name, char *address, uint16_t port) {
   int ret;
+  snprintf(connected_host_name, sizeof(connected_host_name), "%s", name ? name : "");
   if (!connection_is_ready()) {
     flash_message("Connecting to:\n %s:%d...", address, port);
 
@@ -327,6 +344,31 @@ int ui_connected_menu() {
       }
     }
   }
+
+  // New library screen first; the classic menu stays reachable with triangle
+  // (pairing, disconnect, plain list of apps).
+  static bool show_classic = false;
+  if (server.paired && server_applist != NULL && !show_classic) {
+    int app_id = 0;
+    switch (ui_library(&server, server_applist, connected_host_name, &app_id)) {
+      case LIBRARY_LAUNCH:
+        return ui_launch_app(app_id);
+      case LIBRARY_QUIT_APP:
+        ui_quit_app();
+        return QUIT_RELOAD;
+      case LIBRARY_SETTINGS:
+        ui_settings_menu();
+        return QUIT_RELOAD;
+      case LIBRARY_OPTIONS:
+        show_classic = true;
+        break;
+      case LIBRARY_BACK:
+      default:
+        return 1;
+    }
+  }
+  bool from_library = show_classic;
+  show_classic = false;
 
   // current menu = 11 + app_count. but little more alloc ;)
   struct menu_entry menu[app_count + 16];
@@ -412,7 +454,11 @@ int ui_connected_menu() {
     }
   }
 
-  return display_menu(menu, idx, NULL, &ui_connect_loop, NULL, NULL, &menu);
+  int menu_ret = display_menu(menu, idx, NULL, &ui_connect_loop, NULL, NULL, &menu);
+  // Back from the classic menu opened from the library: return to the library.
+  if (from_library && menu_ret == 1 && connection_get_status() != LI_DISCONNECTED)
+    return QUIT_RELOAD;
+  return menu_ret;
 }
 
 device_info_t* ui_connect_and_pairing(device_info_t *info) {

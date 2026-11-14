@@ -92,6 +92,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/video/vita.c
 	src/video/stream_stats.c
 	src/gui/boxart.c
+	src/gui/ui_library.c
 	src/input/vita.c
 	src/input/shortcuts.c
 	src/power/vita.c

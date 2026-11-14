@@ -238,7 +238,7 @@ void theme_topbar(const char *section) {
   int fw = battery > 0 ? (20 * battery) / 100 : 0;
   if (fw > 0)
     theme_rounded_rect(bx + 2, by + 2, fw, 9, 2, fill);
-  char pct[8];
+  char pct[16];
   snprintf(pct, sizeof(pct), "%d%%", battery < 0 ? 0 : battery);
   int pw = theme_text_width(theme_font(), 13, pct);
   vita2d_font_draw_text(theme_font(), bx - 8 - pw, 21, TH_TEXT3, 13, pct);
