@@ -147,7 +147,6 @@ static indicator_status poor_net_indicator = {0};
 uint32_t frame_count = 0;
 uint32_t need_drop = 0;
 uint32_t curr_fps[2] = {0, 0};
-float carry = 0;
 
 typedef struct {
   unsigned int texture_width;
@@ -225,49 +224,28 @@ void update_scaling_settings(int width, int height) {
  * follow the screen refresh; phase 2 replaces it with vblank-aligned display.
  */
 static int vita_pacer_thread_main(SceSize args, void *argp) {
-  // 1s
-  int wait = 1000000;
-  //float max_fps = 0;
-  //sceDisplayGetRefreshRate(&max_fps);
-  //if (config.stream.fps == 30) {
-  //  max_fps /= 2;
-  //}
+  const int wait = 1000000; // 1 s
   int max_fps = config.stream.fps;
-  //uint64_t last_vblank_count = sceDisplayGetVcount();
   uint64_t last_check_time = sceKernelGetSystemTimeWide();
-  //float carry = 0;
   need_drop = 0;
   frame_count = 0;
   while (active_pacer_thread) {
-    //uint64_t curr_vblank_count = sceDisplayGetVcount();
-    //uint32_t vblank_fps = curr_vblank_count - last_vblank_count;
     uint32_t curr_frame_count = frame_count;
     frame_count = 0;
 
-    if (!active_video_thread) {
-    //  carry = 0;
-    } else {
-      if (config.enable_frame_pacer && curr_frame_count > max_fps) {
-        //carry += curr_frame_count - max_fps;
-        //if (carry > 1) {
-        //  need_drop += (int)carry;
-        //  carry -= (int)carry;
-        //}
-        need_drop += curr_frame_count - max_fps;
-      }
-      //vita_debug_log("fps0/fps1/carry/need_drop: %u/%u/%f/%u\n",
-      //               curr_frame_count, vblank_fps, carry, need_drop);
-    }
+    // More frames shown than the stream rate during the last second: drop the
+    // excess over the next second (only used in DIRECT display mode).
+    if (active_video_thread && config.enable_frame_pacer && curr_frame_count > max_fps)
+      need_drop += curr_frame_count - max_fps;
 
     curr_fps[0] = curr_frame_count;
     curr_fps[1] = max_fps;
 
-    //last_vblank_count = curr_vblank_count;
+    // Sleep so that iterations stay one second apart on average.
     uint64_t curr_check_time = sceKernelGetSystemTimeWide();
     uint32_t lapse = curr_check_time - last_check_time;
     last_check_time = curr_check_time;
     if (lapse > wait && (lapse - wait) < wait) {
-      //vita_debug_log("sleep: %d", wait * 2 - lapse);
       sceKernelDelayThread(wait * 2 - lapse);
     } else {
       sceKernelDelayThread(wait);
@@ -693,6 +671,14 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   struct SceAvcdecPicture *pictures = { &picture };
   array_picture.numOfElm = 1;
   array_picture.pPicture = &pictures;
+
+  // The network receive thread runs this callback: give it the highest user
+  // priority once, so packets are read promptly (VitaRPS5 uses 64 as well).
+  static SceUID boosted_thread = -1;
+  if (boosted_thread != sceKernelGetThreadId()) {
+    boosted_thread = sceKernelGetThreadId();
+    sceKernelChangeThreadPriority(boosted_thread, 64);
+  }
 
   // 1. Statistics: frame number, size and arrival timestamps (see stream_stats.c).
   stream_stats_on_frame(decodeUnit->frameNumber, decodeUnit->frameType, decodeUnit->fullLength,

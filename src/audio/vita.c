@@ -222,6 +222,13 @@ static void vita_renderer_decode_and_play_sample(char* data, int length) {
   if (!data)
     return;
 
+  // Runs on the audio receive thread: raise it once to the highest user priority.
+  static SceUID boosted_thread = -1;
+  if (boosted_thread != sceKernelGetThreadId()) {
+    boosted_thread = sceKernelGetThreadId();
+    sceKernelChangeThreadPriority(boosted_thread, 64);
+  }
+
   if (ll_mode) {
     ll_queue_packet(data, length);
     return;

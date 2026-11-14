@@ -451,7 +451,8 @@ enum {
   SETTINGS_BOOST_CLOCKS,
   SETTINGS_MATCH_REFRESH_RATE,
   SETTINGS_LOW_LATENCY_AUDIO,
-  SETTINGS_DISPLAY_MODE
+  SETTINGS_DISPLAY_MODE,
+  SETTINGS_PACKET_SIZE
 };
 
 enum {
@@ -489,6 +490,7 @@ enum {
   SETTINGS_VIEW_MATCH_REFRESH_RATE,
   SETTINGS_VIEW_LOW_LATENCY_AUDIO,
   SETTINGS_VIEW_DISPLAY_MODE,
+  SETTINGS_VIEW_PACKET_SIZE,
 
   SETTINGS_VIEW_MAX_COUNT,
 };
@@ -857,6 +859,15 @@ static int settings_loop(int id, void *context, const input_data *input) {
       did_change = 1;
       config.display_mode = (config.display_mode + 1) % 3; // direct -> low latency -> smooth
       break;
+    case SETTINGS_PACKET_SIZE:
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+      did_change = 1;
+      // 1024 (original) or 1392 (largest multiple of 16 that fits a 1500-byte
+      // Ethernet/Wi-Fi frame with headers): fewer, larger packets per frame.
+      config.stream.packetSize = config.stream.packetSize == 1392 ? 1024 : 1392;
+      break;
     case SETTINGS_CENTER_REGION_ONLY:
       if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
         break;
@@ -999,6 +1010,9 @@ static int settings_loop(int id, void *context, const input_data *input) {
                          : config.display_mode == DISPLAY_MODE_LOW_LATENCY ? "low latency" : "direct (original)");
   MENU_REPLACE(SETTINGS_VIEW_DISPLAY_MODE, current);
 
+  sprintf(current, "%d bytes", config.stream.packetSize);
+  MENU_REPLACE(SETTINGS_VIEW_PACKET_SIZE, current);
+
   sprintf(current, "%s", config.center_region_only ? "yes" : "no");
   MENU_REPLACE(SETTINGS_VIEW_CENTER_REGION_ONLY, current);
 
@@ -1080,6 +1094,7 @@ int ui_settings_menu() {
   MENU_ENTRY(SETTINGS_MATCH_REFRESH_RATE, SETTINGS_VIEW_MATCH_REFRESH_RATE, "Send Vita refresh rate to host", "");
   MENU_ENTRY(SETTINGS_LOW_LATENCY_AUDIO, SETTINGS_VIEW_LOW_LATENCY_AUDIO, "Low-latency audio", "");
   MENU_ENTRY(SETTINGS_DISPLAY_MODE, SETTINGS_VIEW_DISPLAY_MODE, "Display mode", "");
+  MENU_ENTRY(SETTINGS_PACKET_SIZE, SETTINGS_VIEW_PACKET_SIZE, "Video packet size", "");
   MENU_ENTRY(SETTINGS_LOCAL_AUDIO, SETTINGS_VIEW_LOCAL_AUDIO, "Enable local audio", "");
 
   MENU_CATEGORY("System");

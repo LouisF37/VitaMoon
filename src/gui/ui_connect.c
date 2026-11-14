@@ -279,7 +279,7 @@ int ui_connect(char *name, char *address, uint16_t port) {
     flash_message("Connecting to:\n %s:%d...", address, port);
 
     char key_dir[4096];
-    sprintf(key_dir, "%s/%s", config.key_dir, name);
+    snprintf(key_dir, sizeof(key_dir), "%s/%s", config.key_dir, name);
 
     ret = gs_init(&server, address, port, key_dir, 0, true);
     if (ret == GS_OUT_OF_MEMORY) {
@@ -379,7 +379,7 @@ int ui_connected_menu() {
       if (!get_app_name(server_applist, server.currentGame, current_appname)) {
         strcpy(current_appname, "unknown");
       }
-      sprintf(current_status, "Streaming %s", current_appname);
+      snprintf(current_status, sizeof(current_status), "Streaming %s", current_appname);
 
       MENU_CATEGORY(current_status);
       MENU_ENTRY(server.currentGame, "Resume");
@@ -419,7 +419,7 @@ device_info_t* ui_connect_and_pairing(device_info_t *info) {
   flash_message("Test connecting to:\n %s...", info->internal);
   vita_debug_log("[CONNECT] Intentando conectar: name=%s, ip=%s, port=%d", info->name, info->internal, info->port);
   char key_dir[4096];
-  sprintf(key_dir, "%s/%s", config.key_dir, info->name);
+  snprintf(key_dir, sizeof(key_dir), "%s/%s", config.key_dir, info->name);
   sceIoMkdir(key_dir, 0777);
 
   int ret = gs_init(&server, info->internal, info->port, key_dir, 0, true);
@@ -533,7 +533,7 @@ bool check_connection(const char *name, char *addr, uint16_t port) {
   }
 
   char key_dir[4096];
-  sprintf(key_dir, "%s/%s", config.key_dir, name);
+  snprintf(key_dir, sizeof(key_dir), "%s/%s", config.key_dir, name);
 
   if (gs_init(&server, addr, port, key_dir, log_level, true) != GS_OK) {
     return false;

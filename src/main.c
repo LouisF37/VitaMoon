@@ -66,7 +66,12 @@
 #include "debug.h"
 #include "check_dir.h"
 
-#define VITA_NET_MEM_SIZE 1 * 1024 * 1024
+// Network memory pool. Socket receive buffers are carved from it: Moonlight asks
+// for a ~2 MB video receive buffer, and VitaRPS5 measured a 4 MiB pool running
+// out under sustained LAN streaming (8 MiB fixed it). The original was 1 MiB.
+// Static (not malloc) so it does not depend on the heap size.
+#define VITA_NET_MEM_SIZE (8 * 1024 * 1024)
+static char net_memory[VITA_NET_MEM_SIZE] __attribute__((aligned(64)));
 
 SceNetInitParam net_param = {
   .memory = NULL,
@@ -99,11 +104,7 @@ static void vita_init() {
   int ret;
 
   // Load Vita network 
-  net_param.memory = malloc(net_param.size);
-  if (net_param.memory == NULL) {
-    printf("Could not allocate net memory!");
-    loop_forever();
-  }
+  net_param.memory = net_memory;
  
   ret = sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
   if (ret < 0) {
