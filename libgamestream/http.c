@@ -23,8 +23,12 @@
 #include <stdbool.h>
 #include <string.h>
 #include <curl/curl.h>
+#include <pthread.h>
 
 static CURL *curl;
+/* One curl handle is shared by every request; the box-art downloader runs on its
+ * own thread, so requests are serialised. */
+static pthread_mutex_t curl_lock = PTHREAD_MUTEX_INITIALIZER;
 
 static bool debug;
 
@@ -70,7 +74,16 @@ int http_init(const char* keyDirectory, int logLevel) {
   return GS_OK;
 }
 
+static int http_request_unlocked(char* url, PHTTP_DATA data);
+
 int http_request(char* url, PHTTP_DATA data) {
+  pthread_mutex_lock(&curl_lock);
+  int ret = http_request_unlocked(url, data);
+  pthread_mutex_unlock(&curl_lock);
+  return ret;
+}
+
+static int http_request_unlocked(char* url, PHTTP_DATA data) {
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, data);
   curl_easy_setopt(curl, CURLOPT_URL, url);
 //#ifdef __FreeBSD__

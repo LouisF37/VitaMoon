@@ -737,6 +737,37 @@ int gs_applist(PSERVER_DATA server, PAPP_LIST *list) {
   return ret;
 }
 
+/* Box art of one app (PNG bytes, as served by Sunshine's /appasset).
+ * On success *png is malloc'd and owned by the caller. */
+int gs_app_boxart(PSERVER_DATA server, int appId, char **png, size_t *size) {
+  int ret = GS_OK;
+  char url[4096];
+  uuid_t uuid;
+  char uuid_str[UUID_STRLEN];
+  *png = NULL;
+  *size = 0;
+  PHTTP_DATA data = http_create_data();
+  if (data == NULL)
+    return GS_OUT_OF_MEMORY;
+
+  uuid_generate_random(uuid);
+  uuid_unparse(uuid, uuid_str);
+  snprintf(url, sizeof(url), "https://%s:%u/appasset?uniqueid=%s&uuid=%s&appid=%d&AssetType=2&AssetIdx=0",
+           server->serverInfo.address, server->httpsPort, unique_id, uuid_str, appId);
+  if (http_request(url, data) != GS_OK) {
+    ret = GS_IO_ERROR;
+  } else if (data->size < 8 || memcmp(data->memory, "\x89PNG", 4) != 0) {
+    ret = GS_INVALID;  /* not a PNG (error page or empty answer) */
+  } else {
+    *png = data->memory;
+    *size = data->size;
+    data->memory = NULL;
+    data->size = 0;
+  }
+  http_free_data(data);
+  return ret;
+}
+
 int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION *config, int appId, bool sops, bool localaudio, int gamepad_mask) {
   int ret = GS_OK;
   uuid_t uuid;

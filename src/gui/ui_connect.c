@@ -5,6 +5,7 @@
 #include "guilib.h"
 #include "ime.h"
 #include "ui_settings.h"
+#include "boxart.h"
 
 #include "../connection.h"
 #include "../configuration.h"
@@ -316,6 +317,8 @@ int ui_connected_menu() {
     }
 
     if (server_applist != NULL) {
+      // Download missing covers in the background for the new library screen.
+      boxart_prefetch(&server, server_applist);
       sort_app_list(server_applist);
       PAPP_LIST list = server_applist;
       while (list) {
