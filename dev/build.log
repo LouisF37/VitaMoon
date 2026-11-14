@@ -1,0 +1,23 @@
+Submodule 'third_party/enet' (https://github.com/cgutman/enet.git) registered for path 'third_party/enet'
+Submodule 'third_party/inih' (https://github.com/benhoyt/inih.git) registered for path 'third_party/inih'
+Submodule 'third_party/mdnsniff' (https://github.com/AorsiniYT/mdnsniff.git) registered for path 'third_party/mdnsniff'
+Submodule 'common' (https://github.com/moonlight-stream/moonlight-common-c.git) registered for path 'third_party/moonlight-common-c'
+Cloning into '/home/runner/work/vita-moonlight/vita-moonlight/third_party/enet'...
+Cloning into '/home/runner/work/vita-moonlight/vita-moonlight/third_party/inih'...
+Cloning into '/home/runner/work/vita-moonlight/vita-moonlight/third_party/mdnsniff'...
+Cloning into '/home/runner/work/vita-moonlight/vita-moonlight/third_party/moonlight-common-c'...
+Submodule path 'third_party/enet': checked out 'dea6fb5414b180908b58c0293c831105b5d124dd'
+Submodule path 'third_party/inih': checked out '8e06f6b77b5d4471bdc6d85ada81b67d37354a5c'
+Submodule path 'third_party/mdnsniff': checked out '6496c321c51860c5b64c308cff076b6087b40be0'
+Submodule path 'third_party/moonlight-common-c': checked out '2d984f4b0dfab5ea2cff0f262abe1a056946a7c1'
+CMake Error at CMakeLists.txt:1 (cmake_minimum_required):
+  Compatibility with CMake < 3.5 has been removed from CMake.
+
+  Update the VERSION argument <min> value.  Or, use the <min>...<max> syntax
+  to tell CMake that the project requires at least <min> but has been updated
+  to work with policies introduced by <max> or earlier.
+
+  Or, add -DCMAKE_POLICY_VERSION_MINIMUM=3.5 to try configuring anyway.
+
+
+-- Configuring incomplete, errors occurred!
