@@ -55,6 +55,8 @@ jobs:
             cd /tmp/vdpm
             ./bootstrap-vitasdk.sh --install-dir "$VITASDK"
             export PATH="$VITASDK/bin:$PATH"
+            # No terminal in CI: let pacman proceed without asking for confirmation.
+            export VDPM_NONINTERACTIVE=1
             VDPM="$VITASDK/bin/vdpm"
             [ -x "$VDPM" ] || VDPM=/tmp/vdpm/vdpm
             # Only the libraries this app links against (see CMakeLists.txt).
