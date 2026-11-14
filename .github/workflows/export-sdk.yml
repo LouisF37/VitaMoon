@@ -1,0 +1,49 @@
+name: Export VitaSDK (temporary)
+
+# Throwaway branch: packs the exact SDK the builds use so it can be mirrored
+# for local compile checks. Not part of the app.
+on:
+  push:
+    branches: [ sdk-export ]
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-latest
+    env:
+      VITASDK: ${{ github.workspace }}/vitasdk
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore VitaSDK cache
+        id: cache-vitasdk
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/vitasdk
+          key: vitasdk-${{ runner.os }}-v2
+      - name: Install VitaSDK and packages
+        if: steps.cache-vitasdk.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          git clone --depth 1 https://github.com/vitasdk/vdpm.git /tmp/vdpm
+          cd /tmp/vdpm
+          ./bootstrap-vitasdk.sh --install-dir "$VITASDK"
+          export PATH="$VITASDK/bin:$PATH"
+          export VDPM_NONINTERACTIVE=1
+          VDPM="$VITASDK/bin/vdpm"
+          [ -x "$VDPM" ] || VDPM=/tmp/vdpm/vdpm
+          "$VDPM" install zlib bzip2 expat openssl curl opus libpng libjpeg-turbo freetype libvita2d
+      - name: Pack and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          echo "$GITHUB_WORKSPACE" > vitasdk/.ci-original-path
+          tar -C "$GITHUB_WORKSPACE" -cf - vitasdk | zstd -T0 -10 -o vitasdk.tar.zst
+          ls -lh vitasdk.tar.zst
+          sha256sum vitasdk.tar.zst | tee vitasdk.tar.zst.sha256
+          gh release delete sdk-export --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create sdk-export vitasdk.tar.zst vitasdk.tar.zst.sha256 \
+            --repo "$GITHUB_REPOSITORY" --prerelease --target "$GITHUB_SHA" \
+            --title "SDK export (temporary)" --notes "Temporary toolchain mirror for local compile checks."
