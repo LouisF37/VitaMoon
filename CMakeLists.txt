@@ -56,7 +56,10 @@ if(BUILD_COMMIT)
 	add_definitions(-DBUILD_ID=\"${BUILD_BRANCH}-${BUILD_COMMIT}\")
 endif()
 
-set(CMAKE_C_FLAGS "-Wl,-q -g -std=c99 -D__vita__")
+# gnu99 rather than c99: the code relies on POSIX/GNU declarations such as strdup.
+# -fpermissive keeps GCC >= 14 from turning legacy warnings (implicit declarations,
+# int/pointer conversions) into hard errors in this code base and its submodules.
+set(CMAKE_C_FLAGS "-Wl,-q -g -std=gnu99 -fpermissive -D__vita__")
 
 
 
