@@ -1,116 +1,41 @@
-Downloading VitaSDK: https://github.com/vitasdk/autobuilds/releases/download/master-linux-v2.540/vitasdk-x86_64-linux-gnu-2026-05-24_12-05-02.tar.bz2
 Cloning into '/tmp/vdpm'...
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm: package client is not executable: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/pacman
-vdpm packages that failed to install: zlib bzip2 libzip libpng libexif libjpeg-turbo jansson yaml-cpp freetype harfbuzz fftw libvita2d libvita2d_ext libmad libogg libvorbis flac libtheora libtremor libmikmod libftpvita henkaku taihen kubridge libk libdebugnet onigmo libwebp sdl sdl_image sdl_mixer sdl_net sdl_ttf sdl_gfx sdl2 sdl2_image sdl2_mixer sdl2_net sdl2_ttf sdl2_gfx openal-soft openssl curl curlpp expat opus opusfile unrar glm libxml2 speexdsp pixman TinyGL kuio taipool mpg123 libmpeg2 soloud quirc Box2D libsndfile xz libarchive bullet libimagequant libmodplug libconfig libsodium vitaShaRK libmathneon vitaGL imgui imgui-vita2d libbaremetal minizip jsoncpp lame ffmpeg physfs vita-rss-libdl luajit tinyxml2 cpython cpython3 asio assimp opensles cpr libintl libopenmpt libvpx zstd libpcre2 fribidi libass websocketpp wslay SceShaccCgExt boost pib libxmp libxmp-lite sdl3 sdl3_image sdl3_ttf mbedtls
-total 24
-drwxr-xr-x 5 runner runner 4096 May 24 12:07 arm-vita-eabi
-drwxr-xr-x 4 runner runner 4096 May 24 12:26 bin
-drwxr-xr-x 4 runner runner 4096 May 24 12:13 include
-drwxr-xr-x 4 runner runner 4096 May 24 12:26 lib
-drwxr-xr-x 8 runner runner 4096 May 24 12:26 share
--rw-r--r-- 1 runner runner  324 May 24 12:26 version_info.txt
+  % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
+                                 Dload  Upload  Total   Spent   Left   Speed
+  0      0   0      0   0      0      0      0                              0  0      0   0      0   0      0      0      0                              0  0      0   0      0   0      0      0      0                              0
+  0      0   0      0   0      0      0      0                              0100  8.49M 100  8.49M   0      0 27.84M      0                              0100  8.49M 100  8.49M   0      0 27.83M      0                              0100  8.49M 100  8.49M   0      0 27.82M      0                              0
+Installing the supported series 2026.08
+refreshed 2026.08 channel sequence 2026111281
+:: Starting full system upgrade...
+ there is nothing to do
+resolving dependencies...
+looking for conflicting packages...
+
+Packages (2) vdpm-0.1.3-1  vitasdk-core-2026.08.1-1
+
+Total Download Size:    38.28 MiB
+Total Installed Size:  354.33 MiB
+
+:: Proceed with installation? [Y/n] 
+:: Retrieving packages...
+ vitasdk-core-2026.08.1-1-x86_64-linux-gnu downloading...
+ vdpm-0.1.3-1-x86_64-linux-gnu downloading...
+checking package integrity...
+loading package files...
+checking for file conflicts...
+:: Processing package changes...
+installing vdpm...
+installing vitasdk-core...
+VitaSDK installed at /home/runner/work/vita-moonlight/vita-moonlight/vitasdk
+export VITASDK=/home/runner/work/vita-moonlight/vita-moonlight/vitasdk
+export PATH=$VITASDK/bin:$PATH
+:: VitaSDK 2026.08 (sequence 2026111281)
+resolving dependencies...
+looking for conflicting packages...
+warning: removing 'openssl-1.0.2.r12304.gcd52124-1' from target list because it conflicts with 'openssl-1.1.1-1.1.1.r24282.g0a851f7-2'
+
+Packages (11) openssl-1.1.1-1.1.1.r24282.g0a851f7-2  zstd-1.5.7-1  bzip2-1.0.8-1  curl-8.17.0-3  expat-2.8.5-1  freetype-2.14.3-1  libjpeg-turbo-3.2.0-1  libpng-1.6.58-1  libvita2d-0.0.0.r188.ga8f15ab-1  opus-1.6.1-1  zlib-1.3.2-2
+
+Total Download Size:    3.65 MiB
+Total Installed Size:  14.21 MiB
+
+:: Proceed with installation? [Y/n] 
