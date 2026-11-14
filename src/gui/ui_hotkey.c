@@ -13,11 +13,11 @@
 // strdup prototype in case it is missing
 char *strdup(const char *s);
 
-// nombre_boton prototype (button name helper)
-void nombre_boton(int btn, char* out, int outlen);
+// hotkey_button_name prototype (button name helper)
+void hotkey_button_name(int btn, char* out, int outlen);
 
-// nombre_boton implementation: readable button names
-void nombre_boton(int btn, char* out, int outlen) {
+// hotkey_button_name implementation: readable button names
+void hotkey_button_name(int btn, char* out, int outlen) {
     const char* name = "?";
     switch (btn) {
         case SCE_CTRL_START: name = "START"; break;
@@ -164,8 +164,8 @@ int add_hotkey_menu() {
         snprintf(btn1, sizeof(btn1), "%s", tr("Not assigned"));
         snprintf(btn2, sizeof(btn2), "%s", tr("None"));
         snprintf(act, sizeof(act), "%s", tr("Not assigned"));
-        if (first_btn >= 0) nombre_boton(first_btn, btn1, sizeof(btn1));
-        if (second_btn >= 0) nombre_boton(second_btn, btn2, sizeof(btn2));
+        if (first_btn >= 0) hotkey_button_name(first_btn, btn1, sizeof(btn1));
+        if (second_btn >= 0) hotkey_button_name(second_btn, btn2, sizeof(btn2));
         if (action >= 0) hotkey_func_name(action, act, sizeof(act));
         menu[idx].name = tr("First button");
         strncpy(menu[idx].subname, btn1, sizeof(menu[idx].subname));
@@ -284,9 +284,9 @@ int ui_hotkey_menu() {
             for (int i = 0; i < g_hotkey_count; ++i) {
                 hotkey_func_name(g_hotkeys[i].function, funcname, sizeof(funcname));
                 hotkey_buttons_name(&g_hotkeys[i], btns, sizeof(btns));
-                char nombre[512];
-                snprintf(nombre, sizeof(nombre), "%s = %s", btns, funcname);
-                del_menu[didx].name = strdup(nombre);
+                char label[512];
+                snprintf(label, sizeof(label), "%s = %s", btns, funcname);
+                del_menu[didx].name = strdup(label);
                 del_menu[didx].id = i;
                 ++didx;
             }
