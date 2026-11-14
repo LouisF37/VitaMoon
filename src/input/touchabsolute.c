@@ -1,10 +1,10 @@
 // touchabsolute.c
-// Lógica de mouse absoluto (touch-to-absolute-mouse) para Moonlight Vita Motion
-// Inspirado en vita-moonlight/src/input/vita.c
+// Absolute mouse (touch-to-absolute-mouse) for Moonlight Vita Motion
+// Based on vita-moonlight/src/input/vita.c
 
 #include "touchabsolute.h"
 #include "../config.h" // Para CONFIGURATION
-#include "vita.h" // Para TouchData y dependencias
+#include "vita.h" // TouchData and friends
 #include "../debug.h"
 #include <psp2/touch.h>
 #include <stdlib.h> // abs
@@ -27,9 +27,9 @@ bool touchabsolute_is_enabled() {
     return absolute_mouse_enabled;
 }
 
-// Convierte coordenadas de touchpad a coordenadas absolutas de mouse
+// Converts touch panel coordinates to absolute mouse coordinates
 static void touch_to_absolute(int tx, int ty, int *mx, int *my) {
-    // El touchpad frontal de Vita es 1920x1088, la pantalla es 960x544
+    // The front touch panel reports 1920x1088, the screen is 960x544
     *mx = tx * 960 / 1920;
     *my = ty * 544 / 1088;
 }
@@ -40,7 +40,7 @@ void touchabsolute_handle_ds4(const TouchData* touch, SceRtcTick* current) {
     static uint8_t prev_finger_active[10] = {0};
     static int prev_x[10] = {0};
     static int prev_y[10] = {0};
-    const int DS4_TOUCHPAD_MOVE_THRESHOLD = 1; // Más sensible
+    const int DS4_TOUCHPAD_MOVE_THRESHOLD = 1; // more sensitive
     for (int i = 0; i < 10; ++i) {
         int x = (i < touch->finger) ? touch->points[i].x : 0;
         int y = (i < touch->finger) ? touch->points[i].y : 0;
@@ -69,14 +69,14 @@ void touchabsolute_handle_ds4(const TouchData* touch, SceRtcTick* current) {
 
 // --- Mouse Absolute Mode ---
 void touchabsolute_handle_absolute(const TouchData* touch, SceRtcTick* current, int* front_state, short* finger_count, TouchData* swipe, TouchData* touch_old) {
-    // Lógica movida desde vita.c (modo 2)
+    // Moved here from vita.c (mode 2)
     if (touchabsolute_is_enabled()) {
         if (touch->finger > 0) {
             int x = touch->points[0].x;
             int y = touch->points[0].y;
             LiSendMousePositionEvent(x, y, 960, 544);
         }
-        // Click izquierdo y derecho según número de dedos
+        // Left or right click depending on the number of fingers
         static int prev_finger_count __attribute__((unused)) = 0;
         static int left_down __attribute__((unused)) = 0;
         static int right_down __attribute__((unused)) = 0;
@@ -129,7 +129,7 @@ void touchabsolute_handle_absolute(const TouchData* touch, SceRtcTick* current, 
         }
         memcpy(touch_old, touch, sizeof(TouchData));
     }
-    // mouse y gestos solo en modo mouse absoluto
+    // mouse and gestures only in absolute mouse mode
     switch (*front_state) {
       case 0: // NO_TOUCH_ACTION
         if (touch->finger > 0) {
@@ -190,7 +190,7 @@ void touchabsolute_handle_tablet(const TouchData* touch) {
       LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
       LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_MIDDLE);
       LiSendMousePositionEvent(-1, -1, 960, 544);
-      vita_debug_log("[TOUCHSCREEN] Mouse liberado y fuera de pantalla");
+      vita_debug_log("[TOUCHSCREEN] Mouse released and moved off screen");
       mouse_released = true;
     }
     static uint8_t prev_finger_active[10] __attribute__((unused)) = {0};

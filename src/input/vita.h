@@ -125,4 +125,4 @@ void move_mouse(TouchData old, TouchData cur);
 bool mouse_click(short finger_count, bool press);
 void move_motion(SceMotionState motionState);
 void move_wheel(TouchData old, TouchData cur);
-// void open_keyboard(void); // Ahora se usa keyboardsystem_open_keyboard()
+// void open_keyboard(void); // replaced by keyboardsystem_open_keyboard()

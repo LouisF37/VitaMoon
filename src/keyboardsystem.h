@@ -3,7 +3,7 @@
 
 
 void keyboardsystem_open_keyboard(void);
-// Devuelve true si el overlay de teclado virtual está abierto
+// Returns true while the on-screen keyboard overlay is open
 bool keyboardsystem_is_open(void);
 
 #endif // KEYBOARDSYSTEM_H

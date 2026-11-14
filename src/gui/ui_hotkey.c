@@ -1,6 +1,6 @@
 // ui_hotkey.c
-// Sistema de hotkeys personalizables para Moonlight Vita Motion
-// Solo funciones de menú y helpers UI, sin lógica de almacenamiento ni callbacks
+// Customizable hotkeys for Moonlight Vita Motion
+// Menu functions and UI helpers only; storage and callbacks live in hotkey.c
 #include "ui_hotkey.h"
 #include "ui_settings.h"
 #include "guilib.h"
@@ -10,13 +10,13 @@
 #include <stdlib.h>
 #include "../i18n.h"
 
-// Prototipo para strdup si falta
+// strdup prototype in case it is missing
 char *strdup(const char *s);
 
-// Prototipo para nombre_boton (debe estar implementada en algún lado)
+// nombre_boton prototype (button name helper)
 void nombre_boton(int btn, char* out, int outlen);
 
-// Implementación de nombre_boton para evitar error de linker y mostrar nombres correctos
+// nombre_boton implementation: readable button names
 void nombre_boton(int btn, char* out, int outlen) {
     const char* name = "?";
     switch (btn) {
@@ -41,11 +41,11 @@ void nombre_boton(int btn, char* out, int outlen) {
     snprintf(out, outlen, "%s", name);
 }
 
-// Declaraciones con atributo unused para evitar warnings
+// Declared unused to silence warnings
 static int hotkey_edit_menu(int idx) __attribute__((unused));
 static int hotkey_buttons_menu(SceCtrlButtons* out_buttons, int* out_count) __attribute__((unused));
 
-// helpers para obtener el nombre de la función y botones
+// helpers returning the function and button names
 void hotkey_func_name(int idx, char* out, int outlen) {
     extern char *settings_special_names[];
     if (idx >= 0 && out && outlen > 0) {
@@ -78,7 +78,7 @@ void hotkey_buttons_name(const hotkey_t* hk, char* out, int outlen) {
             case SCE_CTRL_CIRCLE: name = "CIRCLE"; break;
             case SCE_CTRL_CROSS: name = "CROSS"; break;
             case SCE_CTRL_SQUARE: name = "SQUARE"; break;
-            // Elimina SCE_CTRL_PS para evitar duplicado
+            // SCE_CTRL_PS left out to avoid a duplicate case
             default: name = "?"; break;
         }
         int n = snprintf(ptr, left, "%s%s", (i>0)?"+":"", name);
@@ -106,10 +106,10 @@ static int hotkey_func_menu(int* func_idx) {
     return 0;
 }
 
-// Definición normal, sin atributo
+// Plain definition
 static int hotkey_buttons_menu(SceCtrlButtons* out_buttons, int* out_count) {
     display_error(tr("Hold the buttons for the shortcut and press START to confirm."));
-    // ...lógica de UI para capturar botones...
+    // ...UI logic to capture buttons...
     return 1;
 }
 
@@ -145,10 +145,10 @@ static int hotkey_edit_menu(int idx) {
     return 0;
 }
 
-// Declaración de HOTKEY_MENU_MAX
+// HOTKEY_MENU_MAX
 #define HOTKEY_MENU_MAX 16
 
-// --- NUEVO SUBMENÚ PARA AGREGAR HOTKEY ---
+// --- SUBMENU TO ADD A HOTKEY ---
 int add_hotkey_menu();
 
 int add_hotkey_menu() {
@@ -159,8 +159,11 @@ int add_hotkey_menu() {
     while (!done) {
         menu_entry menu[8] = {0};
         int idx = 0;
-        // Mostrar selección actual
-        char btn1[32] = tr("Not assigned"), btn2[32] = tr("None"), act[64] = tr("Not assigned");
+        // Show the current selection
+        char btn1[32], btn2[32], act[64];
+        snprintf(btn1, sizeof(btn1), "%s", tr("Not assigned"));
+        snprintf(btn2, sizeof(btn2), "%s", tr("None"));
+        snprintf(act, sizeof(act), "%s", tr("Not assigned"));
         if (first_btn >= 0) nombre_boton(first_btn, btn1, sizeof(btn1));
         if (second_btn >= 0) nombre_boton(second_btn, btn2, sizeof(btn2));
         if (action >= 0) hotkey_func_name(action, act, sizeof(act));
@@ -180,7 +183,7 @@ int add_hotkey_menu() {
         menu[idx++] = (menu_entry){ .name = tr("Back"), .id = 0 };
         int sel = display_menu(menu, idx, NULL, NULL, NULL, NULL, NULL);
         if (sel == 1) {
-            // Selección de primer botón
+            // Pick the first button
             menu_entry btn_menu[18];
             int bidx = 0;
             const char* btn_names[] = {"START","SELECT","UP","DOWN","LEFT","RIGHT","L1","R1","L2","R2","L3","R3","TRIANGLE","CIRCLE","CROSS","SQUARE"};
@@ -189,7 +192,7 @@ int add_hotkey_menu() {
             int bsel = display_menu(btn_menu, bidx, NULL, NULL, NULL, NULL, NULL);
             if (bsel >= 0) first_btn = btn_menu[bsel].id;
         } else if (sel == 2) {
-            // Selección de segundo botón (opcional)
+            // Pick the second button (optional)
             menu_entry btn_menu[18];
             int bidx = 0;
             btn_menu[bidx++] = (menu_entry){ .name = tr("None"), .id = -1 };
@@ -200,11 +203,11 @@ int add_hotkey_menu() {
             if (bsel == 0) second_btn = -1;
             else if (bsel > 0) second_btn = btn_menu[bsel].id;
         } else if (sel == 3) {
-            // Selección de acción
+            // Pick the action
             int fidx = action;
             if (hotkey_func_menu(&fidx)) action = fidx;
         } else if (sel == 4) {
-            // Guardar atajo
+            // Save the hotkey
             if (first_btn < 0 || action < 0) {
                 display_error(tr("Select at least one button and an action."));
             } else if (g_hotkey_count < MAX_HOTKEYS) {
@@ -236,7 +239,7 @@ int ui_hotkey_menu() {
     while (!exit_menu) {
         menu_entry menu[HOTKEY_MENU_MAX+8] = {0};
         int idx = 0;
-        // --- Resumen decorativo como item de menú deshabilitado ---
+        // --- Summary shown as a disabled menu row ---
         if (g_hotkey_count == 0) {
             menu[idx].name = "-----------------------------";
             menu[idx].disabled = true;
@@ -275,7 +278,7 @@ int ui_hotkey_menu() {
         if (sel == 100) {
             add_hotkey_menu();
         } else if (sel == 200) {
-            // Eliminar: muestra lista de atajos para elegir cuál borrar
+            // Delete: list the hotkeys to pick the one to remove
             menu_entry del_menu[HOTKEY_MENU_MAX+1] = {0};
             int didx = 0;
             for (int i = 0; i < g_hotkey_count; ++i) {

@@ -202,7 +202,7 @@ void config_save(const char* filename, PCONFIGURATION config) {
   if (config->app && strcmp(config->app, "Steam") != 0)
     write_config_string(fd, "app", config->app);
 
-  write_config_string(fd, "key_dir", config->key_dir); // Guardar key_dir en la raíz
+  write_config_string(fd, "key_dir", config->key_dir); // key_dir at the top level
   write_config_bool(fd, "enable_frame_pacer", config->enable_frame_pacer);
   write_config_bool(fd, "center_region_only", config->center_region_only);
   write_config_bool(fd, "disable_powersave", config->disable_powersave);
@@ -228,8 +228,8 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_int(fd, "keyboard_layout", config->keyboard_layout);
   write_config_int(fd, "language", config->language);
   write_config_int(fd, "touchscreen_mode", config->touchscreen_mode);
-  write_config_bool(fd, "swap_shoulder_buttons", config->swap_shoulder_buttons); // Guardar swap_shoulder_buttons en la raíz
-  write_config_int(fd, "controller_type", config->controller_type); // Guardar controller_type en la raíz
+  write_config_bool(fd, "swap_shoulder_buttons", config->swap_shoulder_buttons); // top level
+  write_config_int(fd, "controller_type", config->controller_type); // top level
   
 
   write_config_section(fd, "backtouchscreen_deadzone");
@@ -313,20 +313,20 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
 
   config->inputsCount = 0;
   config->mapping = NULL;
-  // No sobrescribir key_dir si ya fue asignado por main.c
+  // Do not overwrite key_dir if main.c already set it
   // config->key_dir[0] = 0;
-  // Valor por defecto: PS si no está asignado
+  // Default: PS when unset
   if (config->controller_type < 1 || config->controller_type > 4) {
     config->controller_type = 2;
   }
-  // Valor por defecto: swap desactivado
-  // (si no está presente en config, será false por defecto)
-  // No es necesario forzar nada aquí
+  // Default: swap off
+  // (false when missing from the config)
+  // nothing to force here
 
   char* config_file = config_path;
   if (config_file) {
     config_file_parse(config_file, config);
-    vita_debug_log("[DEBUG] Configuración cargada: key_dir = %s, touchscreen_mode = %d, show_fps = %d", config->key_dir, config->touchscreen_mode, config->show_fps);
+    vita_debug_log("[DEBUG] Config loaded: key_dir = %s, touchscreen_mode = %d, show_fps = %d", config->key_dir, config->touchscreen_mode, config->show_fps);
   }
 
   update_layout();
@@ -334,7 +334,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   if (config->config_file != NULL)
     config_save(config->config_file, config);
 
-  // Solo asignar valor por defecto si sigue vacío
+  // Only set the default if still empty
   if (config->key_dir[0] == 0x0) {
     const char *xdg_cache_dir = getenv("XDG_CACHE_DIR");
     if (xdg_cache_dir && xdg_cache_dir[0] != '\0') {

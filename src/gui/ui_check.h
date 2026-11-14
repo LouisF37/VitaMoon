@@ -1,6 +1,6 @@
 #pragma once
 #include "../device.h"
 
-// Llama a este método para mostrar el diálogo y actualizar la IP si el usuario acepta.
-// Retorna 1 si se actualizó, 0 si no.
+// Shows the dialog and updates the IP if the user accepts.
+// Returns 1 if updated, 0 otherwise.
 int ui_check_ip_update(device_info_t *info, const char *new_ip);

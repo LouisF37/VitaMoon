@@ -3,14 +3,14 @@
 
 #include <wchar.h>
 
-// Estructura para el mapeo carácter → VK + shift
+// Maps a character to a virtual key + shift
 struct CharVKMap {
     wchar_t ch;
     int vk;
     int needs_shift;
 };
 
-// Enumeración de layouts soportados
+// Supported layouts
 typedef enum {
     KB_LAYOUT_EN_US = 0,
     KB_LAYOUT_ES_ES,
@@ -18,7 +18,7 @@ typedef enum {
     KB_LAYOUT_COUNT
 } KeyboardLayout;
 
-// Devuelve el diccionario y el tamaño para el layout seleccionado
+// Returns the dictionary and its size for the selected layout
 const struct CharVKMap* get_char_vk_dict(KeyboardLayout layout, int* out_count);
 
 void keyboardsystem_set_layout(KeyboardLayout layout);

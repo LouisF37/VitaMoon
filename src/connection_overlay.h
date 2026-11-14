@@ -3,7 +3,7 @@
 
 #include <stdbool.h>
 
-// Devuelve true si el overlay de pausa (minimizado) está activo
+// Returns true while the (minimized) pause overlay is active
 bool pause_overlay_is_open(void);
 
 #endif // CONNECTION_OVERLAY_H

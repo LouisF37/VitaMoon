@@ -1,6 +1,6 @@
 #include "keyboardkeys.h"
 
-// Diccionario para layout EN_US (teclado inglés)
+// Dictionary for the EN_US layout
 static const struct CharVKMap char_to_vk_dict_en_us[] = {
     // Letras
     {L'a', 0x41, 0}, {L'A', 0x41, 1}, {L'b', 0x42, 0}, {L'B', 0x42, 1}, {L'c', 0x43, 0}, {L'C', 0x43, 1},
@@ -12,26 +12,26 @@ static const struct CharVKMap char_to_vk_dict_en_us[] = {
     {L's', 0x53, 0}, {L'S', 0x53, 1}, {L't', 0x54, 0}, {L'T', 0x54, 1}, {L'u', 0x55, 0}, {L'U', 0x55, 1},
     {L'v', 0x56, 0}, {L'V', 0x56, 1}, {L'w', 0x57, 0}, {L'W', 0x57, 1}, {L'x', 0x58, 0}, {L'X', 0x58, 1},
     {L'y', 0x59, 0}, {L'Y', 0x59, 1}, {L'z', 0x5A, 0}, {L'Z', 0x5A, 1},
-    // Números
+    // Digits
     {L'0', 0x30, 0}, {L'1', 0x31, 0}, {L'2', 0x32, 0}, {L'3', 0x33, 0}, {L'4', 0x34, 0},
     {L'5', 0x35, 0}, {L'6', 0x36, 0}, {L'7', 0x37, 0}, {L'8', 0x38, 0}, {L'9', 0x39, 0},
-    // Espacio y control
+    // Space and control
     {L' ', 0x20, 0}, {L'\t', 0x09, 0}, {L'\n', 0x0D, 0}, {L'\r', 0x0D, 0},
-    // Símbolos principales (US)
+    // Main symbols (US)
     {L'-', 0xBD, 0}, {L'_', 0xBD, 1}, {L'=', 0xBB, 0}, {L'+', 0xBB, 1},
     {L'[', 0xDB, 0}, {L'{', 0xDB, 1}, {L']', 0xDD, 0}, {L'}', 0xDD, 1},
     {L'\\', 0xDC, 0}, {L'|', 0xDC, 1}, {L';', 0xBA, 0}, {L':', 0xBA, 1},
     {L'\'', 0xDE, 0}, {L'"', 0xDE, 1}, {L',', 0xBC, 0}, {L'<', 0xBC, 1},
     {L'.', 0xBE, 0}, {L'>', 0xBE, 1}, {L'/', 0xBF, 0}, {L'?', 0xBF, 1},
     {L'`', 0xC0, 0}, {L'~', 0xC0, 1},
-    // Shifted números (símbolos)
+    // Shifted digits (symbols)
     {L'!', 0x31, 1}, {L'@', 0x32, 1}, {L'#', 0x33, 1}, {L'$', 0x34, 1}, {L'%', 0x35, 1},
     {L'^', 0x36, 1}, {L'&', 0x37, 1}, {L'*', 0x38, 1}, {L'(', 0x39, 1}, {L')', 0x30, 1},
     // Backspace
     {L'\b', 0x08, 0},
 };
 
-// Diccionario para layout ES_ES (teclado español España)
+// Dictionary for the ES_ES layout (Spanish, Spain)
 static const struct CharVKMap char_to_vk_dict_es_es[] = {
     // Letras
     {L'a', 0x41, 0}, {L'A', 0x41, 1}, {L'b', 0x42, 0}, {L'B', 0x42, 1}, {L'c', 0x43, 0}, {L'C', 0x43, 1},
@@ -44,12 +44,12 @@ static const struct CharVKMap char_to_vk_dict_es_es[] = {
     {L'v', 0x56, 0}, {L'V', 0x56, 1}, {L'w', 0x57, 0}, {L'W', 0x57, 1}, {L'x', 0x58, 0}, {L'X', 0x58, 1},
     {L'y', 0x59, 0}, {L'Y', 0x59, 1}, {L'z', 0x5A, 0}, {L'Z', 0x5A, 1},
     {L'ñ', 0xBA, 0}, {L'Ñ', 0xBA, 1}, // VK_OEM_1
-    // Números
+    // Digits
     {L'0', 0x30, 0}, {L'1', 0x31, 0}, {L'2', 0x32, 0}, {L'3', 0x33, 0}, {L'4', 0x34, 0},
     {L'5', 0x35, 0}, {L'6', 0x36, 0}, {L'7', 0x37, 0}, {L'8', 0x38, 0}, {L'9', 0x39, 0},
-    // Espacio y control
+    // Space and control
     {L' ', 0x20, 0}, {L'\t', 0x09, 0}, {L'\n', 0x0D, 0}, {L'\r', 0x0D, 0},
-    // Símbolos principales (España)
+    // Main symbols (Spain)
     {L'¡', 0xC0, 0}, {L'¿', 0xBF, 0},
     {L'-', 0xBD, 0}, {L'_', 0xBD, 1}, {L'=', 0xBB, 0}, {L'+', 0xBB, 1},
     {L'`', 0xDE, 0}, {L'^', 0xDE, 1},
@@ -63,7 +63,7 @@ static const struct CharVKMap char_to_vk_dict_es_es[] = {
     {L'\b', 0x08, 0},
 };
 
-// Diccionario para layout ES_LATAM (teclado español latinoamericano)
+// Dictionary for the ES_LATAM layout (Latin American Spanish)
 static const struct CharVKMap char_to_vk_dict_es_latam[] = {
     // Letras
     {L'a', 0x41, 0}, {L'A', 0x41, 1}, {L'b', 0x42, 0}, {L'B', 0x42, 1}, {L'c', 0x43, 0}, {L'C', 0x43, 1},
@@ -76,12 +76,12 @@ static const struct CharVKMap char_to_vk_dict_es_latam[] = {
     {L'v', 0x56, 0}, {L'V', 0x56, 1}, {L'w', 0x57, 0}, {L'W', 0x57, 1}, {L'x', 0x58, 0}, {L'X', 0x58, 1},
     {L'y', 0x59, 0}, {L'Y', 0x59, 1}, {L'z', 0x5A, 0}, {L'Z', 0x5A, 1},
     {L'ñ', 0xDB, 0}, {L'Ñ', 0xDB, 1}, // VK_OEM_4
-    // Números
+    // Digits
     {L'0', 0x30, 0}, {L'1', 0x31, 0}, {L'2', 0x32, 0}, {L'3', 0x33, 0}, {L'4', 0x34, 0},
     {L'5', 0x35, 0}, {L'6', 0x36, 0}, {L'7', 0x37, 0}, {L'8', 0x38, 0}, {L'9', 0x39, 0},
-    // Espacio y control
+    // Space and control
     {L' ', 0x20, 0}, {L'\t', 0x09, 0}, {L'\n', 0x0D, 0}, {L'\r', 0x0D, 0},
-    // Símbolos principales (Latino)
+    // Main symbols (Latin America)
     {L'¡', 0xC0, 0}, {L'¿', 0xBF, 0},
     {L'-', 0xBD, 0}, {L'_', 0xBD, 1}, {L'=', 0xBB, 0}, {L'+', 0xBB, 1},
     {L'`', 0xC0, 0}, {L'~', 0xC0, 1},

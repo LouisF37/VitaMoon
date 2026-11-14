@@ -10,7 +10,7 @@
 extern "C" {
 #endif
 
-// Estados posibles para el host
+// Possible host states
 #define HOST_OFFLINE 0
 #define HOST_ONLINE  1
 #define HOST_IP_CHANGED 2
@@ -20,13 +20,13 @@ struct host_status {
     char current_ip[64];
 };
 
-// Chequea el estado de un host registrado
+// Checks the status of a saved host
 struct host_status check_host_status(const device_info_t *info);
 
 #include <psp2/kernel/threadmgr.h>
 #define MAX_HOSTS 16
 
-// Array global de resultados de estado de hosts
+// Global array of host status results
 extern struct host_status g_host_status[MAX_HOSTS];
 extern volatile int g_host_scan_thread_status;
 extern volatile int g_host_status_changed;

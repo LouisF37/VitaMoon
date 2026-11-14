@@ -22,7 +22,7 @@
 #define write_bool(fd, key, value) fprintf(fd, "%s = %s\n", key, value ? "true" : "false");
 #define write_string(fd, key, value) fprintf(fd, "%s = %s\n", key, value)
 
-// Elimina la carpeta y el archivo del dispositivo
+// Deletes the device folder and its file
 bool remove_device(const char *name) {
   int idx = -1;
   for (int i = 0; i < known_devices.count; i++) {
@@ -35,19 +35,19 @@ bool remove_device(const char *name) {
     vita_debug_log("remove_device: device %s not found\n", name);
     return false;
   }
-  // Eliminar del arreglo
+  // Remove from the array
   for (int i = idx; i < known_devices.count - 1; i++) {
     known_devices.devices[i] = known_devices.devices[i + 1];
   }
   known_devices.count--;
 
-  // Eliminar del disco
+  // Remove from disk
   char dir_path[512];
   snprintf(dir_path, sizeof(dir_path), "%s/%s", config.key_dir, name);
   char file_path[512];
   device_file_path(file_path, name);
-  sceIoRemove(file_path); // Elimina device.ini
-  // Elimina todos los archivos dentro de la carpeta antes de borrar la carpeta
+  sceIoRemove(file_path); // Deletes device.ini
+  // Delete every file in the folder before removing the folder
   SceIoDirent dirent;
   SceUID dfd = sceIoDopen(dir_path);
   if (dfd >= 0) {
@@ -233,7 +233,7 @@ void save_device_info(const device_info_t *info) {
   device_file_path(path, info->name);
   vita_debug_log("save_device_info: device file path: %s\n", path);
 
-  // Ya no se intenta obtener la MAC por ARP. Solo se guarda la que esté en info->mac.
+  // The MAC is no longer looked up via ARP; only the one in info->mac is saved.
 
   FILE* fd = fopen(path, "w");
   if (!fd) {

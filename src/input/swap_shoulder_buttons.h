@@ -1,5 +1,5 @@
-// Declaración global para swap_shoulder_buttons
-// Esto permite que otros archivos accedan a la variable
+// Global swap_shoulder_buttons flag,
+// shared between the settings screen and the input code
 #ifndef SWAP_SHOULDER_BUTTONS_H
 #define SWAP_SHOULDER_BUTTONS_H
 

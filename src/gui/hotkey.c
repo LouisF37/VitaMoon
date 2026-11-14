@@ -1,5 +1,5 @@
 // hotkey.c
-// Implementación de la lógica de hotkeys (almacenamiento, callbacks, lógica principal)
+// Hotkey logic (storage, callbacks, main logic)
 #include "ui_hotkey.h"
 #include <string.h>
 #include <stdio.h>
@@ -14,10 +14,10 @@
 hotkey_t g_hotkeys[MAX_HOTKEYS];
 int g_hotkey_count = 0;
 
-// Nombres de funciones (de settings_special_names)
+// Function names (from settings_special_names)
 extern char *settings_special_names[];
 
-// Prototipos de funciones especiales
+// Special function prototypes
 static void hotkey_none() {}
 static void hotkey_pause_stream() { connection_minimize(); }
 static void hotkey_open_keyboard() { keyboardsystem_open_keyboard(); }
@@ -51,7 +51,7 @@ static void hotkey_key_f10() {}
 static void hotkey_key_f11() {}
 static void hotkey_key_f12() {}
 
-// Array de callbacks alineado con settings_special_names
+// Callbacks, aligned with settings_special_names
 static hotkey_func_cb hotkey_callbacks[] = {
     hotkey_none,                // None
     hotkey_none,                // Special inputs (placeholder)

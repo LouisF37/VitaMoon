@@ -17,7 +17,7 @@
  * along with Moonlight; if not, see <http://www.gnu.org/licenses/>.
  */
 
-// Defines de códigos HID USB estándar para teclas
+// Standard USB HID key codes
 #define KEY_A 0x04
 #define KEY_B 0x05
 #define KEY_C 0x06
@@ -205,4 +205,4 @@ static const short keyCodes[] = {
   0, //VK_SCALE AL Compiz Scale (Expose)
 };
 
-// static unsigned short kbNames[256]; // Eliminado para evitar warning de variable no usada
+// static unsigned short kbNames[256]; // unused

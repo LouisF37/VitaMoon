@@ -1,5 +1,5 @@
 // keyboardsystem.c
-// Lógica de apertura de teclado IME sin cuadro de texto para PS Vita
+// Opens the PS Vita IME keyboard without a text box
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/ctrl.h>
@@ -9,7 +9,7 @@
 #include <psp2/types.h>
 #include <psp2/kernel/clib.h>
 #include <string.h>
-#include "Limelight.h" // Asegúrate de que la ruta sea correcta según tu proyecto
+#include "Limelight.h"
 #include "input/keyboardkeys.h"
 #include "config.h"
 #include "../src/debug.h"
@@ -17,23 +17,23 @@
 #define WORK_BUFFER_SIZE (SCE_IME_WORK_BUFFER_SIZE)
 
 static uint8_t work_buffer[WORK_BUFFER_SIZE];
-// static SceWChar16 input_text_dummy[1];   // Eliminado: no se usa
-static SceWChar16 output_text[4];      // Buffer para recibir el texto (aunque no lo mostraremos)
+// static SceWChar16 input_text_dummy[1];   // unused
+static SceWChar16 output_text[4];      // receives the typed text (never displayed)
 #include "input/keyboard.h"
 #include <stddef.h>
 
-// Layout seleccionado (por defecto EN_US)
+// Selected layout (EN_US by default)
 static KeyboardLayout g_keyboard_layout = KB_LAYOUT_EN_US;
 
 
-// Estado interno del overlay de teclado virtual
+// Internal state of the on-screen keyboard overlay
 static bool _keyboard_overlay_open = false;
 
 void keyboardsystem_set_layout(KeyboardLayout layout) {
     g_keyboard_layout = layout;
 }
 
-// Exponer el estado para otros módulos
+// Expose the state to other modules
 bool keyboardsystem_is_open(void) {
     return _keyboard_overlay_open;
 }
@@ -60,10 +60,10 @@ static int ime_just_opened = 1;
 static int forzar_centro = 0;
 
 static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e) {
-    // Log extendido como ime_test.c
-    vita_debug_log("[IME MOONLIGHT] Evento IME id=%d, caretIndex=%d, buffer=[%04X %04X %04X %04X]", e->id, e->param.caretIndex, output_text[0], output_text[1], output_text[2], output_text[3]);
+    // Extended log, as in ime_test.c
+    vita_debug_log("[IME MOONLIGHT] IME event id=%d, caretIndex=%d, buffer=[%04X %04X %04X %04X]", e->id, e->param.caretIndex, output_text[0], output_text[1], output_text[2], output_text[3]);
     int caret = e->param.caretIndex;
-    // --- IGNORAR primer evento de borrado tras abrir el teclado si ch==0 ---
+    // --- IGNORE the first delete event after opening the keyboard if ch==0 ---
     if (ime_just_opened && e->id == 1 && caret == 0) {
         wchar_t ch = 0;
         for (int i = 0; i < 4; ++i) {
@@ -73,9 +73,9 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
             }
         }
         if (ch == 0) {
-            vita_debug_log("[IME MOONLIGHT] Primer evento de borrado tras abrir teclado ignorado (ch==0).");
+            vita_debug_log("[IME MOONLIGHT] First delete event after opening the keyboard ignored (ch==0).");
             ime_just_opened = 0;
-            // Limpiar buffer/caret
+            // Reset buffer/caret
             SceWChar16 dummy[4] = {1, 1, 1, 0};
             sceClibMemset(&caret_rev, 0, sizeof(SceImeCaret));
             caret_rev.index = 1;
@@ -86,7 +86,7 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
             return;
         }
     }
-    // --- BACKSPACE (borrado) y TECLA NORMAL/ESPECIAL ---
+    // --- BACKSPACE and NORMAL/SPECIAL KEYS ---
     if (e->id == 1 && (caret == 0 || caret == 1)) {
         wchar_t ch = 0;
         for (int i = 0; i < 4; ++i) {
@@ -108,7 +108,7 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
         if (caret == 1 && ch && ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'))) {
             int vk = 0, needs_shift = 0;
             if (find_vk_for_char(ch, &vk, &needs_shift)) {
-                vita_debug_log("[IME MOONLIGHT] TECLA LETRA: '%lc' (U+%04X) -> VK: 0x%02X", ch, ch, vk);
+                vita_debug_log("[IME MOONLIGHT] LETTER KEY: '%lc' (U+%04X) -> VK: 0x%02X", ch, ch, vk);
                 if (needs_shift) LiSendKeyboardEvent(0x10, KEY_ACTION_DOWN, 0);
                 LiSendKeyboardEvent(vk, KEY_ACTION_DOWN, 0);
                 LiSendKeyboardEvent(vk, KEY_ACTION_UP, 0);
@@ -118,11 +118,11 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
             forzar_centro = 1;
             return;
         }
-        // TECLA ESPECIAL (símbolos, números, acentos, etc)
+        // SPECIAL KEY (symbols, digits, accents, etc.)
         if (ch && !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'))) {
             int vk = 0, needs_shift = 0;
             if (find_vk_for_char(ch, &vk, &needs_shift)) {
-                vita_debug_log("[IME MOONLIGHT] TECLA ESPECIAL: '%lc' (U+%04X) -> VK: 0x%02X", ch, ch, vk);
+                vita_debug_log("[IME MOONLIGHT] SPECIAL KEY: '%lc' (U+%04X) -> VK: 0x%02X", ch, ch, vk);
                 if (needs_shift) LiSendKeyboardEvent(0x10, KEY_ACTION_DOWN, 0);
                 LiSendKeyboardEvent(vk, KEY_ACTION_DOWN, 0);
                 LiSendKeyboardEvent(vk, KEY_ACTION_UP, 0);
@@ -162,11 +162,11 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
     }
     // --- CERRAR IME (Minimizar/cancelar) ---
     if (e->id == 4) {
-        vita_debug_log("[IME MOONLIGHT] Cerrar IME (id=4, caretIndex=%d)", caret);
+        vita_debug_log("[IME MOONLIGHT] Close IME (id=4, caretIndex=%d)", caret);
         sceImeClose();
         return;
     }
-    // --- RECUPERACIÓN: Si caretIndex no es 0, 1 o 2 y hay un carácter válido, limpiar buffer/caret ---
+    // --- RECOVERY: if caretIndex is not 0, 1 or 2 and a valid char came in, reset buffer/caret ---
     if (e->id == 1 && (caret != 0 && caret != 1 && caret != 2)) {
         wchar_t ch = 0;
         for (int i = 0; i < 4; ++i) {
@@ -182,13 +182,13 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
 }
 
 void keyboardsystem_open_keyboard(void) {
-    // Marcar overlay como abierto
+    // Mark the overlay open
     _keyboard_overlay_open = true;
 
-    // Asegura que el layout global esté sincronizado con la config antes de abrir el IME
+    // Sync the global layout with the config before opening the IME
     keyboardsystem_set_layout((KeyboardLayout)config.keyboard_layout);
-    sceClibPrintf("[IME MOONLIGHT] Teclado abierto\n");
-    // Inicializar buffer y caret IME robustos para movimiento infinito
+    sceClibPrintf("[IME MOONLIGHT] Keyboard opened\n");
+    // Initialize the IME buffer and caret so the caret can move forever
     ime_working_buffer[0] = 1;
     ime_working_buffer[1] = 1;
     ime_working_buffer[2] = 1;
@@ -201,14 +201,14 @@ void keyboardsystem_open_keyboard(void) {
     ime_just_opened = 1;
     forzar_centro = 0;
 
-    // 1) Cargar el módulo de IME (si no está cargado)
+    // 1) Load the IME module (if not loaded yet)
     sceSysmoduleLoadModule(SCE_SYSMODULE_IME);
 
-    // 2) Inicializar parámetros de IME a cero y fijar sdkVersion
+    // 2) Zero the IME parameters and set sdkVersion
     SceImeParam param;
     sceImeParamInit(&param);
 
-    // 3) Configurar campos obligatorios de SceImeParam
+    // 3) Fill the mandatory SceImeParam fields
     KeyboardLayout layout = config.keyboard_layout;
     g_keyboard_layout = layout;
     switch (layout) {
@@ -235,17 +235,17 @@ void keyboardsystem_open_keyboard(void) {
     param.inputTextBuffer   = output_text;
     param.enterLabel        = SCE_IME_ENTER_LABEL_DEFAULT;
 
-    // 4) Abrir el teclado en pantalla
+    // 4) Open the on-screen keyboard
     int res = sceImeOpen(&param);
     if (res < 0) {
-        sceClibPrintf("Error al abrir IME: 0x%08X\n", res);
+        sceClibPrintf("Could not open the IME: 0x%08X\n", res);
         _keyboard_overlay_open = false;
         return;
     }
-    // Solo aquí es seguro llamar a setText y setCaret
+    // Only now is it safe to call setText and setCaret
     sceImeSetText(ime_working_buffer, 4);
     sceImeSetCaret(&caret_rev);
-    // 5) Bucle de actualización: llamar a sceImeUpdate() hasta que devuelva < 0
+    // 5) Update loop: call sceImeUpdate() until it returns < 0
     while (1) {
         if (forzar_centro) {
             SceWChar16 dummy[4] = {1, 1, 1, 0};
@@ -261,11 +261,11 @@ void keyboardsystem_open_keyboard(void) {
         }
         int status = sceImeUpdate();
         if (status < 0) {
-            sceClibPrintf("[IME MOONLIGHT] Teclado cerrado\n");
+            sceClibPrintf("[IME MOONLIGHT] Keyboard closed\n");
             break;
         }
-        sceKernelDelayThread(1000); // Esperar 1 ms
+        sceKernelDelayThread(1000); // wait 1 ms
     }
-    // Marcar overlay como cerrado al salir del bucle
+    // Mark the overlay closed when leaving the loop
     _keyboard_overlay_open = false;
 }

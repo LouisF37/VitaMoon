@@ -94,12 +94,10 @@ void ui_connect_stream(int appId) {
     video_callback->capabilities &= ~CAPABILITY_REFERENCE_FRAME_INVALIDATION_AVC;
   }
 
-  // --- Ajuste para soporte Host Resolution: no modificar resolución si es -1 ---
-  // Eliminados g_requested_width y g_requested_height, lógica simplificada
+  // The stream configuration may be adjusted by LiStartConnection: keep the
+  // resolution the user asked for and restore it afterwards.
   int orig_width = config.stream.width;
   int orig_height = config.stream.height;
-  // Si se seleccionó una resolución específica, se mantiene; si es -1, se deja al host
-  // (No se modifica config.stream.width/height aquí)
 
   // Tell the host the Vita's exact refresh rate (e.g. 59.94 instead of 60) so it
   // captures and encodes at the cadence of the screen. Sunshine only accepts it
@@ -127,7 +125,7 @@ void ui_connect_stream(int appId) {
                           NULL, drFlags, NULL, 0);
   vita_debug_log("Connection started.");
 
-  // Restaurar resolución real para el framebuffer/render
+  // Restore the requested resolution
   config.stream.width = orig_width;
   config.stream.height = orig_height;
 
@@ -252,9 +250,9 @@ int ui_connect_loop(int id, void *context, const input_data *input) {
           if (gs_get_server_mac(&server, mac, sizeof(mac)) == GS_OK && mac[0]) {
             strncpy(dev->mac, mac, 17);
             dev->mac[17] = '\0';
-            vita_debug_log("[PAIR] MAC obtenida y guardada en device.ini: %s for device %s", dev->mac, dev->name);
+            vita_debug_log("[PAIR] MAC read and saved to device.ini: %s for device %s", dev->mac, dev->name);
           } else {
-            vita_debug_log("[PAIR] No se encontró MAC en serverinfo para %s", server.serverInfo.address);
+            vita_debug_log("[PAIR] No MAC in serverinfo for %s", server.serverInfo.address);
           }
           save_device_info(dev);
           vita_debug_log("[PAIR] After save_device_info(dev) - time: %u", (unsigned)time(NULL));
@@ -262,7 +260,7 @@ int ui_connect_loop(int id, void *context, const input_data *input) {
           // (which was drawn earlier) is replaced by a success message.
           flash_message(tr("Paired: %s"), dev->name);
         } else {
-          vita_debug_log("[PAIR] Dispositivo no encontrado para la IP %s al guardar MAC", server.serverInfo.address);
+          vita_debug_log("[PAIR] No device found for IP %s while saving the MAC", server.serverInfo.address);
         }
         if (connection_terminate()) {
           display_error(tr("Reconnect failed: %d"), -2);
@@ -532,14 +530,14 @@ paired:
 
   info->paired = true;
 
-  // Preferimos usar la MAC ya obtenida en serverinfo (XML) si está disponible
+  // Prefer the MAC already read from serverinfo (XML) when available
   char mac[18] = {0};
   if (gs_get_server_mac(&server, mac, sizeof(mac)) == GS_OK && mac[0]) {
     strncpy(info->mac, mac, 17);
     info->mac[17] = '\0';
     vita_debug_log("[PAIR] MAC obtenida tras pairing (serverinfo): %s", info->mac);
   } else {
-    vita_debug_log("[PAIR] No se encontró MAC en serverinfo; no se guarda MAC automáticamente");
+    vita_debug_log("[PAIR] No MAC in serverinfo; nothing saved automatically");
   }
   save_device_info(info);
 

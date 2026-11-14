@@ -163,17 +163,17 @@ int main(int argc, char* argv[]) {
   check_and_create_moonlight_dir(out_path, out_key_dir);
   config_path = out_path;
   strcpy(config.key_dir, out_key_dir);
-  vita_debug_log("[Moonlight] Carpeta seleccionada: %s", config.key_dir);
-  // Ya no se guarda config antes de inicializar todos los valores
+  vita_debug_log("[Moonlight] Data folder: %s", config.key_dir);
+  // The config is not saved before every value is initialized
   config_parse(argc, argv, &config);
 
   // Interface language (English unless the user picked another one in Settings).
   i18n_set_language(config.language);
 
-  // Restaurar estado de Absolute Touch al iniciar
+  // Restore the absolute touch state at startup
   touchabsolute_enable(config.touchscreen_mode == 2);
 
-  // Aplicar el layout guardado después de cargar la config
+  // Apply the saved keyboard layout after loading the config
   keyboardsystem_set_layout((KeyboardLayout)config.keyboard_layout);
 
   vitapower_config(config);
