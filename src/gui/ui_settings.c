@@ -450,7 +450,8 @@ enum {
   SETTINGS_TOUCH_MODE_SELECT, // Nuevo: selección de modo táctil exclusivo
   SETTINGS_BOOST_CLOCKS,
   SETTINGS_MATCH_REFRESH_RATE,
-  SETTINGS_LOW_LATENCY_AUDIO
+  SETTINGS_LOW_LATENCY_AUDIO,
+  SETTINGS_DISPLAY_MODE
 };
 
 enum {
@@ -487,6 +488,7 @@ enum {
   SETTINGS_VIEW_BOOST_CLOCKS,
   SETTINGS_VIEW_MATCH_REFRESH_RATE,
   SETTINGS_VIEW_LOW_LATENCY_AUDIO,
+  SETTINGS_VIEW_DISPLAY_MODE,
 
   SETTINGS_VIEW_MAX_COUNT,
 };
@@ -848,6 +850,13 @@ static int settings_loop(int id, void *context, const input_data *input) {
       did_change = 1;
       config.low_latency_audio = !config.low_latency_audio;
       break;
+    case SETTINGS_DISPLAY_MODE:
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+      did_change = 1;
+      config.display_mode = (config.display_mode + 1) % 3; // direct -> low latency -> smooth
+      break;
     case SETTINGS_CENTER_REGION_ONLY:
       if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
         break;
@@ -986,6 +995,10 @@ static int settings_loop(int id, void *context, const input_data *input) {
   sprintf(current, "%s", config.low_latency_audio ? "yes" : "no");
   MENU_REPLACE(SETTINGS_VIEW_LOW_LATENCY_AUDIO, current);
 
+  sprintf(current, "%s", config.display_mode == DISPLAY_MODE_SMOOTH ? "smooth"
+                         : config.display_mode == DISPLAY_MODE_LOW_LATENCY ? "low latency" : "direct (original)");
+  MENU_REPLACE(SETTINGS_VIEW_DISPLAY_MODE, current);
+
   sprintf(current, "%s", config.center_region_only ? "yes" : "no");
   MENU_REPLACE(SETTINGS_VIEW_CENTER_REGION_ONLY, current);
 
@@ -1066,6 +1079,7 @@ int ui_settings_menu() {
   MENU_ENTRY(SETTINGS_BOOST_CLOCKS, SETTINGS_VIEW_BOOST_CLOCKS, "Max CPU/GPU clocks while streaming", "");
   MENU_ENTRY(SETTINGS_MATCH_REFRESH_RATE, SETTINGS_VIEW_MATCH_REFRESH_RATE, "Send Vita refresh rate to host", "");
   MENU_ENTRY(SETTINGS_LOW_LATENCY_AUDIO, SETTINGS_VIEW_LOW_LATENCY_AUDIO, "Low-latency audio", "");
+  MENU_ENTRY(SETTINGS_DISPLAY_MODE, SETTINGS_VIEW_DISPLAY_MODE, "Display mode", "");
   MENU_ENTRY(SETTINGS_LOCAL_AUDIO, SETTINGS_VIEW_LOCAL_AUDIO, "Enable local audio", "");
 
   MENU_CATEGORY("System");

@@ -90,6 +90,42 @@ enum VideoStatus {
 vita2d_texture *frame_texture = NULL;
 enum VideoStatus video_status = NOT_INIT;
 
+/*
+ * Display modes (setting "Display mode", phase 2b):
+ *   DIRECT      original path: the receive thread decodes, draws and swaps.
+ *   LOW_LATENCY the receive thread only decodes; a display thread draws the
+ *               newest decoded frame as soon as it is ready (older ones are
+ *               skipped). The network is no longer blocked by drawing.
+ *   SMOOTH      same split, but the display thread shows exactly one frame per
+ *               screen refresh, oldest first, so bursts of frames are spread
+ *               out instead of overwriting each other. Costs about one frame of
+ *               latency; a backlog that persists is trimmed automatically.
+ * Decoded frames go into a small pool of textures ("slots") so that the decoder
+ * never writes into the texture being drawn.
+ */
+#define VIDEO_SLOTS 3
+#define SMOOTH_BACKLOG_LIMIT 30   /* refreshes with 2+ frames waiting before one is dropped */
+
+enum { SLOT_FREE, SLOT_DECODING, SLOT_READY, SLOT_DRAWING };
+
+typedef struct {
+  vita2d_texture *tex;
+  int state;
+  int frame_number;
+  uint64_t receive_us;   /* first packet of that frame, for latency statistics */
+  uint32_t seq;          /* order in which frames became ready */
+} video_slot;
+
+static video_slot slots[VIDEO_SLOTS];
+static int slot_count = 0;
+static int display_mode = DISPLAY_MODE_DIRECT;
+static uint32_t ready_seq = 0;
+static SceUID slot_mutex = -1;   /* protects slot states */
+static SceUID ready_sema = -1;   /* LOW_LATENCY: signalled when a frame is ready */
+static SceUID draw_mutex = -1;   /* held while the display thread draws */
+static SceUID display_thread = -1;
+static volatile bool display_running = false;
+
 SceAvcdecCtrl *decoder = NULL;
 SceUID displayblock = -1;
 SceUID decoderblock = -1;
@@ -240,7 +276,11 @@ static int vita_pacer_thread_main(SceSize args, void *argp) {
   return 0;
 }
 
+static void display_stop(void);
+static bool display_start(void);
+
 static void vita_cleanup() {
+  display_stop();
   stream_stats_session_end();
 
   if (video_status == INIT_FRAME_PACER_THREAD) {
@@ -285,10 +325,13 @@ static void vita_cleanup() {
   }
 
   if (video_status == INIT_FRAMEBUFFER) {
-    if (frame_texture != NULL) {
-      vita2d_free_texture(frame_texture);
-      frame_texture = NULL;
+    for (int i = 0; i < slot_count; i++) {
+      if (slots[i].tex != NULL)
+        vita2d_free_texture(slots[i].tex);
+      slots[i].tex = NULL;
     }
+    slot_count = 0;
+    frame_texture = NULL;
 
     if (decoder_buffer != NULL) {
       free(decoder_buffer);
@@ -325,12 +368,20 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
       goto cleanup;
     } 
 
-    frame_texture = vita2d_create_empty_texture_format(image_scaling.texture_width, image_scaling.texture_height, SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR);
-    if (frame_texture == NULL) {
-      printf("frame_texture: not enough memory\n");
-      ret = VITA_VIDEO_ERROR_NO_MEM;
-      goto cleanup;
+    display_mode = config.display_mode;
+    if (display_mode < DISPLAY_MODE_DIRECT || display_mode > DISPLAY_MODE_SMOOTH)
+      display_mode = DISPLAY_MODE_DIRECT;
+    int wanted = display_mode == DISPLAY_MODE_DIRECT ? 1 : VIDEO_SLOTS;
+    for (slot_count = 0; slot_count < wanted; slot_count++) {
+      memset(&slots[slot_count], 0, sizeof(video_slot));
+      slots[slot_count].tex = vita2d_create_empty_texture_format(image_scaling.texture_width, image_scaling.texture_height, SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR);
+      if (slots[slot_count].tex == NULL) {
+        printf("frame_texture: not enough memory\n");
+        ret = VITA_VIDEO_ERROR_NO_MEM;
+        goto cleanup;
+      }
     }
+    frame_texture = slots[0].tex;
 
     printf("Initalized Framebuffer");
 
@@ -440,6 +491,11 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
     video_status++;
   }
 
+  if (display_mode != DISPLAY_MODE_DIRECT && !display_start()) {
+    printf("display thread failed, falling back to direct mode\n");
+    display_mode = DISPLAY_MODE_DIRECT;
+  }
+
   stream_stats_session_start(width, height, redrawRate);
 
   return VITA_VIDEO_INIT_OK;
@@ -447,6 +503,176 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
 cleanup:
   vita_cleanup();
   return ret;
+}
+
+/* ---------------- slots and display thread (LOW_LATENCY / SMOOTH) ---------------- */
+
+/* Receive thread: get a texture to decode into. If none is free, the oldest
+ * frame still waiting is dropped (it would have been shown too late). */
+static int slot_acquire_for_decode(void) {
+  int pick = -1;
+  sceKernelLockMutex(slot_mutex, 1, NULL);
+  for (int i = 0; i < slot_count; i++) {
+    if (slots[i].state == SLOT_FREE) { pick = i; break; }
+  }
+  if (pick < 0) {
+    for (int i = 0; i < slot_count; i++) {
+      if (slots[i].state == SLOT_READY && (pick < 0 || slots[i].seq < slots[pick].seq))
+        pick = i;
+    }
+    if (pick >= 0)
+      stream_stats_on_frame_replaced();
+  }
+  if (pick < 0)
+    pick = 0; /* cannot happen with one decoder and one drawer; stay safe */
+  slots[pick].state = SLOT_DECODING;
+  sceKernelUnlockMutex(slot_mutex, 1);
+  return pick;
+}
+
+static void slot_set_free(int slot) {
+  sceKernelLockMutex(slot_mutex, 1, NULL);
+  slots[slot].state = SLOT_FREE;
+  sceKernelUnlockMutex(slot_mutex, 1);
+}
+
+/* Receive thread: a decoded picture is ready to be shown. */
+static void slot_publish(int slot, int frame_number, uint64_t receive_us) {
+  sceKernelLockMutex(slot_mutex, 1, NULL);
+  slots[slot].frame_number = frame_number;
+  slots[slot].receive_us = receive_us;
+  slots[slot].seq = ++ready_seq;
+  slots[slot].state = SLOT_READY;
+  sceKernelUnlockMutex(slot_mutex, 1);
+  if (display_mode == DISPLAY_MODE_LOW_LATENCY)
+    sceKernelSignalSema(ready_sema, 1);
+}
+
+/* Display thread: choose the frame to draw. LOW_LATENCY takes the newest and
+ * frees the others; SMOOTH takes the oldest and trims a lasting backlog. */
+static int slot_pick_for_display(int *backlog) {
+  int pick = -1, ready = 0;
+  sceKernelLockMutex(slot_mutex, 1, NULL);
+  for (int i = 0; i < slot_count; i++) {
+    if (slots[i].state != SLOT_READY)
+      continue;
+    ready++;
+    if (pick < 0)
+      pick = i;
+    else if (display_mode == DISPLAY_MODE_LOW_LATENCY ? slots[i].seq > slots[pick].seq
+                                                      : slots[i].seq < slots[pick].seq)
+      pick = i;
+  }
+  if (pick >= 0) {
+    slots[pick].state = SLOT_DRAWING;
+    if (display_mode == DISPLAY_MODE_LOW_LATENCY) {
+      for (int i = 0; i < slot_count; i++) {
+        if (slots[i].state == SLOT_READY) {
+          slots[i].state = SLOT_FREE;
+          stream_stats_on_frame_replaced();
+        }
+      }
+    } else {
+      // SMOOTH: 2+ frames waiting at every refresh means latency has grown by a
+      // frame for good (e.g. host slightly faster than the screen): drop one.
+      *backlog = ready >= 2 ? *backlog + 1 : 0;
+      if (*backlog > SMOOTH_BACKLOG_LIMIT) {
+        int oldest = -1;
+        for (int i = 0; i < slot_count; i++) {
+          if (slots[i].state == SLOT_READY && (oldest < 0 || slots[i].seq < slots[oldest].seq))
+            oldest = i;
+        }
+        if (oldest >= 0) {
+          slots[oldest].state = SLOT_FREE;
+          stream_stats_on_frame_replaced();
+        }
+        *backlog = 0;
+      }
+    }
+  }
+  sceKernelUnlockMutex(slot_mutex, 1);
+  stream_stats_on_display_queue((uint32_t)ready);
+  return pick;
+}
+
+static int display_thread_main(SceSize args, void *argp) {
+  int backlog = 0;
+  while (display_running) {
+    // Wait for something to show: a new frame (LOW_LATENCY) or the next screen refresh (SMOOTH).
+    if (display_mode == DISPLAY_MODE_SMOOTH) {
+      sceDisplayWaitVblankStart();
+    } else {
+      SceUInt timeout = 100000;
+      if (sceKernelWaitSema(ready_sema, 1, &timeout) < 0)
+        continue;
+    }
+    if (!display_running)
+      break;
+
+    int slot = slot_pick_for_display(&backlog);
+    if (slot < 0) {
+      if (display_mode == DISPLAY_MODE_SMOOTH)
+        stream_stats_on_display_idle(); // a refresh with no new frame
+      continue;
+    }
+    if (!active_video_thread) {         // stream paused: menus own the screen
+      slot_set_free(slot);
+      continue;
+    }
+
+    sceKernelLockMutex(draw_mutex, 1, NULL);
+    uint64_t t_render0 = LiGetMicroseconds();
+    vita2d_start_drawing();
+    draw_streaming(slots[slot].tex);
+    draw_fps();
+    draw_indicators();
+    vita2d_end_drawing();
+    vita2d_wait_rendering_done();       // the texture has been copied: it can be reused
+    uint64_t t_render1 = LiGetMicroseconds();
+    uint64_t receive_us = slots[slot].receive_us;
+    slot_set_free(slot);
+    vita2d_swap_buffers();              // flip at the next refresh (no tearing)
+    uint64_t t_swap1 = LiGetMicroseconds();
+    sceKernelUnlockMutex(draw_mutex, 1);
+
+    frame_count++;
+    stream_stats_on_present((uint32_t)(t_render1 - t_render0), (uint32_t)(t_swap1 - t_render1),
+                            receive_us, t_swap1);
+  }
+  return 0;
+}
+
+static bool display_start(void) {
+  slot_mutex = sceKernelCreateMutex("vid_slots", 0, 0, NULL);
+  draw_mutex = sceKernelCreateMutex("vid_draw", 0, 0, NULL);
+  ready_sema = sceKernelCreateSema("vid_ready", 0, 0, 64, NULL);
+  if (slot_mutex < 0 || draw_mutex < 0 || ready_sema < 0)
+    return false;
+  ready_seq = 0;
+  display_running = true;
+  display_thread = sceKernelCreateThread("vid_display", display_thread_main, 64, 0x10000, 0, 0, NULL);
+  if (display_thread < 0) {
+    display_running = false;
+    return false;
+  }
+  sceKernelStartThread(display_thread, 0, NULL);
+  return true;
+}
+
+static void display_stop(void) {
+  if (display_running) {
+    display_running = false;
+    if (ready_sema >= 0)
+      sceKernelSignalSema(ready_sema, 1);
+    SceUInt timeout = 1000000;
+    int thread_ret = 0;
+    sceKernelWaitThreadEnd(display_thread, &thread_ret, &timeout);
+    sceKernelDeleteThread(display_thread);
+  }
+  display_thread = -1;
+  if (ready_sema >= 0) { sceKernelDeleteSema(ready_sema); ready_sema = -1; }
+  if (draw_mutex >= 0) { sceKernelDeleteMutex(draw_mutex); draw_mutex = -1; }
+  if (slot_mutex >= 0) { sceKernelDeleteMutex(slot_mutex); slot_mutex = -1; }
 }
 
 /*
@@ -478,7 +704,9 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   picture.frame.framePitch = image_scaling.texture_width;
   picture.frame.frameWidth = image_scaling.texture_width;
   picture.frame.frameHeight = image_scaling.texture_height;
-  picture.frame.pPicture[0] = vita2d_texture_get_datap(frame_texture);
+  // In LOW_LATENCY / SMOOTH mode, decode into a texture nobody is drawing.
+  int slot = display_mode == DISPLAY_MODE_DIRECT ? 0 : slot_acquire_for_decode();
+  picture.frame.pPicture[0] = vita2d_texture_get_datap(slots[slot].tex);
 
   //ensure_buf_size((void *)&decoder_buffer, &decoder_buffer_size, decodeUnit->fullLength + 64);
 
@@ -531,6 +759,8 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   ret = sceAvcdecDecode(decoder, &au, &array_picture);
   uint32_t dec_us = (uint32_t)(LiGetMicroseconds() - t_dec0);
   if (ret < 0) {
+    if (display_mode != DISPLAY_MODE_DIRECT)
+      slot_set_free(slot);
     stream_stats_on_decode(dec_us, ret, false, STREAM_STATS_HOLD_UNKNOWN);
     printf("sceAvcdecDecode (len=0x%x): 0x%x numOfOutput %d\n", decodeUnit->fullLength, ret, array_picture.numOfOutput);
     return DR_NEED_IDR;
@@ -552,6 +782,15 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
 
   if (!has_output) {
     //printf("numOfOutput %d\n", array_picture.numOfOutput);
+    if (display_mode != DISPLAY_MODE_DIRECT)
+      slot_set_free(slot);
+    return DR_OK;
+  }
+
+  // LOW_LATENCY / SMOOTH: hand the picture to the display thread and return to
+  // the network immediately.
+  if (display_mode != DISPLAY_MODE_DIRECT) {
+    slot_publish(slot, shown_frame, stream_stats_receive_time(shown_frame));
     return DR_OK;
   }
 
@@ -581,7 +820,7 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
 
       frame_count++;
       stream_stats_on_present((uint32_t)(t_render1 - t_render0), (uint32_t)(t_swap1 - t_render1),
-                              shown_frame, t_swap1);
+                              stream_stats_receive_time(shown_frame), t_swap1);
     }
   }
 
@@ -628,12 +867,18 @@ void draw_indicators() {
 
 void vitavideo_start() {
   active_video_thread = true;
-  vita2d_set_vblank_wait(config.enable_vita_vblank_wait);
+  // The display thread paces itself; vita2d must not block its swaps.
+  vita2d_set_vblank_wait(display_mode == DISPLAY_MODE_DIRECT ? config.enable_vita_vblank_wait : false);
 }
 
 void vitavideo_stop() {
   vita2d_set_vblank_wait(true);
   active_video_thread = false;
+  // Let a draw in progress finish before the menus start drawing.
+  if (draw_mutex >= 0) {
+    sceKernelLockMutex(draw_mutex, 1, NULL);
+    sceKernelUnlockMutex(draw_mutex, 1);
+  }
 }
 
 void vitavideo_show_poor_net_indicator() {

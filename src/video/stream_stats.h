@@ -29,7 +29,13 @@ void stream_stats_on_frame(int frame_number, int frame_type, int length,
                            uint16_t host_latency_tenth_ms, uint64_t submit_us);
 void stream_stats_on_decode(uint32_t decode_us, int result, bool has_output, uint32_t hold_frames);
 void stream_stats_on_pacer_drop(void);
-void stream_stats_on_present(uint32_t render_us, uint32_t swap_us, int shown_frame_number, uint64_t presented_us);
+void stream_stats_on_present(uint32_t render_us, uint32_t swap_us, uint64_t receive_us, uint64_t presented_us);
+/* First-packet time of a frame recently seen by stream_stats_on_frame (0 if unknown). Receive thread only. */
+uint64_t stream_stats_receive_time(int frame_number);
+/* Display thread (LOW_LATENCY / SMOOTH modes) */
+void stream_stats_on_frame_replaced(void);           /* decoded but never shown */
+void stream_stats_on_display_idle(void);             /* SMOOTH: a refresh with no new frame */
+void stream_stats_on_display_queue(uint32_t ready);  /* frames waiting when the display picked one */
 
 /* Connection callbacks */
 void stream_stats_on_conn_status(bool poor);

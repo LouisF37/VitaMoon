@@ -136,6 +136,8 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->match_refresh_rate = BOOL(value);
     } else if (strcmp(name, "low_latency_audio") == 0) {
       config->low_latency_audio = BOOL(value);
+    } else if (strcmp(name, "display_mode") == 0) {
+      config->display_mode = INT(value);
     } else if (strcmp(name, "enable_motion_controls") == 0) {
       config->enable_motion_controls = BOOL(value);
     } else if (strcmp(name, "enable_front_touchzones") == 0) {
@@ -215,6 +217,7 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_bool(fd, "boost_clocks", config->boost_clocks);
   write_config_bool(fd, "match_refresh_rate", config->match_refresh_rate);
   write_config_bool(fd, "low_latency_audio", config->low_latency_audio);
+  write_config_int(fd, "display_mode", config->display_mode);
   write_config_bool(fd, "enable_motion_controls", config->enable_motion_controls);
   write_config_bool(fd, "enable_psbutton_capture", config->enable_psbutton_capture);
   write_config_bool(fd, "enable_double_tap_sprint", config->enable_double_tap_sprint);
@@ -296,6 +299,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->boost_clocks = true;
   config->match_refresh_rate = true;
   config->low_latency_audio = true;
+  config->display_mode = DISPLAY_MODE_DIRECT;
   config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;
 

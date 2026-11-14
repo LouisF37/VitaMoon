@@ -26,6 +26,9 @@
 
 #define MAX_INPUTS 6
 
+/* Display modes, see src/video/vita.c */
+enum { DISPLAY_MODE_DIRECT = 0, DISPLAY_MODE_LOW_LATENCY = 1, DISPLAY_MODE_SMOOTH = 2 };
+
 struct input_config {
   char* path;
   char* mapping;
@@ -73,6 +76,7 @@ typedef struct _CONFIGURATION {
   bool boost_clocks;        // CPU/GPU/bus at max frequency while streaming
   bool match_refresh_rate;  // tell the host the Vita's exact refresh rate
   bool low_latency_audio;   // 5 ms audio port fed from a ring buffer
+  int display_mode;         // DISPLAY_MODE_*
   bool enable_motion_controls; //Metalface
   bool enable_psbutton_capture;
   bool enable_double_tap_sprint; //**

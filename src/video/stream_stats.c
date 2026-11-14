@@ -102,6 +102,9 @@ static struct {
   acc_t aud_buf_us;    /* audio buffered before output (low-latency mode) */
   uint32_t aud_underrun;
   uint32_t aud_skip_us;
+  uint32_t replaced;     /* decoded frames never shown (display modes) */
+  uint32_t idle;         /* SMOOTH: refreshes without a new frame */
+  acc_t queue_depth;     /* frames waiting when the display picked one */
 } c;
 
 /* Video-thread-only state */
@@ -165,13 +168,29 @@ void stream_stats_on_pacer_drop(void) {
   cnt_add(&c.dropped, 1);
 }
 
-void stream_stats_on_present(uint32_t render_us, uint32_t swap_us, int shown_frame_number, uint64_t presented_us) {
+uint64_t stream_stats_receive_time(int frame_number) {
+  int slot = frame_number & (RX_RING - 1);
+  return rx_ring_fn[slot] == frame_number ? rx_ring_us[slot] : 0;
+}
+
+void stream_stats_on_present(uint32_t render_us, uint32_t swap_us, uint64_t receive_us, uint64_t presented_us) {
   cnt_add(&c.shown, 1);
   acc_add(&c.render_us, render_us);
   acc_add(&c.swap_us, swap_us);
-  int slot = shown_frame_number & (RX_RING - 1);
-  if (rx_ring_fn[slot] == shown_frame_number && rx_ring_us[slot] != 0 && presented_us >= rx_ring_us[slot])
-    acc_add(&c.r2p_us, (uint32_t)(presented_us - rx_ring_us[slot]));
+  if (receive_us != 0 && presented_us >= receive_us)
+    acc_add(&c.r2p_us, (uint32_t)(presented_us - receive_us));
+}
+
+void stream_stats_on_frame_replaced(void) {
+  cnt_add(&c.replaced, 1);
+}
+
+void stream_stats_on_display_idle(void) {
+  cnt_add(&c.idle, 1);
+}
+
+void stream_stats_on_display_queue(uint32_t ready) {
+  acc_add(&c.queue_depth, ready);
 }
 
 void stream_stats_on_conn_status(bool poor) {
@@ -238,6 +257,9 @@ static const char *k_legend =
   "  aud_buf_*       son en attente avant la sortie (mode audio faible latence)\n"
   "  aud_underrun    coupures : plus assez de son en reserve (mode faible latence)\n"
   "  aud_skip_us     son jete pour limiter le retard (mode faible latence)\n"
+  "  replaced        images decodees mais jamais affichees (modes d'affichage low latency / smooth)\n"
+  "  idle            rafraichissements sans nouvelle image (mode smooth)\n"
+  "  disp_q_avg_x100, disp_q_max  images en attente quand l'affichage en prend une (x100 pour la moyenne)\n"
   "  cpu_mhz, gpu_mhz    frequences du processeur et de la puce graphique\n"
   "  *_avg = moyenne sur la seconde, *_max = maximum sur la seconde\n";
 
@@ -274,13 +296,13 @@ static void open_session_files(void) {
     write_fd(info, line);
     snprintf(line, sizeof(line),
              "reglages: vblank_wait=%d frame_pacer=%d ref_frame_invalidation=%d center_region_only=%d\n"
-             "phase 2: boost_clocks=%d match_refresh_rate=%d (envoye a l'hote: %d) low_latency_audio=%d\n"
+             "phase 2: boost_clocks=%d match_refresh_rate=%d (envoye a l'hote: %d) low_latency_audio=%d display_mode=%d (0 direct, 1 low latency, 2 smooth)\n"
              "ecran Vita: %.4f Hz (frequence annoncee par le systeme)\n"
              "frequences: cpu %d MHz, gpu %d MHz, bus %d MHz, xbar %d MHz\n\n",
              config.enable_vita_vblank_wait, config.enable_frame_pacer,
              config.enable_ref_frame_invalidation, config.center_region_only,
              config.boost_clocks, config.match_refresh_rate, config.stream.clientRefreshRateX100,
-             config.low_latency_audio,
+             config.low_latency_audio, config.display_mode,
              refresh, scePowerGetArmClockFrequency(), scePowerGetGpuClockFrequency(),
              scePowerGetBusClockFrequency(), scePowerGetGpuXbarClockFrequency());
     write_fd(info, line);
@@ -300,7 +322,7 @@ static void open_session_files(void) {
                  "dec_avg_us;dec_max_us;hold_avg_x100;hold_max;render_avg_us;render_max_us;"
                  "swap_avg_us;swap_max_us;r2p_avg_us;r2p_max_us;rtt_ms;rtt_var_ms;poor;"
                  "pend_vid;pend_aud;aud_pkts;aud_err;aud_out_avg_us;aud_out_max_us;cpu_mhz;gpu_mhz;"
-                 "aud_buf_avg_us;aud_buf_max_us;aud_underrun;aud_skip_us\n");
+                 "aud_buf_avg_us;aud_buf_max_us;aud_underrun;aud_skip_us;replaced;idle;disp_q_avg_x100;disp_q_max\n");
 }
 
 /* Takes (and resets) every counter for the window that just ended, writes the
@@ -330,6 +352,9 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   acc_snap_t aud_buf = acc_take(&c.aud_buf_us);
   uint32_t aud_underrun = cnt_take(&c.aud_underrun);
   uint32_t aud_skip_us = cnt_take(&c.aud_skip_us);
+  uint32_t replaced = cnt_take(&c.replaced);
+  uint32_t idle = cnt_take(&c.idle);
+  acc_snap_t qd = acc_take(&c.queue_depth);
 
   uint32_t win_ms = (uint32_t)(win_us / 1000);
   uint32_t kbps = win_ms ? (uint32_t)(((uint64_t)bytes * 8) / win_ms) : 0;
@@ -351,22 +376,22 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
            "%u;%u;%u;%u;%u;%u;"
            "%u;%u;%u;%u;%u;%u;%u;"
            "%d;%d;%u;%u;%u;%u;%d;%d;"
-           "%u;%u;%u;%u\n",
+           "%u;%u;%u;%u;%u;%u;%u;%u\n",
            (unsigned)(t_us / 1000), win_ms, vblanks,
            recv, shown, lost, dropped, idr, dec_err, dec_noout, ooo, kbps,
            rx.avg, rx.max, queue.avg, queue.max, host.avg, host.max,
            dec.avg, dec.max, hold.avg_x100, hold.max, render.avg, render.max,
            swap.avg, swap.max, r2p.avg, r2p.max, rtt, rtt_var, poor,
            pend_vid, pend_aud, aud_pkts, aud_err, aud_out.avg, aud_out.max, cpu, gpu,
-           aud_buf.avg, aud_buf.max, aud_underrun, aud_skip_us);
+           aud_buf.avg, aud_buf.max, aud_underrun, aud_skip_us, replaced, idle, qd.avg_x100, qd.max);
   write_fd(s_fd, line);
 
   /* Overlay: compact, refreshed once per second. */
   int next = s_overlay_idx ^ 1;
   float hz = win_us ? (float)vblanks * 1000000.0f / (float)win_us : 0.0f;
   snprintf(s_overlay[next][0], OVERLAY_LINE_LEN,
-           "screen %.2fHz  shown %u  recv %u  lost %u  drop %u  idr %u  err %u",
-           hz, shown, recv, lost, dropped, idr, dec_err);
+           "screen %.2fHz  shown %u  recv %u  lost %u  skip %u  idle %u  idr %u  err %u",
+           hz, shown, recv, lost, dropped + replaced, idle, idr, dec_err);
   snprintf(s_overlay[next][1], OVERLAY_LINE_LEN,
            "decode %.1f/%.1fms  hold %.2f/%uf  render %.1f/%.1fms  swap %.1f/%.1fms",
            dec.avg / 1000.0f, dec.max / 1000.0f, hold.avg_x100 / 100.0f, hold.max,
