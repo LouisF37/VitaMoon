@@ -34,6 +34,28 @@ add_definitions(-DVERSION_MAJOR=${VERSION_MAJOR})
 add_definitions(-DVERSION_MINOR=${VERSION_MINOR})
 add_definitions(-DVERSION_PATCH=${VERSION_PATCH})
 
+# Build identifier (branch + short commit) shown in the main menu, so a tester
+# can always tell which build is installed on the Vita.
+execute_process(COMMAND git rev-parse --short=7 HEAD
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+	OUTPUT_VARIABLE BUILD_COMMIT
+	OUTPUT_STRIP_TRAILING_WHITESPACE
+	ERROR_QUIET
+)
+if(DEFINED ENV{BUILD_BRANCH})
+	set(BUILD_BRANCH "$ENV{BUILD_BRANCH}")
+else()
+	execute_process(COMMAND git rev-parse --abbrev-ref HEAD
+		WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+		OUTPUT_VARIABLE BUILD_BRANCH
+		OUTPUT_STRIP_TRAILING_WHITESPACE
+		ERROR_QUIET
+	)
+endif()
+if(BUILD_COMMIT)
+	add_definitions(-DBUILD_ID=\"${BUILD_BRANCH}-${BUILD_COMMIT}\")
+endif()
+
 set(CMAKE_C_FLAGS "-Wl,-q -g -std=c99 -D__vita__")
 
 

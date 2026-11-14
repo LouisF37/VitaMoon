@@ -451,7 +451,11 @@ int ui_main_menu() {
 
   char program_info[256];
 #ifdef __vita__
+#ifdef BUILD_ID
+  snprintf(program_info, 256, "Moonlight v%d.%d.%d (%s)", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, BUILD_ID);
+#else
   snprintf(program_info, 256, "Moonlight v%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+#endif
   MENU_TITLE(program_info);
 #endif
 

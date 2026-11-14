@@ -1,17 +1,30 @@
 name: Build PSVita (CMake)
 
+# Builds a VPK for every pushed branch (except the log branch), publishes it as a
+# rolling pre-release with a fixed download link, and stores the build log on the
+# "ci-logs" branch so it can be read with plain git.
 on:
   push:
-    branches: [ vita ]
+    branches-ignore: [ ci-logs ]
   pull_request:
-    branches: [ vita ]
   workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     env:
       VITASDK: ${{ github.workspace }}/vitasdk
+      BUILD_BRANCH: ${{ github.head_ref || github.ref_name }}
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,52 +32,114 @@ jobs:
       - name: Set up dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y cmake make python3 python3-pip curl git
+          sudo apt-get install -y cmake make python3 python3-pip python-is-python3 curl git
+          mkdir -p ci
 
-      - name: Clean up old VitaSDK if present
-        run: |
-          rm -rf $GITHUB_WORKSPACE/vitasdk
+      # The SDK plus packages takes several minutes to install; keep it between runs.
+      - name: Restore VitaSDK cache
+        id: cache-vitasdk
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/vitasdk
+          key: vitasdk-${{ runner.os }}-v1
 
-      - name: Install VitaSDK and packages manually
+      - name: Install VitaSDK and packages
+        if: steps.cache-vitasdk.outputs.cache-hit != 'true'
         run: |
-          set -e
-          # Download and extract the base SDK
-          SDK_URL=$(wget -qO- https://github.com/vitasdk/vita-headers/raw/master/.travis.d/last_built_toolchain.py | python3 - master linux)
-          echo "Downloading VitaSDK: $SDK_URL"
-          mkdir -p $GITHUB_WORKSPACE/vitasdk
-          wget -O- "$SDK_URL" | tar xj -C $GITHUB_WORKSPACE/vitasdk --strip-components=1
-          export VITASDK=$GITHUB_WORKSPACE/vitasdk
-          export PATH=$VITASDK/bin:$PATH
-          echo "VITASDK: $VITASDK"
-          echo "PATH: $PATH"
-          # Install all main packages
-          git clone https://github.com/vitasdk/vdpm.git
-          for p in zlib bzip2 libzip libpng libexif libjpeg-turbo jansson yaml-cpp freetype harfbuzz fftw libvita2d libvita2d_ext libmad libogg libvorbis flac libtheora libtremor libmikmod libftpvita henkaku taihen kubridge libk libdebugnet onigmo libwebp sdl sdl_image sdl_mixer sdl_net sdl_ttf sdl_gfx sdl2 sdl2_image sdl2_mixer sdl2_net sdl2_ttf sdl2_gfx openal-soft openssl curl curlpp expat opus opusfile unrar glm libxml2 speexdsp pixman TinyGL kuio taipool mpg123 libmpeg2 soloud quirc Box2D libsndfile xz libarchive bullet libimagequant libmodplug libconfig libsodium vitaShaRK libmathneon vitaGL imgui imgui-vita2d libbaremetal minizip jsoncpp lame ffmpeg physfs vita-rss-libdl luajit tinyxml2 cpython cpython3 asio assimp opensles cpr libintl libopenmpt libvpx zstd libpcre2 fribidi libass websocketpp wslay SceShaccCgExt boost pib libxmp libxmp-lite sdl3 sdl3_image sdl3_ttf; do
-            ./vdpm/vdpm -f $p
-          done
-          # Explicitly install mbedtls
-          ./vdpm/vdpm -f mbedtls
-          echo "Contents of $VITASDK after installing packages:"
-          ls -l $VITASDK
-          echo "Contents of $VITASDK/arm-vita-eabi:"
-          ls -l $VITASDK/arm-vita-eabi || echo "arm-vita-eabi does not exist"
-          echo "Contents of $VITASDK/share:"
-          ls -l $VITASDK/share || echo "share does not exist"
-          echo "$VITASDK/bin" >> $GITHUB_PATH
+          {
+            set -e
+            rm -rf "$VITASDK"
+            # Download and extract the base SDK
+            SDK_URL=$(wget -qO- https://github.com/vitasdk/vita-headers/raw/master/.travis.d/last_built_toolchain.py | python3 - master linux)
+            echo "Downloading VitaSDK: $SDK_URL"
+            mkdir -p "$VITASDK"
+            wget -qO- "$SDK_URL" | tar xj -C "$VITASDK" --strip-components=1
+            export PATH="$VITASDK/bin:$PATH"
+            # Install all main packages
+            git clone https://github.com/vitasdk/vdpm.git /tmp/vdpm
+            FAILED=""
+            for p in zlib bzip2 libzip libpng libexif libjpeg-turbo jansson yaml-cpp freetype harfbuzz fftw libvita2d libvita2d_ext libmad libogg libvorbis flac libtheora libtremor libmikmod libftpvita henkaku taihen kubridge libk libdebugnet onigmo libwebp sdl sdl_image sdl_mixer sdl_net sdl_ttf sdl_gfx sdl2 sdl2_image sdl2_mixer sdl2_net sdl2_ttf sdl2_gfx openal-soft openssl curl curlpp expat opus opusfile unrar glm libxml2 speexdsp pixman TinyGL kuio taipool mpg123 libmpeg2 soloud quirc Box2D libsndfile xz libarchive bullet libimagequant libmodplug libconfig libsodium vitaShaRK libmathneon vitaGL imgui imgui-vita2d libbaremetal minizip jsoncpp lame ffmpeg physfs vita-rss-libdl luajit tinyxml2 cpython cpython3 asio assimp opensles cpr libintl libopenmpt libvpx zstd libpcre2 fribidi libass websocketpp wslay SceShaccCgExt boost pib libxmp libxmp-lite sdl3 sdl3_image sdl3_ttf; do
+              # A package missing upstream should not abort the job; the build step
+              # will fail with a clear error if a required one is absent.
+              (cd /tmp/vdpm && ./vdpm -f "$p") || FAILED="$FAILED $p"
+            done
+            # Explicitly install mbedtls
+            (cd /tmp/vdpm && ./vdpm -f mbedtls) || FAILED="$FAILED mbedtls"
+            echo "vdpm packages that failed to install:${FAILED:- none}"
+            ls -l "$VITASDK"
+          } 2>&1 | tee ci/sdk.log
+
+      - name: Save VitaSDK cache
+        if: steps.cache-vitasdk.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/vitasdk
+          key: vitasdk-${{ runner.os }}-v1
+
+      - name: Add VitaSDK to PATH
+        run: echo "$VITASDK/bin" >> "$GITHUB_PATH"
 
       - name: Update submodules and build
         run: |
-          git submodule update --init
-          cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="${{ env.VITASDK }}/share/vita.toolchain.cmake"
-          cd build
-          make
-
-      - name: List build outputs
-        run: |
-          ls -lh build
+          {
+            set -e
+            git submodule update --init
+            cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/vita.toolchain.cmake"
+            cmake --build build -j"$(nproc)"
+            ls -lh build
+          } 2>&1 | tee ci/build.log
 
       - name: Upload VPK artifact
         uses: actions/upload-artifact@v4
         with:
           name: moonlight-vpk
           path: build/*.vpk
+
+      # Fixed link: https://github.com/<owner>/<repo>/releases/download/build-<branch>/moonlight-<branch>.vpk
+      - name: Publish rolling pre-release
+        if: github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SAFE_BRANCH="${BUILD_BRANCH//\//-}"
+          TAG="build-$SAFE_BRANCH"
+          VPK="$(ls build/*.vpk | head -1)"
+          cp "$VPK" "moonlight-$SAFE_BRANCH.vpk"
+          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
+          gh release create "$TAG" "moonlight-$SAFE_BRANCH.vpk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Build $BUILD_BRANCH (${GITHUB_SHA::7})" \
+            --notes "Automatic build of branch $BUILD_BRANCH, commit ${GITHUB_SHA::7}, $(date -u +%Y-%m-%dT%H:%MZ)."
+
+      # Always store the logs (also on failure) on the ci-logs branch, one folder per branch.
+      - name: Publish build log
+        if: always() && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          SAFE_BRANCH="${BUILD_BRANCH//\//-}"
+          LOGDIR=/tmp/ci-logs
+          rm -rf "$LOGDIR" && mkdir -p "$LOGDIR" && cd "$LOGDIR"
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898729+github-actions[bot]@users.noreply.github.com"
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch -q --depth 1 origin ci-logs; then
+            git checkout -q -b ci-logs FETCH_HEAD
+          else
+            git checkout -q --orphan ci-logs
+          fi
+          rm -rf "$SAFE_BRANCH" && mkdir -p "$SAFE_BRANCH"
+          cp "$GITHUB_WORKSPACE/ci/build.log" "$SAFE_BRANCH/build.log" 2>/dev/null || echo "no build log (job stopped before the build step)" > "$SAFE_BRANCH/build.log"
+          tail -n 400 "$GITHUB_WORKSPACE/ci/sdk.log" > "$SAFE_BRANCH/sdk-tail.log" 2>/dev/null || echo "SDK restored from cache" > "$SAFE_BRANCH/sdk-tail.log"
+          echo "status=$JOB_STATUS run=$GITHUB_RUN_ID sha=$GITHUB_SHA date=$(date -u +%FT%TZ)" > "$SAFE_BRANCH/status.txt"
+          git add -A
+          git commit -q -m "CI log $BUILD_BRANCH ${GITHUB_SHA::7} ($JOB_STATUS)"
+          for i in 1 2 3; do
+            if git push -q origin HEAD:ci-logs; then break; fi
+            sleep 5
+            git fetch -q --depth 1 origin ci-logs && git rebase -q FETCH_HEAD || true
+          done
