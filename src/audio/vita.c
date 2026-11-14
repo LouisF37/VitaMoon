@@ -78,6 +78,9 @@ static void vita_renderer_decode_and_play_sample(char* data, int length) {
   if (!data)
     return;
 
+  // Each packet carries 5 ms of sound (FRAME_SIZE samples). They are accumulated
+  // up to VITA_SAMPLES (20 ms) before being handed to the audio port, which
+  // blocks until the previous 20 ms have been played.
   int decodeLen = opus_multistream_decode(decoder, data, length, buffer + 2 * decode_offset, FRAME_SIZE, 0);
   stream_stats_on_audio_packet(decodeLen == FRAME_SIZE);
   if (decodeLen > 0) {

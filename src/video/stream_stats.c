@@ -186,56 +186,103 @@ void stream_stats_on_audio_output(uint32_t block_us) {
 
 /* ---- output ---- */
 
-static void write_str(const char *s) {
-  if (s_fd >= 0)
-    sceIoWrite(s_fd, s, strlen(s));
+static void write_fd(SceUID fd, const char *s) {
+  if (fd >= 0)
+    sceIoWrite(fd, s, strlen(s));
 }
 
-static void open_session_file(void) {
+/* Column legend written next to each session (French: read by the tester). */
+static const char *k_legend =
+  "Colonnes du CSV (une ligne par seconde ; temps en microsecondes sauf mention) :\n"
+  "  t_ms            temps depuis le debut de la session, en ms\n"
+  "  win_ms          duree reelle de la fenetre de mesure (~1000 ms)\n"
+  "  vblank          rafraichissements de l'ecran Vita pendant la fenetre\n"
+  "  recv            images recues du PC\n"
+  "  shown           images affichees\n"
+  "  lost            images jamais arrivees (trous dans la numerotation)\n"
+  "  dropped         images decodees mais jetees par le regulateur d'images\n"
+  "  idr             images completes (cle) recues\n"
+  "  dec_err         erreurs du decodeur\n"
+  "  dec_noout       images acceptees par le decodeur sans image en sortie\n"
+  "  ooo             numerotation revenue en arriere (redemarrage du flux)\n"
+  "  kbps            debit video recu\n"
+  "  rx_*            temps de reception complete d'une image (1er -> dernier paquet)\n"
+  "  queue_*         attente entre fin de reception et decodage\n"
+  "  host_*          temps de capture + encodage cote PC (donne par Sunshine)\n"
+  "  dec_*           duree de l'appel au decodeur\n"
+  "  hold_avg_x100   images retenues par le decodeur, moyenne x100 (150 = 1,5 image)\n"
+  "  hold_max        images retenues, maximum\n"
+  "  render_*        dessin de l'image (jusqu'a la fin du travail GPU)\n"
+  "  swap_*          echange d'ecran (peut attendre le rafraichissement)\n"
+  "  r2p_*           du 1er paquet recu a l'image affichee (latence cote Vita)\n"
+  "  rtt_ms, rtt_var_ms  ping estime et sa variation\n"
+  "  poor            alertes \"connexion faible\"\n"
+  "  pend_vid, pend_aud  images video / paquets audio en attente\n"
+  "  aud_pkts, aud_err   paquets audio decodes / en erreur\n"
+  "  aud_out_*       temps de blocage de la sortie audio\n"
+  "  cpu_mhz, gpu_mhz    frequences du processeur et de la puce graphique\n"
+  "  *_avg = moyenne sur la seconde, *_max = maximum sur la seconde\n";
+
+/* Creates <data>/stats/session-<date>.csv (numbers only, ';' separated so that a
+ * French Excel opens it with a double click) and session-<date>.txt (settings of
+ * the session + column legend). */
+static void open_session_files(void) {
   char dir[512];
   char path[640];
   SceDateTime t;
 
-  snprintf(dir, sizeof(dir), "%s/stats", config.key_dir);
+  snprintf(dir, sizeof(dir), "%.400s/stats", config.key_dir);
   sceIoMkdir(dir, 0777); /* ignore "already exists" */
 
   sceRtcGetCurrentClockLocalTime(&t);
-  snprintf(path, sizeof(path), "%s/session-%04d%02d%02d-%02d%02d%02d.csv", dir,
+  char stamp[32];
+  snprintf(stamp, sizeof(stamp), "%04d%02d%02d-%02d%02d%02d",
            t.year, t.month, t.day, t.hour, t.minute, t.second);
+
+  /* Session description */
+  snprintf(path, sizeof(path), "%s/session-%s.txt", dir, stamp);
+  SceUID info = sceIoOpen(path, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
+  if (info >= 0) {
+    float refresh = 0.0f;
+    sceDisplayGetRefreshRate(&refresh);
+    char line[512];
+    snprintf(line, sizeof(line),
+             "vita-moonlight - statistiques de stream\n"
+             "build: %s\n"
+             "date: %04d-%02d-%02d %02d:%02d:%02d\n"
+             "flux: %dx%d @ %d img/s, debit demande %d kbps, paquets %d octets\n",
+             BUILD_ID, t.year, t.month, t.day, t.hour, t.minute, t.second,
+             s_width, s_height, s_fps, config.stream.bitrate, config.stream.packetSize);
+    write_fd(info, line);
+    snprintf(line, sizeof(line),
+             "reglages: vblank_wait=%d frame_pacer=%d ref_frame_invalidation=%d center_region_only=%d\n"
+             "ecran Vita: %.4f Hz (frequence annoncee par le systeme)\n"
+             "frequences: cpu %d MHz, gpu %d MHz, bus %d MHz, xbar %d MHz\n\n",
+             config.enable_vita_vblank_wait, config.enable_frame_pacer,
+             config.enable_ref_frame_invalidation, config.center_region_only,
+             refresh, scePowerGetArmClockFrequency(), scePowerGetGpuClockFrequency(),
+             scePowerGetBusClockFrequency(), scePowerGetGpuXbarClockFrequency());
+    write_fd(info, line);
+    write_fd(info, k_legend);
+    sceIoClose(info);
+  }
+
+  /* Per-second data */
+  snprintf(path, sizeof(path), "%s/session-%s.csv", dir, stamp);
   s_fd = sceIoOpen(path, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
   if (s_fd < 0) {
     vita_debug_log("stream_stats: cannot open %s (0x%08x)\n", path, s_fd);
     return;
   }
-
-  float refresh = 0.0f;
-  sceDisplayGetRefreshRate(&refresh);
-
-  char line[512];
-  snprintf(line, sizeof(line), "# vita-moonlight stream stats, build %s\n", BUILD_ID);
-  write_str(line);
-  snprintf(line, sizeof(line), "# date=%04d-%02d-%02d %02d:%02d:%02d\n",
-           t.year, t.month, t.day, t.hour, t.minute, t.second);
-  write_str(line);
-  snprintf(line, sizeof(line), "# stream=%dx%d@%d bitrate_kbps=%d packet_size=%d\n",
-           s_width, s_height, s_fps, config.stream.bitrate, config.stream.packetSize);
-  write_str(line);
-  snprintf(line, sizeof(line), "# vblank_wait=%d frame_pacer=%d ref_frame_invalidation=%d center_region_only=%d\n",
-           config.enable_vita_vblank_wait, config.enable_frame_pacer,
-           config.enable_ref_frame_invalidation, config.center_region_only);
-  write_str(line);
-  snprintf(line, sizeof(line), "# display_refresh_hz=%.4f cpu_mhz=%d gpu_mhz=%d bus_mhz=%d xbar_mhz=%d\n",
-           refresh, scePowerGetArmClockFrequency(), scePowerGetGpuClockFrequency(),
-           scePowerGetBusClockFrequency(), scePowerGetGpuXbarClockFrequency());
-  write_str(line);
-  write_str("# times in microseconds unless stated; hold in frames (avg x100); win_ms = actual window length\n");
-  write_str("t_s,win_ms,vblank,recv,shown,lost,dropped,idr,dec_err,dec_noout,ooo,kbps,"
-            "rx_avg_us,rx_max_us,queue_avg_us,queue_max_us,host_avg_us,host_max_us,"
-            "dec_avg_us,dec_max_us,hold_avg_x100,hold_max,render_avg_us,render_max_us,"
-            "swap_avg_us,swap_max_us,r2p_avg_us,r2p_max_us,rtt_ms,rtt_var_ms,poor,"
-            "pend_vid,pend_aud,aud_pkts,aud_err,aud_out_avg_us,aud_out_max_us,cpu_mhz,gpu_mhz\n");
+  write_fd(s_fd, "t_ms;win_ms;vblank;recv;shown;lost;dropped;idr;dec_err;dec_noout;ooo;kbps;"
+                 "rx_avg_us;rx_max_us;queue_avg_us;queue_max_us;host_avg_us;host_max_us;"
+                 "dec_avg_us;dec_max_us;hold_avg_x100;hold_max;render_avg_us;render_max_us;"
+                 "swap_avg_us;swap_max_us;r2p_avg_us;r2p_max_us;rtt_ms;rtt_var_ms;poor;"
+                 "pend_vid;pend_aud;aud_pkts;aud_err;aud_out_avg_us;aud_out_max_us;cpu_mhz;gpu_mhz\n");
 }
 
+/* Takes (and resets) every counter for the window that just ended, writes the
+ * CSV line and prepares the 4 overlay lines. Runs on the stats thread only. */
 static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   uint32_t recv = cnt_take(&c.recv);
   uint32_t lost = cnt_take(&c.lost);
@@ -271,20 +318,21 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   int cpu = scePowerGetArmClockFrequency();
   int gpu = scePowerGetGpuClockFrequency();
 
+  /* One CSV line: integers only, so no decimal-separator issue in Excel. */
   char line[640];
   snprintf(line, sizeof(line),
-           "%u.%03u,%u,%d,%u,%u,%u,%u,%u,%u,%u,%u,%u,"
-           "%u,%u,%u,%u,%u,%u,"
-           "%u,%u,%u,%u,%u,%u,"
-           "%u,%u,%u,%u,%u,%u,%u,"
-           "%d,%d,%u,%u,%u,%u,%d,%d\n",
-           (unsigned)(t_us / 1000000), (unsigned)((t_us / 1000) % 1000), win_ms, vblanks,
+           "%u;%u;%d;%u;%u;%u;%u;%u;%u;%u;%u;%u;"
+           "%u;%u;%u;%u;%u;%u;"
+           "%u;%u;%u;%u;%u;%u;"
+           "%u;%u;%u;%u;%u;%u;%u;"
+           "%d;%d;%u;%u;%u;%u;%d;%d\n",
+           (unsigned)(t_us / 1000), win_ms, vblanks,
            recv, shown, lost, dropped, idr, dec_err, dec_noout, ooo, kbps,
            rx.avg, rx.max, queue.avg, queue.max, host.avg, host.max,
            dec.avg, dec.max, hold.avg_x100, hold.max, render.avg, render.max,
            swap.avg, swap.max, r2p.avg, r2p.max, rtt, rtt_var, poor,
            pend_vid, pend_aud, aud_pkts, aud_err, aud_out.avg, aud_out.max, cpu, gpu);
-  write_str(line);
+  write_fd(s_fd, line);
 
   /* Overlay: compact, refreshed once per second. */
   int next = s_overlay_idx ^ 1;
@@ -307,6 +355,8 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   s_overlay_valid = true;
 }
 
+/* Wakes up every second (in 100 ms steps so the session can stop quickly) and
+ * counts the screen refreshes (vblanks) elapsed since the previous window. */
 static int stats_thread_main(SceSize args, void *argp) {
   uint64_t t_start = sceKernelGetProcessTimeWide();
   uint64_t t_prev = t_start;
@@ -335,6 +385,7 @@ static int stats_thread_main(SceSize args, void *argp) {
 
 /* ---- session ---- */
 
+/* Called when the video decoder is set up (start of a stream) and torn down. */
 void stream_stats_session_start(int width, int height, int fps) {
   if (s_running)
     stream_stats_session_end();
@@ -349,7 +400,7 @@ void stream_stats_session_start(int width, int height, int fps) {
   s_width = width;
   s_height = height;
   s_fps = fps;
-  open_session_file();
+  open_session_files();
 
   s_running = true;
   s_thread = sceKernelCreateThread("stream_stats", stats_thread_main, 0x10000100, 0x10000, 0, 0, NULL);

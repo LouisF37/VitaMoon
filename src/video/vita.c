@@ -182,6 +182,12 @@ void update_scaling_settings(int width, int height) {
   printf("update_scaling_settings: image_scaling.region_y2 = %f\n", image_scaling.region_y2);
 }
 
+/*
+ * Original frame pacer (enabled by "frame pacer" in the settings).
+ * Once per second it compares the number of frames shown with the target fps
+ * and schedules the excess to be dropped during the next second. It does not
+ * follow the screen refresh; phase 2 replaces it with vblank-aligned display.
+ */
 static int vita_pacer_thread_main(SceSize args, void *argp) {
   // 1s
   int wait = 1000000;
@@ -443,6 +449,17 @@ cleanup:
   return ret;
 }
 
+/*
+ * Called by moonlight-common-c for each complete video frame.
+ *
+ * With CAPABILITY_DIRECT_SUBMIT this runs on the video receive thread itself:
+ * until it returns, newly arrived packets wait in the socket buffer. Steps:
+ *   1. statistics: arrival times of the frame
+ *   2. copy the frame into one buffer for the decoder (SPS header patched on the way)
+ *   3. hardware H.264 decode, written straight into the texture shown on screen
+ *   4. draw that texture and swap the screen buffers
+ * Decode and display are therefore in series with the network; phase 2 splits them.
+ */
 static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   SceAvcdecAu au = {0};
   SceAvcdecArrayPicture array_picture = {0};
@@ -451,6 +468,7 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   array_picture.numOfElm = 1;
   array_picture.pPicture = &pictures;
 
+  // 1. Statistics: frame number, size and arrival timestamps (see stream_stats.c).
   stream_stats_on_frame(decodeUnit->frameNumber, decodeUnit->frameType, decodeUnit->fullLength,
                         decodeUnit->receiveTimeUs, decodeUnit->enqueueTimeUs,
                         decodeUnit->frameHostProcessingLatency, LiGetMicroseconds());
@@ -480,6 +498,9 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     exit(1);
   } */
 
+  // 2. The frame arrives as a chain of NAL buffers; concatenate them. The SPS
+  //    (stream parameters) goes through gs_sps_fix (libgamestream/sps.c), which sets the
+  //    low-latency hints for the decoder: no reordering, max_dec_frame_buffering = 1.
   PLENTRY entry = decodeUnit->bufferList;
   uint32_t length = 0;
   while (entry != NULL) {
@@ -504,6 +525,7 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   picture.info.pts.lower = 0xFFFFFFFF;
   picture.info.pts.upper = 0xFFFFFFFF;
 
+  // 3. Decode. The output picture is written directly into frame_texture.
   uint64_t t_dec0 = LiGetMicroseconds();
   int ret = 0;
   ret = sceAvcdecDecode(decoder, &au, &array_picture);
@@ -514,6 +536,8 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     return DR_NEED_IDR;
   }
 
+  // The decoder may keep frames back. The pts read back tells which frame came
+  // out: hold = frame just fed - frame that came out (0 = nothing held back).
   bool has_output = array_picture.numOfOutput == 1;
   int shown_frame = decodeUnit->frameNumber;
   uint32_t hold = STREAM_STATS_HOLD_UNKNOWN;
@@ -533,6 +557,7 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
 
   //TODO: Seems silly to decode the unit if we're going to drop the frame?
   // Find out why we decode or if we even need to
+  // 4. Display, unless the frame pacer asked to drop this frame.
   if (active_video_thread) {
     if (need_drop > 0) {
       vita_debug_log("remain frameskip: %d\n", need_drop);
@@ -549,9 +574,9 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
 
       vita2d_end_drawing();
 
-      vita2d_wait_rendering_done();
+      vita2d_wait_rendering_done();   // GPU finished drawing
       uint64_t t_render1 = LiGetMicroseconds();
-      vita2d_swap_buffers();
+      vita2d_swap_buffers();          // queue the new image for the screen (vblank wait if enabled)
       uint64_t t_swap1 = LiGetMicroseconds();
 
       frame_count++;
