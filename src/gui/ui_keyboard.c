@@ -33,7 +33,7 @@ int keyboard_layout_menu(void) {
         menu[i].disabled = false;
         menu[i].suffix = (i == config.keyboard_layout) ? "*" : "";
     }
-    menu_geom geom = make_geom_centered(320, 120);
+    menu_geom geom = make_geom_centered(360, 180);
     int sel = display_menu(menu, KB_LAYOUT_COUNT, &geom, &keyboard_layout_loop, NULL, NULL, menu);
     // El layout ya se aplica en el loop, aquí solo refrescamos el menú principal si es necesario
     (void)sel; // Evita warning de variable no usada

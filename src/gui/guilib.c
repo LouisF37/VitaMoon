@@ -1,4 +1,5 @@
 #include "guilib.h"
+#include "theme.h"
 
 #include "../config.h"
 #include "../platform.h"
@@ -32,7 +33,7 @@ menu_geom make_geom_centered(int w, int h) {
   geom.width = w;
   geom.height = h;
   geom.total_y = geom.y + geom.height;
-  geom.el = 24;
+  geom.el = 30;
   return geom;
 }
 
@@ -141,163 +142,146 @@ bool is_rectangle_touched(const SceTouchData *touch, int lx, int ly, int rx, int
   return false;
 }
 
-void draw_menu(menu_entry menu[], int total_elements, menu_geom geom, int cursor, int offset) {
-  vita2d_draw_rectangle(geom.x, geom.y, geom.width, geom.height, 0x18fffff);
-
-  long border_color = 0xff006000;
-  draw_border(geom, border_color);
-  draw_statusbar(geom);
-
-  for (int i = 0, cursor_idx = 0; i < total_elements; i++) {
-    long text_color = 0xffffffff;
-    if (cursor == cursor_idx) {
-      text_color = 0xff00ff00; // Verde para seleccionado
-    }
-    if (!menu[i].disabled) {
-      cursor_idx++;
-    } else {
-      text_color = 0xffaaaaaa;
-    }
-
-    // Color del puntito de estado (solo para hosts, si menu[i].color != 0)
-    unsigned int dot_color = menu[i].color ? menu[i].color : 0xffaaaaaa;
-
-    int el_x = geom.x + 10,
-        el_y = geom.y + i * geom.el - offset + 10;
-
-    if (el_y < geom.y || el_y > geom.total_y - geom.el)
-      continue;
-
-    int text_width, text_height;
-    vita2d_font_text_dimensions(font, 18, menu[i].name, &text_width, &text_height);
-
-    if (menu[i].separator) {
-      int border = strlen(menu[i].name) ? 7 : 0;
-      int height = strlen(menu[i].name) ? text_height : geom.el / 2;
-      vita2d_draw_line(
-          el_x + text_width + border,
-          el_y + height,
-          el_x + geom.width - 10 * 2,
-          el_y + height,
-          0xffaaaaaa
-          );
-    }
-
-    // Dibuja el puntito de estado solo para hosts emparejados (solo menú principal)
-    if (menu[i].is_host_entry && menu[i].name && strlen(menu[i].name) > 0) {
-      int dot_radius = 8;
-      int dot_x = el_x + dot_radius; // Asegura que el puntito no quede pegado al borde
-      int dot_y = el_y + text_height / 2 + 2;
-      unsigned int visible_dot_color = (dot_color & 0x00FFFFFF) | 0xFF000000;
-      vita2d_draw_fill_circle(dot_x, dot_y, dot_radius + 2, 0xFF000000);
-      vita2d_draw_fill_circle(dot_x, dot_y, dot_radius, visible_dot_color);
-      vita2d_font_draw_text(
-          font,
-          dot_x + dot_radius + 6, // Más espacio a la derecha del puntito
-          el_y + text_height,
-          text_color,
-          18,
-          menu[i].name
-          );
-    } else if (menu[i].name && strlen(menu[i].name) > 0) {
-      vita2d_font_draw_text(
-          font,
-          el_x + 2,
-          el_y + text_height,
-          text_color,
-          18,
-          menu[i].name
-          );
-    }
-
-    int right_x_offset = 20;
-    if (menu[i].suffix) {
-      int text_width = vita2d_font_text_width(font, 18, menu[i].suffix);
-      vita2d_font_draw_text(
-          font,
-          el_x + geom.width - text_width - right_x_offset,
-          el_y + text_height,
-          text_color,
-          18,
-          menu[i].suffix
-          );
-
-      right_x_offset += text_width + 10;
-    }
-    if (*menu[i].subname) {
-      int text_width = vita2d_font_text_width(font, 18, menu[i].subname);
-      vita2d_font_draw_text(
-          font,
-          el_x + geom.width - text_width - right_x_offset,
-          el_y + text_height,
-          text_color,
-          18,
-          menu[i].subname
-          );
-    }
+/* Status colours used by the host list (vita2d ABGR values) mapped to the theme. */
+static unsigned int theme_status_color(unsigned int c) {
+  switch (c) {
+    case 0xFF00FF00: return TH_OK;
+    case 0xFF0000FF: return TH_ERR;
+    case 0xFF00FFFF: return TH_WARN;
+    default: return c ? c : TH_TEXT3;
   }
 }
 
+/* Menus: glass panel, highlighted row with an accent bar, values on the right,
+ * hint row at the bottom. Row geometry (geom.el) and scrolling are unchanged. */
+void draw_menu(menu_entry menu[], int total_elements, menu_geom geom, int cursor, int offset) {
+  vita2d_font *f = theme_font();
+  theme_topbar(NULL);
+  theme_glass(geom.x - 14, geom.y - 12, geom.width + 28, geom.height + 20, 14);
+
+  for (int i = 0, cursor_idx = 0; i < total_elements; i++) {
+    bool selected = false;
+    if (!menu[i].disabled) {
+      selected = cursor == cursor_idx;
+      cursor_idx++;
+    }
+
+    int el_x = geom.x, el_y = geom.y + i * geom.el - offset;
+    if (el_y < geom.y - 2 || el_y > geom.total_y - geom.el)
+      continue;
+    int baseline = el_y + geom.el / 2 + 6;
+    const char *name = menu[i].name ? menu[i].name : "";
+
+    if (menu[i].separator) {
+      int line_x = el_x + 4;
+      if (*name) {
+        vita2d_font_draw_text(f, el_x + 4, baseline, TH_ACCENT_HI, 13, name);
+        line_x += theme_text_width(f, 13, name) + 10;
+      }
+      vita2d_draw_rectangle(line_x, baseline - 5, el_x + geom.width - line_x, 1, TH_LINE_FAINT);
+      continue;
+    }
+
+    if (selected) {
+      theme_rounded_rect(el_x - 6, el_y + 1, geom.width + 12, geom.el - 2, 8, TH_FILL_FOCUS);
+      theme_rounded_rect(el_x - 6, el_y + 6, 3, geom.el - 12, 1.5f, TH_ACCENT);
+    }
+    unsigned int text_color = menu[i].disabled ? TH_TEXT3 : (selected ? TH_TEXT : TH_TEXT2);
+
+    int tx = el_x + 6;
+    if (menu[i].is_host_entry && *name) {
+      vita2d_draw_fill_circle(tx + 5, baseline - 5, 5, theme_status_color(menu[i].color));
+      tx += 18;
+    }
+    if (*name)
+      vita2d_font_draw_text(f, tx, baseline, text_color, 16, name);
+
+    int right_x = el_x + geom.width - 4;
+    if (menu[i].suffix && *menu[i].suffix) {
+      /* suffixes are icons from the icon font */
+      int w = vita2d_font_text_width(font, 18, menu[i].suffix);
+      right_x -= w;
+      vita2d_font_draw_text(font, right_x, baseline + 1, selected ? TH_ACCENT_HI : TH_TEXT3, 18, menu[i].suffix);
+      right_x -= 10;
+    }
+    if (*menu[i].subname) {
+      int w = theme_text_width(f, 15, menu[i].subname);
+      vita2d_font_draw_text(f, right_x - w, baseline, selected ? TH_ACCENT_HI : TH_TEXT3, 15, menu[i].subname);
+    }
+  }
+
+  int x = theme_hint(24, TH_HINTS_Y, theme_confirm_glyph(), "Valider");
+  theme_hint(x, TH_HINTS_Y, theme_cancel_glyph(), "Retour");
+}
+
+/* Splits text into lines (on spaces and newlines) that fit max_w; returns the count. */
+static int wrap_lines(const char *text, vita2d_font *f, unsigned int size, int max_w,
+                      char lines[][256], int max_lines) {
+  int count = 0;
+  char current[256] = "";
+  const char *p = text;
+  while (*p && count < max_lines) {
+    char word[256];
+    int n = 0;
+    while (p[n] && p[n] != ' ' && p[n] != '\n' && n < 255) n++;
+    memcpy(word, p, n);
+    word[n] = 0;
+    p += n;
+
+    char candidate[512];
+    snprintf(candidate, sizeof(candidate), "%s%s%s", current, *current ? " " : "", word);
+    if (*current && theme_text_width(f, size, candidate) > max_w) {
+      snprintf(lines[count++], 256, "%s", current);
+      snprintf(current, sizeof(current), "%s", word);
+    } else {
+      snprintf(current, sizeof(current), "%s", candidate);
+    }
+    if (*p == '\n' || *p == 0) {
+      if (count < max_lines && (*current || *p == '\n'))
+        snprintf(lines[count++], 256, "%s", current);
+      current[0] = 0;
+    }
+    if (*p) p++;
+  }
+  return count;
+}
+
 void draw_alert(char *message, menu_geom geom, char *buttons_captions[], int buttons_count) {
-  vita2d_draw_rectangle(geom.x, geom.y, geom.width, geom.height, 0x18fffff);
+  vita2d_font *f = theme_font();
+  theme_glass(geom.x, geom.y, geom.width, geom.height, 16);
 
-  long border_color = 0xff006000;
-  draw_border(geom, border_color);
-
-  char *buf = malloc(sizeof(char) * (strlen(message) + 1));
-  int top_padding = 30;
-  int x_border = 10, y = top_padding;
-  for (int i = 0, idx = 0; i < strlen(message); i++) {
-    buf[idx] = message[i];
-    buf[idx+1] = 0;
-
-    if (message[i] == '\n' || vita2d_font_text_width(font, 18, buf) > geom.width - x_border*2) {
-      draw_text_hcentered(geom.x + geom.width / 2, y + geom.y, 0xffffffff, buf);
-      y += vita2d_font_text_height(font, 18, buf);
-      idx = 0;
-    } else {
-      idx++;
-    }
+  char lines[12][256];
+  int n = wrap_lines(message, f, 17, geom.width - 48, lines, 12);
+  int line_h = 24;
+  int area_h = geom.height - (buttons_count ? 56 : 24);
+  int y = geom.y + (area_h - n * line_h) / 2 + 18;
+  if (y < geom.y + 30) y = geom.y + 30;
+  for (int i = 0; i < n; i++) {
+    int w = theme_text_width(f, 17, lines[i]);
+    vita2d_font_draw_text(f, geom.x + (geom.width - w) / 2, y + i * line_h, TH_TEXT, 17, lines[i]);
   }
 
-  if (strlen(buf)) {
-    if (y == top_padding) {
-      int text_height = vita2d_font_text_height(font, 18, buf);
-      y = geom.height / 2 - text_height / 2;
+  if (buttons_count) {
+    const int glyphs[4] = {theme_confirm_glyph(), theme_cancel_glyph(), GLYPH_TRIANGLE, GLYPH_SQUARE};
+    const char *defaults[4] = {"OK", "Annuler", "Options", "Supprimer"};
+    int total = 0;
+    for (int i = 0; i < buttons_count && i < 4; i++) {
+      const char *cap = buttons_captions && buttons_captions[i] ? buttons_captions[i] : defaults[i];
+      total += 20 + 7 + theme_text_width(f, 15, cap) + 22;
     }
-
-    draw_text_hcentered(geom.x + geom.width / 2, y + geom.y, 0xffffffff, buf);
-  }
-
-  free(buf);
-
-  char caption[256];
-  strcpy(caption, "");
-
-  char *o_layout[4] = {"o", "x", "△", "□"};
-  char *x_layout[4] = {"x", "o", "△", "□"};
-  char **icons = config.jp_layout ? o_layout : x_layout;
-  char *default_captions[4] = {"Ok", "Cancel", "Options", "Delete"};
-  for (int i = 0; i < buttons_count; i++) {
-    char single_button_caption[64];
-    char button_caption[60];
-    if (buttons_captions && buttons_captions[i]) {
-      strcpy(button_caption, buttons_captions[i]);
-    } else {
-      strcpy(button_caption, default_captions[i]);
+    int x = geom.x + geom.width - 20 - total + 22;
+    vita2d_draw_rectangle(geom.x + 16, geom.y + geom.height - 46, geom.width - 32, 1, TH_LINE_FAINT);
+    for (int i = 0; i < buttons_count && i < 4; i++) {
+      const char *cap = buttons_captions && buttons_captions[i] ? buttons_captions[i] : defaults[i];
+      x = theme_hint(x, geom.y + geom.height - 16, glyphs[i], cap);
     }
-
-    sprintf(single_button_caption, "%s %s ", icons[i], button_caption);
-    strcat(caption, single_button_caption);
   }
-
-  int caption_width = vita2d_font_text_width(font, 18, caption);
-  vita2d_font_draw_text(font, geom.x + geom.width - caption_width, geom.total_y - 10, 0xffffffff, 18, caption);
 }
 
 void ui_start() {
   vita2d_start_drawing();
   vita2d_clear_screen();
+  theme_draw_background();
 }
 
 void ui_end() {
@@ -348,8 +332,9 @@ int display_menu(menu_entry menu[], int total_elements, menu_geom *geom_ptr,
   menu_geom geom;
 
   if (!geom_ptr) {
-    geom = make_geom_centered(600, 400);
-    geom.el = 24;
+    geom = make_geom_centered(620, 390);
+    geom.y = 64;
+    geom.total_y = geom.y + geom.height;
   } else {
     geom = *geom_ptr;
   }
@@ -438,10 +423,11 @@ error:
 void display_alert(char *message, char *button_captions[], int buttons_count,
                    gui_loop_callback cb, void *context) {
 
-  menu_geom alert_geom = make_geom_centered(400, 200);
+  menu_geom alert_geom = make_geom_centered(480, 220);
 
   while (true) {
     ui_start();
+    theme_topbar(NULL);
 
     draw_alert(message, alert_geom, button_captions, buttons_count);
 
@@ -499,10 +485,9 @@ void flash_message(char *format, ...) {
 
   ui_end();
 
-  menu_geom alert_geom = make_geom_centered(400, 200);
+  menu_geom alert_geom = make_geom_centered(480, 200);
   ui_start();
-
-  vita2d_draw_rectangle(0, 0, WIDTH, HEIGHT, 0xff000000);
+  theme_topbar(NULL);
   draw_alert(buf, alert_geom, NULL, 0);
 
   ui_end();
@@ -516,16 +501,18 @@ void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw
   vita2d_init();
   vita2d_set_clear_color(0xff000000);
   font = vita2d_load_font_file("app0:assets/nerdfont.ttf");
+  theme_init();
 
   gui_global_draw_callback = global_draw_cb;
   gui_global_loop_callback = global_loop_cb;
 }
 
 int display_confirm(const char* message) {
-    char* buttons[] = {"X: Yes", "O: No"};
-    menu_geom geom = make_geom_centered(400, 200);
+    char* buttons[] = {"Oui", "Non"};
+    menu_geom geom = make_geom_centered(480, 220);
     while (1) {
         ui_start();
+        theme_topbar(NULL);
         draw_alert((char*)message, geom, buttons, 2);
         input_data input = {0};
         input.buttons = read_buttons();

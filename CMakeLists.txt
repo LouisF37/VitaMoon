@@ -99,6 +99,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/graphics.c
 	src/font.c
 	src/gui/guilib.c
+	src/gui/theme.c
 	src/gui/ime.c
 	src/gui/ui.c
 	src/gui/ui_settings.c
@@ -234,6 +235,9 @@ add_custom_target(${PROJECT_NAME}.vpk ALL
 			--add ../sce_sys/livearea/contents/startup.png=sce_sys/livearea/contents/startup.png
 			--add ../sce_sys/livearea/contents/template.xml=sce_sys/livearea/contents/template.xml
 			--add ../assets/nerdfont.ttf=assets/nerdfont.ttf
+			--add ../assets/Roboto-Regular.ttf=assets/Roboto-Regular.ttf
+			--add ../assets/Roboto-Light.ttf=assets/Roboto-Light.ttf
+			--add ../assets/bg_ocean.png=assets/bg_ocean.png
 			${PROJECT_NAME}.vpk
 )
 
