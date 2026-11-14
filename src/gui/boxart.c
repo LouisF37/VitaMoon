@@ -11,6 +11,7 @@
 #include "boxart.h"
 #include "../config.h"
 #include "../debug.h"
+#include "../connection.h"
 #include "errors.h"
 
 #include <png.h>
@@ -35,6 +36,7 @@ typedef struct {
 static boxart_job jobs[MAX_JOBS];
 static int job_count = 0;
 static SERVER_DATA job_server;
+static char job_address[256];   /* own copy: the worker outlives the caller's strings */
 static SceUID worker = -1;
 static volatile bool worker_busy = false;
 
@@ -150,6 +152,10 @@ static int worker_main(SceSize args, void *argp) {
     if (file_exists(path))
       continue;
 
+    /* Never compete with a running stream for Wi-Fi time and CPU. */
+    while (connection_get_status() == LI_CONNECTED)
+      sceKernelDelayThread(500000);
+
     SceUInt64 t0 = sceKernelGetProcessTimeWide();
     char *png = NULL;
     size_t size = 0;
@@ -198,6 +204,8 @@ void boxart_prefetch(PSERVER_DATA server, PAPP_LIST apps) {
 
   /* Copy what the worker needs: the UI may free or reload the list meanwhile. */
   job_server = *server;
+  snprintf(job_address, sizeof(job_address), "%s", server->serverInfo.address ? server->serverInfo.address : "");
+  job_server.serverInfo.address = job_address;
   job_count = 0;
   for (PAPP_LIST a = apps; a != NULL && job_count < MAX_JOBS; a = a->next) {
     jobs[job_count].id = a->id;
