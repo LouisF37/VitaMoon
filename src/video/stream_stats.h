@@ -37,6 +37,9 @@ void stream_stats_on_conn_status(bool poor);
 /* Audio thread */
 void stream_stats_on_audio_packet(bool ok);
 void stream_stats_on_audio_output(uint32_t block_us);
+void stream_stats_on_audio_fill(uint32_t buffered_us);  /* low-latency mode */
+void stream_stats_on_audio_underrun(void);
+void stream_stats_on_audio_skip(uint32_t dropped_us);
 
 /* Draws the latest per-second summary; call between vita2d_start/end_drawing. */
 void stream_stats_draw_overlay(void);

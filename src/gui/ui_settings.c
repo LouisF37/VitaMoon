@@ -447,7 +447,10 @@ enum {
   SETTINGS_SWAP_SHOULDER_BUTTONS, // NUEVO: Swap R1/L1 <-> R2/L2
   SETTINGS_MOUSE_ACCEL,
   SETTINGS_KEYBOARD_LAYOUT,
-  SETTINGS_TOUCH_MODE_SELECT // Nuevo: selección de modo táctil exclusivo
+  SETTINGS_TOUCH_MODE_SELECT, // Nuevo: selección de modo táctil exclusivo
+  SETTINGS_BOOST_CLOCKS,
+  SETTINGS_MATCH_REFRESH_RATE,
+  SETTINGS_LOW_LATENCY_AUDIO
 };
 
 enum {
@@ -481,6 +484,9 @@ enum {
   SETTINGS_VIEW_MOUSE_ACCEL,
   SETTINGS_VIEW_KEYBOARD_LAYOUT,
   SETTINGS_VIEW_TOUCH_MODE_SELECT, // Vista para modo táctil exclusivo
+  SETTINGS_VIEW_BOOST_CLOCKS,
+  SETTINGS_VIEW_MATCH_REFRESH_RATE,
+  SETTINGS_VIEW_LOW_LATENCY_AUDIO,
 
   SETTINGS_VIEW_MAX_COUNT,
 };
@@ -821,6 +827,27 @@ static int settings_loop(int id, void *context, const input_data *input) {
       did_change = 1;
       config.enable_frame_pacer = !config.enable_frame_pacer;
       break;
+    case SETTINGS_BOOST_CLOCKS:
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+      did_change = 1;
+      config.boost_clocks = !config.boost_clocks;
+      break;
+    case SETTINGS_MATCH_REFRESH_RATE:
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+      did_change = 1;
+      config.match_refresh_rate = !config.match_refresh_rate;
+      break;
+    case SETTINGS_LOW_LATENCY_AUDIO:
+      if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
+        break;
+      }
+      did_change = 1;
+      config.low_latency_audio = !config.low_latency_audio;
+      break;
     case SETTINGS_CENTER_REGION_ONLY:
       if ((input->buttons & config.btn_confirm) == 0 || input->buttons & SCE_CTRL_HOLD) {
         break;
@@ -950,6 +977,15 @@ static int settings_loop(int id, void *context, const input_data *input) {
   sprintf(current, "%s", config.enable_frame_pacer ? "yes" : "no");
   MENU_REPLACE(SETTINGS_VIEW_ENABLE_FRAME_PACER, current);
 
+  sprintf(current, "%s", config.boost_clocks ? "yes" : "no");
+  MENU_REPLACE(SETTINGS_VIEW_BOOST_CLOCKS, current);
+
+  sprintf(current, "%s", config.match_refresh_rate ? "yes" : "no");
+  MENU_REPLACE(SETTINGS_VIEW_MATCH_REFRESH_RATE, current);
+
+  sprintf(current, "%s", config.low_latency_audio ? "yes" : "no");
+  MENU_REPLACE(SETTINGS_VIEW_LOW_LATENCY_AUDIO, current);
+
   sprintf(current, "%s", config.center_region_only ? "yes" : "no");
   MENU_REPLACE(SETTINGS_VIEW_CENTER_REGION_ONLY, current);
 
@@ -997,7 +1033,7 @@ static int settings_back(void *context) {
 // Eliminado: hotkeys_menu y referencias, ya que los atajos ahora son fijos
 
 int ui_settings_menu() {
-  menu_entry menu[32];
+  menu_entry menu[40]; // was 32 and exactly full; room for the phase 2 entries
   int idx = 0;
 #define MENU_CATEGORY(NAME) \
   do { \
@@ -1027,6 +1063,9 @@ int ui_settings_menu() {
 
 
   MENU_ENTRY(SETTINGS_ENABLE_FRAME_PACER, SETTINGS_VIEW_ENABLE_FRAME_PACER, "Enable frame pacer", "");
+  MENU_ENTRY(SETTINGS_BOOST_CLOCKS, SETTINGS_VIEW_BOOST_CLOCKS, "Max CPU/GPU clocks while streaming", "");
+  MENU_ENTRY(SETTINGS_MATCH_REFRESH_RATE, SETTINGS_VIEW_MATCH_REFRESH_RATE, "Send Vita refresh rate to host", "");
+  MENU_ENTRY(SETTINGS_LOW_LATENCY_AUDIO, SETTINGS_VIEW_LOW_LATENCY_AUDIO, "Low-latency audio", "");
   MENU_ENTRY(SETTINGS_LOCAL_AUDIO, SETTINGS_VIEW_LOCAL_AUDIO, "Enable local audio", "");
 
   MENU_CATEGORY("System");

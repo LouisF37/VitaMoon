@@ -130,6 +130,12 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->stream.streamingRemotely = INT(value);
     } else if (strcmp(name, "enable_vita_vblank_wait") == 0) {
       config->enable_vita_vblank_wait = BOOL(value);
+    } else if (strcmp(name, "boost_clocks") == 0) {
+      config->boost_clocks = BOOL(value);
+    } else if (strcmp(name, "match_refresh_rate") == 0) {
+      config->match_refresh_rate = BOOL(value);
+    } else if (strcmp(name, "low_latency_audio") == 0) {
+      config->low_latency_audio = BOOL(value);
     } else if (strcmp(name, "enable_motion_controls") == 0) {
       config->enable_motion_controls = BOOL(value);
     } else if (strcmp(name, "enable_front_touchzones") == 0) {
@@ -206,6 +212,9 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_bool(fd, "enable_ref_frame_invalidation", config->enable_ref_frame_invalidation);
   write_config_int(fd, "enable_remote_stream_optimization", config->stream.streamingRemotely);
   write_config_bool(fd, "enable_vita_vblank_wait", config->enable_vita_vblank_wait);
+  write_config_bool(fd, "boost_clocks", config->boost_clocks);
+  write_config_bool(fd, "match_refresh_rate", config->match_refresh_rate);
+  write_config_bool(fd, "low_latency_audio", config->low_latency_audio);
   write_config_bool(fd, "enable_motion_controls", config->enable_motion_controls);
   write_config_bool(fd, "enable_psbutton_capture", config->enable_psbutton_capture);
   write_config_bool(fd, "enable_double_tap_sprint", config->enable_double_tap_sprint);
@@ -284,6 +293,9 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->mouse_acceleration = 150;
   config->enable_ref_frame_invalidation = false;
   config->enable_vita_vblank_wait = false;
+  config->boost_clocks = true;
+  config->match_refresh_rate = true;
+  config->low_latency_audio = true;
   config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;
 

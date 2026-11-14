@@ -30,6 +30,7 @@
 
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/ctrl.h>
+#include <psp2/display.h>
 #include <psp2/io/stat.h>
 #include <vita2d.h>
 
@@ -95,6 +96,25 @@ void ui_connect_stream(int appId) {
   int orig_height = config.stream.height;
   // Si se seleccionó una resolución específica, se mantiene; si es -1, se deja al host
   // (No se modifica config.stream.width/height aquí)
+
+  // Tell the host the Vita's exact refresh rate (e.g. 59.94 instead of 60) so it
+  // captures and encodes at the cadence of the screen. Sunshine only accepts it
+  // within 1 % of the requested fps, so it is scaled for 30 fps (half rate) and
+  // left at 0 (= not sent) for rates that are not a divisor of the screen rate.
+  config.stream.clientRefreshRateX100 = 0;
+  if (config.match_refresh_rate && config.stream.fps > 0) {
+    float screen_hz = 0.0f;
+    if (sceDisplayGetRefreshRate(&screen_hz) == 0 && screen_hz > 1.0f) {
+      int divisor = (int)(screen_hz / config.stream.fps + 0.5f);
+      if (divisor >= 1) {
+        float target = screen_hz / divisor;
+        float ratio = target / config.stream.fps;
+        if (ratio > 0.99f && ratio < 1.01f)
+          config.stream.clientRefreshRateX100 = (int)(target * 100.0f + 0.5f);
+      }
+    }
+    vita_debug_log("screen %.4f Hz -> clientRefreshRateX100 = %d\n", screen_hz, config.stream.clientRefreshRateX100);
+  }
 
   vita_debug_log("Running LiStartConnection...");
   ret = LiStartConnection(&server.serverInfo, &config.stream, &connection_callbacks,

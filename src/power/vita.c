@@ -65,10 +65,42 @@ void vitapower_config(CONFIGURATION config) {
   }
 }
 
+// Clock boost while streaming: decode, render and network threads all run
+// faster at the maximum frequencies (same values as VitaRPS5 / PSVshell max).
+// The previous frequencies are restored when the stream stops.
+static bool clocks_boosted = false;
+static int saved_arm, saved_gpu, saved_bus, saved_xbar;
+
+static void boost_clocks() {
+  if (clocks_boosted || !config.boost_clocks)
+    return;
+  saved_arm = scePowerGetArmClockFrequency();
+  saved_gpu = scePowerGetGpuClockFrequency();
+  saved_bus = scePowerGetBusClockFrequency();
+  saved_xbar = scePowerGetGpuXbarClockFrequency();
+  scePowerSetArmClockFrequency(444);
+  scePowerSetGpuClockFrequency(222);
+  scePowerSetBusClockFrequency(222);
+  scePowerSetGpuXbarClockFrequency(166);
+  clocks_boosted = true;
+}
+
+static void restore_clocks() {
+  if (!clocks_boosted)
+    return;
+  scePowerSetArmClockFrequency(saved_arm);
+  scePowerSetGpuClockFrequency(saved_gpu);
+  scePowerSetBusClockFrequency(saved_bus);
+  scePowerSetGpuXbarClockFrequency(saved_xbar);
+  clocks_boosted = false;
+}
+
 void vitapower_start() {
   active_power_thread = true;
+  boost_clocks();
 }
 
 void vitapower_stop() {
   active_power_thread = false;
+  restore_clocks();
 }

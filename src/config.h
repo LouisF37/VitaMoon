@@ -70,6 +70,9 @@ typedef struct _CONFIGURATION {
   int mouse_acceleration;
   bool enable_ref_frame_invalidation;
   bool enable_vita_vblank_wait;
+  bool boost_clocks;        // CPU/GPU/bus at max frequency while streaming
+  bool match_refresh_rate;  // tell the host the Vita's exact refresh rate
+  bool low_latency_audio;   // 5 ms audio port fed from a ring buffer
   bool enable_motion_controls; //Metalface
   bool enable_psbutton_capture;
   bool enable_double_tap_sprint; //**
