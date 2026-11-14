@@ -32,27 +32,27 @@ to suppress it.
 -- Check for working CXX compiler: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/arm-vita-eabi-g++ - skipped
 -- Detecting CXX compile features
 -- Detecting CXX compile features - done
--- Configuring done (1.2s)
+-- Configuring done (0.8s)
 -- Generating done (0.0s)
 -- Build files have been written to: /home/runner/work/vita-moonlight/vita-moonlight/build
 [  1%] Building C object third_party/CMakeFiles/mdnsniff.dir/mdnsniff/udp_sniffer_vita.c.obj
-[  1%] Building C object third_party/CMakeFiles/enet.dir/enet/callbacks.c.obj
 [  2%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_nal.c.obj
+[  2%] Building C object third_party/CMakeFiles/enet.dir/enet/callbacks.c.obj
 [  3%] Building C object third_party/CMakeFiles/inih.dir/inih/ini.c.obj
 [  4%] Building C object third_party/CMakeFiles/enet.dir/enet/compress.c.obj
 [  5%] Linking C static library libinih.a
 [  5%] Built target inih
-[  6%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/clear.c.obj
-[  7%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_sei.c.obj
+[  6%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_sei.c.obj
+[  7%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/clear.c.obj
 [  8%] Linking C static library libmdnsniff.a
 [  8%] Built target mdnsniff
+[  8%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/compare.c.obj
 [  9%] Building C object third_party/CMakeFiles/enet.dir/enet/host.c.obj
-[  9%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/compare.c.obj
 [ 10%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_stream.c.obj
 [ 11%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/copy.c.obj
+[ 11%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/AudioStream.c.obj
 [ 12%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/gen_uuid.c.obj
 [ 13%] Building C object third_party/CMakeFiles/enet.dir/enet/list.c.obj
-[ 14%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/isnull.c.obj
 /home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/gen_uuid.c: In function 'random_get_bytes':
 /home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/gen_uuid.c:97:24: warning: unused variable 'cbuf' [-Wunused-variable]
    97 |         unsigned char *cbuf = buf;
@@ -67,36 +67,36 @@ to suppress it.
 /home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/gen_uuid.c:232:42: warning: unused variable 'state_f' [-Wunused-variable]
   232 |         THREAD_LOCAL FILE               *state_f;
       |                                          ^~~~~~~
-[ 14%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/pack.c.obj
-[ 14%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/AudioStream.c.obj
+[ 14%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/isnull.c.obj
 [ 14%] Building C object third_party/CMakeFiles/enet.dir/enet/packet.c.obj
-[ 15%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/parse.c.obj
+[ 15%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ByteBuffer.c.obj
+[ 15%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/pack.c.obj
 [ 16%] Building C object third_party/CMakeFiles/enet.dir/enet/peer.c.obj
+[ 17%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/parse.c.obj
+[ 17%] Linking C static library libh264bitstream.a
+[ 18%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Connection.c.obj
 In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/parse.c:37:
 /home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/parse.c: In function 'uuid_parse':
 /home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/parse.c:62:31: warning: array subscript has type 'char' [-Wchar-subscripts]
    62 |                 if (!isxdigit(*cp))
       |                               ^~~
-[ 17%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unpack.c.obj
-[ 18%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ByteBuffer.c.obj
-[ 18%] Linking C static library libh264bitstream.a
 [ 18%] Built target h264bitstream
-[ 18%] Built target param.sfo
-[ 18%] Built target update_template_version
-[ 19%] Building C object third_party/CMakeFiles/enet.dir/enet/protocol.c.obj
-[ 20%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unparse.c.obj
-[ 21%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Connection.c.obj
-[ 21%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/uuid_time.c.obj
+[ 19%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unpack.c.obj
+[ 20%] Building C object third_party/CMakeFiles/enet.dir/enet/protocol.c.obj
+[ 21%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unparse.c.obj
 [ 22%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ConnectionTester.c.obj
-[ 23%] Linking C static library liblibuuid.a
-[ 23%] Built target libuuid
-[ 23%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ControlStream.c.obj
-[ 24%] Building C object third_party/CMakeFiles/enet.dir/enet/unix.c.obj
+[ 22%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/uuid_time.c.obj
+[ 23%] Building C object third_party/CMakeFiles/enet.dir/enet/unix.c.obj
+[ 24%] Linking C static library liblibuuid.a
+[ 24%] Built target libuuid
+[ 24%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ControlStream.c.obj
+[ 24%] Built target param.sfo
 [ 25%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/FakeCallbacks.c.obj
 [ 26%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/InputStream.c.obj
 [ 26%] Linking C static library libenet.a
+[ 26%] Built target enet
 [ 27%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/LinkedBlockingQueue.c.obj
-[ 27%] Built target enet
+[ 27%] Built target update_template_version
 [ 27%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Misc.c.obj
 [ 28%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Platform.c.obj
 [ 29%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/PlatformCrypto.c.obj
@@ -114,9 +114,9 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
 [ 38%] Linking C static library libmoonlight-common-c.a
 [ 38%] Built target moonlight-common-c
 [ 39%] Building C object CMakeFiles/moonlight.elf.dir/src/config.c.obj
-[ 39%] Building C object CMakeFiles/moonlight.elf.dir/src/input/mapping.c.obj
 [ 40%] Building C object CMakeFiles/moonlight.elf.dir/src/connection.c.obj
 [ 41%] Building C object CMakeFiles/moonlight.elf.dir/src/debug.c.obj
+[ 41%] Building C object CMakeFiles/moonlight.elf.dir/src/input/mapping.c.obj
 /home/runner/work/vita-moonlight/vita-moonlight/src/debug.c: In function 'vita_debug_log':
 /home/runner/work/vita-moonlight/vita-moonlight/src/debug.c:54:43: warning: '%02d' directive output may be truncated writing between 2 and 5 bytes into a region of size between 4 and 14 [-Wformat-truncation=]
    54 |   snprintf(buffer, 26, "%04d%02d%02d %02d:%02d:%02d.%06d ",
@@ -173,18 +173,11 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
 [ 48%] Building C object CMakeFiles/moonlight.elf.dir/src/video/stream_stats.c.obj
 [ 48%] Building C object CMakeFiles/moonlight.elf.dir/src/input/vita.c.obj
 [ 49%] Building C object CMakeFiles/moonlight.elf.dir/src/input/shortcuts.c.obj
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/shortcuts.c: In function 'process_physical_shortcuts':
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/shortcuts.c:13:9: warning: implicit declaration of function 'vita_debug_log' [-Wimplicit-function-declaration]
-   13 |         vita_debug_log("Shortcut: START+L1+R1 detectado, input se soltará por overlay en vita.c y se abrirá menú de pausa");
-      |         ^~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/shortcuts.c:23:20: warning: implicit declaration of function 'sceKernelGetSystemTimeWide' [-Wimplicit-function-declaration]
-   23 |     uint64_t now = sceKernelGetSystemTimeWide();
-      |                    ^~~~~~~~~~~~~~~~~~~~~~~~~~
-[ 50%] Building C object CMakeFiles/moonlight.elf.dir/src/power/vita.c.obj
 /home/runner/work/vita-moonlight/vita-moonlight/src/input/vita.c: In function 'vitainput_process':
 /home/runner/work/vita-moonlight/vita-moonlight/src/input/vita.c:808:8: warning: unused variable 'shortcut_triggered' [-Wunused-variable]
   808 |   bool shortcut_triggered = process_physical_shortcuts(&pad, &pad_old);
       |        ^~~~~~~~~~~~~~~~~~
+[ 50%] Building C object CMakeFiles/moonlight.elf.dir/src/power/vita.c.obj
 /home/runner/work/vita-moonlight/vita-moonlight/src/input/vita.c: In function 'vitainput_config':
 /home/runner/work/vita-moonlight/vita-moonlight/src/input/vita.c:952:65: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 256 [-Wformat-truncation=]
   952 |         snprintf(mapping_file_path, sizeof(mapping_file_path), "%s/%s", config.key_dir, config.mapping);
@@ -214,7 +207,6 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
   231 |   snprintf(title, sizeof(title), "Host: %s", info->name);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 [ 56%] Building C object CMakeFiles/moonlight.elf.dir/src/gui/ui_connect.c.obj
-[ 57%] Building C object CMakeFiles/moonlight.elf.dir/src/gui/ui_device.c.obj
 /home/runner/work/vita-moonlight/vita-moonlight/src/gui/ui_settings.c: In function 'settings_loop':
 /home/runner/work/vita-moonlight/vita-moonlight/src/gui/ui_settings.c:912:7: warning: implicit declaration of function 'keyboard_layout_menu' [-Wimplicit-function-declaration]
   912 |       keyboard_layout_menu();
@@ -223,6 +215,7 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
 /home/runner/work/vita-moonlight/vita-moonlight/src/gui/ui_settings.c:190:12: warning: 'special_keys_ord' defined but not used [-Wunused-function]
   190 | static int special_keys_ord(char *text) {
       |            ^~~~~~~~~~~~~~~~
+[ 57%] Building C object CMakeFiles/moonlight.elf.dir/src/gui/ui_device.c.obj
 /home/runner/work/vita-moonlight/vita-moonlight/src/gui/ui_settings.c: In function 'ui_settings_menu':
 /home/runner/work/vita-moonlight/vita-moonlight/src/gui/ui_settings.c:1087:76: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 245 [-Wformat-truncation=]
  1087 |   snprintf(mapping_location_msg, sizeof(mapping_location_msg), "Located at %svita.conf", config.key_dir);
@@ -302,6 +295,7 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
 [ 58%] Building C object CMakeFiles/moonlight.elf.dir/src/gui/hotkey.c.obj
 [ 59%] Building C object CMakeFiles/moonlight.elf.dir/src/gui/ui_check.c.obj
 [ 60%] Building C object CMakeFiles/moonlight.elf.dir/libgamestream/client.c.obj
+[ 60%] Building C object CMakeFiles/moonlight.elf.dir/libgamestream/http.c.obj
 /home/runner/work/vita-moonlight/vita-moonlight/src/gui/ui_check.c: In function 'ui_check_ip_update':
 /home/runner/work/vita-moonlight/vita-moonlight/src/gui/ui_check.c:20:50: warning: '%s' directive output may be truncated writing up to 255 bytes into a region of size 217 [-Wformat-truncation=]
    20 |         "Your host changed its IP address.\nOld: %s\nNew: %s",
@@ -313,40 +307,35 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
    21 |         info->internal[0] ? info->internal : "(none)", new_ip);
       |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[ 60%] Building C object CMakeFiles/moonlight.elf.dir/libgamestream/http.c.obj
 [ 61%] Building C object CMakeFiles/moonlight.elf.dir/libgamestream/mkcert.c.obj
 [ 62%] Building C object CMakeFiles/moonlight.elf.dir/libgamestream/sps.c.obj
 [ 63%] Building C object CMakeFiles/moonlight.elf.dir/libgamestream/xml.c.obj
 [ 63%] Building C object CMakeFiles/moonlight.elf.dir/third_party/libuuid/src/clear.c.obj
-[ 64%] Building C object CMakeFiles/moonlight.elf.dir/third_party/libuuid/src/compare.c.obj
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c: In function 'gs_pair':
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:694:5: warning: implicit declaration of function 'sceKernelDelayThread' [-Wimplicit-function-declaration]
-  694 |     sceKernelDelayThread(200 * 1000); // 200ms
-      |     ^~~~~~~~~~~~~~~~~~~~
 /home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c: In function 'gs_get_server_mac':
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:873:7: warning: the comparison will always evaluate as 'true' for the address of 'mac' will never be NULL [-Waddress]
-  873 |   if (!server->mac || !server->mac[0]) {
+/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:874:7: warning: the comparison will always evaluate as 'true' for the address of 'mac' will never be NULL [-Waddress]
+  874 |   if (!server->mac || !server->mac[0]) {
       |       ^
 In file included from /home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:23:
 /home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.h:41:8: note: 'mac' declared here
    41 |   char mac[18];
       |        ^~~
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:879:7: warning: the comparison will always evaluate as 'true' for the address of 'mac' will never be NULL [-Waddress]
-  879 |   if (!server->mac || !server->mac[0])
+/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:880:7: warning: the comparison will always evaluate as 'true' for the address of 'mac' will never be NULL [-Waddress]
+  880 |   if (!server->mac || !server->mac[0])
       |       ^
 /home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.h:41:8: note: 'mac' declared here
    41 |   char mac[18];
       |        ^~~
 /home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c: At top level:
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:333:13: warning: 'hex_to_bytes' defined but not used [-Wunused-function]
-  333 | static void hex_to_bytes(const char *in, unsigned char* out, size_t len) {
+/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:334:13: warning: 'hex_to_bytes' defined but not used [-Wunused-function]
+  334 | static void hex_to_bytes(const char *in, unsigned char* out, size_t len) {
       |             ^~~~~~~~~~~~
+[ 64%] Building C object CMakeFiles/moonlight.elf.dir/third_party/libuuid/src/compare.c.obj
 /home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c: In function 'gs_pair':
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:467:139: warning: '%s' directive output may be truncated writing up to 8191 bytes into a region of size between 4933 and 5021 [-Wformat-truncation=]
-  467 |   snprintf(url, sizeof(url), "http://%s:%u/pair?uniqueid=%s&uuid=%s&devicename=roth&updateState=1&phrase=getservercert&salt=%s&clientcert=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str, salt_hex, cert_hex);
+/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:468:139: warning: '%s' directive output may be truncated writing up to 8191 bytes into a region of size between 4933 and 5021 [-Wformat-truncation=]
+  468 |   snprintf(url, sizeof(url), "http://%s:%u/pair?uniqueid=%s&uuid=%s&devicename=roth&updateState=1&phrase=getservercert&salt=%s&clientcert=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str, salt_hex, cert_hex);
       |                                                                                                                                           ^~                                                                                ~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:467:3: note: 'snprintf' output 100 or more bytes (assuming 8379) into a destination of size 5120
-  467 |   snprintf(url, sizeof(url), "http://%s:%u/pair?uniqueid=%s&uuid=%s&devicename=roth&updateState=1&phrase=getservercert&salt=%s&clientcert=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str, salt_hex, cert_hex);
+/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:468:3: note: 'snprintf' output 100 or more bytes (assuming 8379) into a destination of size 5120
+  468 |   snprintf(url, sizeof(url), "http://%s:%u/pair?uniqueid=%s&uuid=%s&devicename=roth&updateState=1&phrase=getservercert&salt=%s&clientcert=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str, salt_hex, cert_hex);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 [ 65%] Building C object CMakeFiles/moonlight.elf.dir/third_party/libuuid/src/copy.c.obj
 [ 66%] Building C object CMakeFiles/moonlight.elf.dir/third_party/libuuid/src/gen_uuid.c.obj
@@ -374,8 +363,8 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
 /home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/parse.c:62:31: warning: array subscript has type 'char' [-Wchar-subscripts]
    62 |                 if (!isxdigit(*cp))
       |                               ^~~
-[ 70%] Building C object CMakeFiles/moonlight.elf.dir/third_party/h264bitstream/h264_nal.c.obj
 [ 71%] Building C object CMakeFiles/moonlight.elf.dir/third_party/h264bitstream/h264_sei.c.obj
+[ 71%] Building C object CMakeFiles/moonlight.elf.dir/third_party/h264bitstream/h264_nal.c.obj
 [ 72%] Building C object CMakeFiles/moonlight.elf.dir/third_party/h264bitstream/h264_stream.c.obj
 [ 72%] Building C object CMakeFiles/moonlight.elf.dir/third_party/moonlight-common-c/src/AudioStream.c.obj
 [ 73%] Building C object CMakeFiles/moonlight.elf.dir/third_party/moonlight-common-c/src/ByteBuffer.c.obj
@@ -413,17 +402,8 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
 [ 97%] Building C object CMakeFiles/moonlight.elf.dir/src/gui/ui_keyboard.c.obj
 [ 98%] Building C object CMakeFiles/moonlight.elf.dir/src/input/touchabsolute.c.obj
 [ 99%] Building C object CMakeFiles/moonlight.elf.dir/src/check_host.c.obj
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/touchabsolute.c: In function 'touchabsolute_handle_ds4':
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/touchabsolute.c:53:22: warning: implicit declaration of function 'abs' [-Wimplicit-function-declaration]
-   53 |             int dx = abs(x - prev_x[i]);
-      |                      ^~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/touchabsolute.c:13:1: note: include '<stdlib.h>' or provide a declaration of 'abs'
-   12 | #include <string.h>
-  +++ |+#include <stdlib.h>
-   13 | 
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/touchabsolute.c: At top level:
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/touchabsolute.c:30:13: warning: 'touch_to_absolute' defined but not used [-Wunused-function]
-   30 | static void touch_to_absolute(int tx, int ty, int *mx, int *my) {
+/home/runner/work/vita-moonlight/vita-moonlight/src/input/touchabsolute.c:31:13: warning: 'touch_to_absolute' defined but not used [-Wunused-function]
+   31 | static void touch_to_absolute(int tx, int ty, int *mx, int *my) {
       |             ^~~~~~~~~~~~~~~~~
 /home/runner/work/vita-moonlight/vita-moonlight/src/check_host.c:69:13: warning: 'host_scan_mdns_cb' defined but not used [-Wunused-function]
    69 | static void host_scan_mdns_cb(int idx, const char* host, const char* pcname, const char* ip, int port) {
@@ -435,13 +415,13 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
 [100%] Built target moonlight.velf
 [100%] Built target moonlight.vpk
 total 22M
--rw-r--r--  1 runner runner  17K Nov 14 16:13 CMakeCache.txt
-drwxr-xr-x 10 runner runner 4.0K Nov 14 16:13 CMakeFiles
--rw-r--r--  1 runner runner 102K Nov 14 16:13 Makefile
--rw-r--r--  1 runner runner 2.3K Nov 14 16:13 cmake_install.cmake
--rw-r--r--  1 runner runner 2.7M Nov 14 16:13 eboot.bin
--rwxr-xr-x  1 runner runner 7.1M Nov 14 16:13 moonlight.elf
--rw-r--r--  1 runner runner 8.5M Nov 14 16:13 moonlight.velf
--rw-r--r--  1 runner runner 3.4M Nov 14 16:13 moonlight.vpk
--rw-r--r--  1 runner runner  912 Nov 14 16:13 param.sfo
-drwxr-xr-x  3 runner runner 4.0K Nov 14 16:13 third_party
+-rw-r--r--  1 runner runner  17K Nov 14 16:14 CMakeCache.txt
+drwxr-xr-x 10 runner runner 4.0K Nov 14 16:15 CMakeFiles
+-rw-r--r--  1 runner runner 102K Nov 14 16:14 Makefile
+-rw-r--r--  1 runner runner 2.3K Nov 14 16:14 cmake_install.cmake
+-rw-r--r--  1 runner runner 2.7M Nov 14 16:15 eboot.bin
+-rwxr-xr-x  1 runner runner 7.1M Nov 14 16:15 moonlight.elf
+-rw-r--r--  1 runner runner 8.5M Nov 14 16:15 moonlight.velf
+-rw-r--r--  1 runner runner 3.4M Nov 14 16:15 moonlight.vpk
+-rw-r--r--  1 runner runner  912 Nov 14 16:14 param.sfo
+drwxr-xr-x  3 runner runner 4.0K Nov 14 16:14 third_party
