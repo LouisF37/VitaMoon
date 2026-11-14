@@ -41,7 +41,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ github.workspace }}/vitasdk
-          key: vitasdk-${{ runner.os }}-v1
+          key: vitasdk-${{ runner.os }}-v2
 
       - name: Install VitaSDK and packages
         if: steps.cache-vitasdk.outputs.cache-hit != 'true'
@@ -49,32 +49,27 @@ jobs:
           {
             set -e
             rm -rf "$VITASDK"
-            # Download and extract the base SDK
-            SDK_URL=$(wget -qO- https://github.com/vitasdk/vita-headers/raw/master/.travis.d/last_built_toolchain.py | python3 - master linux)
-            echo "Downloading VitaSDK: $SDK_URL"
-            mkdir -p "$VITASDK"
-            wget -qO- "$SDK_URL" | tar xj -C "$VITASDK" --strip-components=1
+            # VitaSDK is now installed through vdpm's pacman-based bootstrap
+            # (the old tarball + "vdpm -f" route no longer ships a package client).
+            git clone --depth 1 https://github.com/vitasdk/vdpm.git /tmp/vdpm
+            cd /tmp/vdpm
+            ./bootstrap-vitasdk.sh --install-dir "$VITASDK"
             export PATH="$VITASDK/bin:$PATH"
-            # Install all main packages
-            git clone https://github.com/vitasdk/vdpm.git /tmp/vdpm
-            FAILED=""
-            for p in zlib bzip2 libzip libpng libexif libjpeg-turbo jansson yaml-cpp freetype harfbuzz fftw libvita2d libvita2d_ext libmad libogg libvorbis flac libtheora libtremor libmikmod libftpvita henkaku taihen kubridge libk libdebugnet onigmo libwebp sdl sdl_image sdl_mixer sdl_net sdl_ttf sdl_gfx sdl2 sdl2_image sdl2_mixer sdl2_net sdl2_ttf sdl2_gfx openal-soft openssl curl curlpp expat opus opusfile unrar glm libxml2 speexdsp pixman TinyGL kuio taipool mpg123 libmpeg2 soloud quirc Box2D libsndfile xz libarchive bullet libimagequant libmodplug libconfig libsodium vitaShaRK libmathneon vitaGL imgui imgui-vita2d libbaremetal minizip jsoncpp lame ffmpeg physfs vita-rss-libdl luajit tinyxml2 cpython cpython3 asio assimp opensles cpr libintl libopenmpt libvpx zstd libpcre2 fribidi libass websocketpp wslay SceShaccCgExt boost pib libxmp libxmp-lite sdl3 sdl3_image sdl3_ttf; do
-              # A package missing upstream should not abort the job; the build step
-              # will fail with a clear error if a required one is absent.
-              (cd /tmp/vdpm && ./vdpm -f "$p") || FAILED="$FAILED $p"
-            done
-            # Explicitly install mbedtls
-            (cd /tmp/vdpm && ./vdpm -f mbedtls) || FAILED="$FAILED mbedtls"
-            echo "vdpm packages that failed to install:${FAILED:- none}"
-            ls -l "$VITASDK"
-          } 2>&1 | tee ci/sdk.log
+            VDPM="$VITASDK/bin/vdpm"
+            [ -x "$VDPM" ] || VDPM=/tmp/vdpm/vdpm
+            # Only the libraries this app links against (see CMakeLists.txt).
+            "$VDPM" install zlib bzip2 expat openssl curl opus libpng libjpeg-turbo freetype libvita2d
+            "$VDPM" list
+            test -f "$VITASDK/arm-vita-eabi/lib/libvita2d.a"
+            test -f "$VITASDK/share/vita.toolchain.cmake"
+          } 2>&1 | tee "$GITHUB_WORKSPACE/ci/sdk.log"
 
       - name: Save VitaSDK cache
         if: steps.cache-vitasdk.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ github.workspace }}/vitasdk
-          key: vitasdk-${{ runner.os }}-v1
+          key: vitasdk-${{ runner.os }}-v2
 
       - name: Add VitaSDK to PATH
         run: echo "$VITASDK/bin" >> "$GITHUB_PATH"
@@ -84,7 +79,7 @@ jobs:
           {
             set -e
             git submodule update --init
-            cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/vita.toolchain.cmake"
+            cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE="$VITASDK/share/vita.toolchain.cmake" -DCMAKE_POLICY_VERSION_MINIMUM=3.5
             cmake --build build -j"$(nproc)"
             ls -lh build
           } 2>&1 | tee ci/build.log
