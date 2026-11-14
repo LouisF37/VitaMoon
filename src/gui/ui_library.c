@@ -342,6 +342,11 @@ int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *
       loaded_one = true;
     }
 
+    /* the focus may have changed above */
+    cur = &items[focus];
+    running = running_id != 0 && cur->id == running_id;
+    other_running = running_id != 0 && !running;
+
     /* ---- draw ---- */
     ui_start();
     theme_topbar(host_name);

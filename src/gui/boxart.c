@@ -230,6 +230,8 @@ vita2d_texture *boxart_load_texture(PSERVER_DATA server, int app_id) {
       sceIoRead(fd, dims, sizeof(dims)) == sizeof(dims) && dims[0] == BOXART_W && dims[1] == BOXART_H) {
     tex = vita2d_create_empty_texture(BOXART_W, BOXART_H);
     if (tex) {
+      /* covers are drawn scaled: filter them */
+      vita2d_texture_set_filters(tex, SCE_GXM_TEXTURE_FILTER_LINEAR, SCE_GXM_TEXTURE_FILTER_LINEAR);
       uint8_t *data = vita2d_texture_get_datap(tex);
       unsigned stride = vita2d_texture_get_stride(tex);
       for (int y = 0; y < BOXART_H && tex; y++) {
