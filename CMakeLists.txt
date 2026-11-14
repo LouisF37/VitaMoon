@@ -172,6 +172,7 @@ add_executable(${PROJECT_NAME}.elf
 target_link_libraries(${PROJECT_NAME}.elf
 	-lexpat
 	-lcurl
+	-lzstd
 	moonlight-common-c
 	enet
 	h264bitstream
