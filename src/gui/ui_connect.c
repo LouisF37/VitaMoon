@@ -148,6 +148,8 @@ enum {
   CONNECT_QUITAPP
 };
 
+#define QUIT_RELOAD 2
+
 static char connected_host_name[128] = "";
 
 /* Start (or resume) an app and wait for the stream to end. Returns QUIT_RELOAD
@@ -197,7 +199,6 @@ static int ui_quit_app(void) {
   return 0;
 }
 
-#define QUIT_RELOAD 2
 
 int ui_connect_loop(int id, void *context, const input_data *input) {
   int status = connection_get_status();
