@@ -41,6 +41,7 @@
 #include <openssl/err.h>
 
 #include "../src/debug.h"
+#include <psp2/kernel/threadmgr.h> // sceKernelDelayThread
 
 #define UNIQUE_FILE_NAME "uniqueid.dat"
 #define P12_FILE_NAME "client.p12"

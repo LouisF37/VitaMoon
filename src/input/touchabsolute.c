@@ -7,6 +7,7 @@
 #include "vita.h" // Para TouchData y dependencias
 #include "../debug.h"
 #include <psp2/touch.h>
+#include <stdlib.h> // abs
 #include <psp2/ctrl.h>
 #include <stdbool.h>
 #include <string.h>
