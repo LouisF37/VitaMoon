@@ -23,6 +23,8 @@
 #include <stdio.h>
 #include <opus/opus_multistream.h>
 #include <psp2/audioout.h>
+#include <psp2/kernel/processmgr.h>
+#include "../video/stream_stats.h"
 
 enum {
   VITA_AUDIO_INIT_OK        = 0,
@@ -77,6 +79,7 @@ static void vita_renderer_decode_and_play_sample(char* data, int length) {
     return;
 
   int decodeLen = opus_multistream_decode(decoder, data, length, buffer + 2 * decode_offset, FRAME_SIZE, 0);
+  stream_stats_on_audio_packet(decodeLen == FRAME_SIZE);
   if (decodeLen > 0) {
     if (decodeLen != FRAME_SIZE)
       return;
@@ -85,7 +88,9 @@ static void vita_renderer_decode_and_play_sample(char* data, int length) {
     if (decode_offset == VITA_SAMPLES) {
       decode_offset = 0;
       if (active_audio_thread) {
+        SceUInt64 t0 = sceKernelGetProcessTimeWide();
         sceAudioOutOutput(port, buffer);
+        stream_stats_on_audio_output((uint32_t)(sceKernelGetProcessTimeWide() - t0));
       }
     }
   } else {

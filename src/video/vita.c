@@ -25,6 +25,7 @@
 #include "../input/vita.h"
 #include "vita.h"
 #include "sps.h"
+#include "stream_stats.h"
 
 #include <Limelight.h>
 
@@ -234,6 +235,8 @@ static int vita_pacer_thread_main(SceSize args, void *argp) {
 }
 
 static void vita_cleanup() {
+  stream_stats_session_end();
+
   if (video_status == INIT_FRAME_PACER_THREAD) {
     active_pacer_thread = false;
     // wait 10sec
@@ -431,6 +434,8 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
     video_status++;
   }
 
+  stream_stats_session_start(width, height, redrawRate);
+
   return VITA_VIDEO_INIT_OK;
 
 cleanup:
@@ -446,7 +451,9 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   array_picture.numOfElm = 1;
   array_picture.pPicture = &pictures;
 
-  //frame->time = decodeUnit->receiveTimeMs;
+  stream_stats_on_frame(decodeUnit->frameNumber, decodeUnit->frameType, decodeUnit->fullLength,
+                        decodeUnit->receiveTimeUs, decodeUnit->enqueueTimeUs,
+                        decodeUnit->frameHostProcessingLatency, LiGetMicroseconds());
 
   picture.size = sizeof(picture);
   picture.frame.pixelType = 0;
@@ -489,17 +496,37 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   au.es.size = decodeUnit->fullLength;
   au.dts.lower = 0xFFFFFFFF;
   au.dts.upper = 0xFFFFFFFF;
-  au.pts.lower = 0xFFFFFFFF;
-  au.pts.upper = 0xFFFFFFFF;
+  // Tag the access unit with its frame number: the decoder copies the pts of the
+  // picture it outputs into picture.info.pts, which tells which frame is shown and
+  // how many frames the decoder is holding back.
+  au.pts.lower = (uint32_t)decodeUnit->frameNumber;
+  au.pts.upper = 0;
+  picture.info.pts.lower = 0xFFFFFFFF;
+  picture.info.pts.upper = 0xFFFFFFFF;
 
+  uint64_t t_dec0 = LiGetMicroseconds();
   int ret = 0;
   ret = sceAvcdecDecode(decoder, &au, &array_picture);
+  uint32_t dec_us = (uint32_t)(LiGetMicroseconds() - t_dec0);
   if (ret < 0) {
+    stream_stats_on_decode(dec_us, ret, false, STREAM_STATS_HOLD_UNKNOWN);
     printf("sceAvcdecDecode (len=0x%x): 0x%x numOfOutput %d\n", decodeUnit->fullLength, ret, array_picture.numOfOutput);
     return DR_NEED_IDR;
   }
 
-  if (array_picture.numOfOutput != 1) {
+  bool has_output = array_picture.numOfOutput == 1;
+  int shown_frame = decodeUnit->frameNumber;
+  uint32_t hold = STREAM_STATS_HOLD_UNKNOWN;
+  if (has_output && picture.info.pts.upper == 0) {
+    uint32_t lag = (uint32_t)decodeUnit->frameNumber - picture.info.pts.lower;
+    if (lag < 64) {
+      hold = lag;
+      shown_frame = (int)picture.info.pts.lower;
+    }
+  }
+  stream_stats_on_decode(dec_us, ret, has_output, hold);
+
+  if (!has_output) {
     //printf("numOfOutput %d\n", array_picture.numOfOutput);
     return DR_OK;
   }
@@ -511,7 +538,9 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
       vita_debug_log("remain frameskip: %d\n", need_drop);
       // skip
       need_drop--;
+      stream_stats_on_pacer_drop();
     } else {
+      uint64_t t_render0 = LiGetMicroseconds();
       vita2d_start_drawing();
 
       draw_streaming(frame_texture);
@@ -521,9 +550,13 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
       vita2d_end_drawing();
 
       vita2d_wait_rendering_done();
+      uint64_t t_render1 = LiGetMicroseconds();
       vita2d_swap_buffers();
+      uint64_t t_swap1 = LiGetMicroseconds();
 
       frame_count++;
+      stream_stats_on_present((uint32_t)(t_render1 - t_render0), (uint32_t)(t_swap1 - t_render1),
+                              shown_frame, t_swap1);
     }
   }
 
@@ -546,8 +579,9 @@ void draw_streaming(vita2d_texture *frame_texture) {
 }
 
 void draw_fps() {
+  // "Show FPS" now shows the full per-second statistics overlay.
   if (config.show_fps) {
-    vita2d_font_draw_textf(font, 40, 20, RGBA8(0xFF, 0xFF, 0xFF, 0xFF), 16, "fps: %u / %u", curr_fps[0], curr_fps[1]);
+    stream_stats_draw_overlay();
   }
 }
 

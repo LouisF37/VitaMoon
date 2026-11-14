@@ -24,6 +24,7 @@
 #include "power/vita.h"
 #include "input/vita.h"
 #include "video/vita.h"
+#include "video/stream_stats.h"
 #include "audio/vita.h"
 #include <stdbool.h>
 #include "connection_overlay.h"
@@ -184,6 +185,7 @@ int connection_get_status() {
 }
 
 void connection_status_update(int status) {
+  stream_stats_on_conn_status(status == CONN_STATUS_POOR);
   switch (status) {
     case CONN_STATUS_POOR:
       vitavideo_show_poor_net_indicator();

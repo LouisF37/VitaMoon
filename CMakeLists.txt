@@ -90,6 +90,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/wake_on_lan.c
 	src/audio/vita.c
 	src/video/vita.c
+	src/video/stream_stats.c
 	src/input/vita.c
 	src/input/shortcuts.c
 	src/power/vita.c
