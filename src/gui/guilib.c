@@ -18,6 +18,7 @@
 #include <psp2/touch.h>
 #include <psp2/rtc.h>
 #include <psp2/power.h>
+#include "../i18n.h"
 
 #define BUTTON_DELAY 150 * 1000
 
@@ -193,9 +194,6 @@ void draw_menu(menu_entry menu[], int total_elements, menu_geom geom, int cursor
       vita2d_draw_fill_circle(tx + 5, baseline - 5, 5, theme_status_color(menu[i].color));
       tx += 18;
     }
-    if (*name)
-      vita2d_font_draw_text(f, tx, baseline, text_color, 16, name);
-
     int right_x = el_x + geom.width - 4;
     if (menu[i].suffix && *menu[i].suffix) {
       /* suffixes are icons from the icon font */
@@ -205,13 +203,26 @@ void draw_menu(menu_entry menu[], int total_elements, menu_geom geom, int cursor
       right_x -= 10;
     }
     if (*menu[i].subname) {
-      int w = theme_text_width(f, 15, menu[i].subname);
-      vita2d_font_draw_text(f, right_x - w, baseline, selected ? TH_ACCENT_HI : TH_TEXT3, 15, menu[i].subname);
+      /* next to a label a value takes at most half the row; alone (info
+         lines) it may use the whole row */
+      char value[256];
+      int max_w = *name ? geom.width / 2 : right_x - tx;
+      theme_ellipsize(f, 15, menu[i].subname, max_w, value, sizeof(value));
+      int w = theme_text_width(f, 15, value);
+      vita2d_font_draw_text(f, right_x - w, baseline, selected ? TH_ACCENT_HI : TH_TEXT3, 15, value);
+      right_x -= w + 14;
+    }
+    if (*name) {
+      /* translated labels can be longer than the English ones: cut them
+         with an ellipsis instead of letting them run under the value */
+      char label[256];
+      theme_ellipsize(f, 16, name, right_x - tx, label, sizeof(label));
+      vita2d_font_draw_text(f, tx, baseline, text_color, 16, label);
     }
   }
 
-  int x = theme_hint(24, TH_HINTS_Y, theme_confirm_glyph(), "Valider");
-  theme_hint(x, TH_HINTS_Y, theme_cancel_glyph(), "Retour");
+  int x = theme_hint(24, TH_HINTS_Y, theme_confirm_glyph(), tr("Select"));
+  theme_hint(x, TH_HINTS_Y, theme_cancel_glyph(), tr("Back"));
 }
 
 /* Splits text into lines (on spaces and newlines) that fit max_w; returns the count. */
@@ -263,7 +274,7 @@ void draw_alert(char *message, menu_geom geom, char *buttons_captions[], int but
 
   if (buttons_count) {
     const int glyphs[4] = {theme_confirm_glyph(), theme_cancel_glyph(), GLYPH_TRIANGLE, GLYPH_SQUARE};
-    const char *defaults[4] = {"OK", "Annuler", "Options", "Supprimer"};
+    const char *defaults[4] = {tr("OK"), tr("Cancel"), tr("Options"), tr("Delete")};
     int total = 0;
     for (int i = 0; i < buttons_count && i < 4; i++) {
       const char *cap = buttons_captions && buttons_captions[i] ? buttons_captions[i] : defaults[i];
@@ -508,7 +519,7 @@ void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw
 }
 
 int display_confirm(const char* message) {
-    char* buttons[] = {"Oui", "Non"};
+    char* buttons[] = {tr("Yes"), tr("No")};
     menu_geom geom = make_geom_centered(480, 220);
     while (1) {
         ui_start();

@@ -65,6 +65,7 @@
 
 #include "debug.h"
 #include "check_dir.h"
+#include "i18n.h"
 
 // Network memory pool. Socket receive buffers are carved from it: Moonlight asks
 // for a ~2 MB video receive buffer, and VitaRPS5 measured a 4 MiB pool running
@@ -165,6 +166,9 @@ int main(int argc, char* argv[]) {
   vita_debug_log("[Moonlight] Carpeta seleccionada: %s", config.key_dir);
   // Ya no se guarda config antes de inicializar todos los valores
   config_parse(argc, argv, &config);
+
+  // Interface language (English unless the user picked another one in Settings).
+  i18n_set_language(config.language);
 
   // Restaurar estado de Absolute Touch al iniciar
   touchabsolute_enable(config.touchscreen_mode == 2);

@@ -48,6 +48,27 @@ int theme_text_width(vita2d_font *f, unsigned int size, const char *text) {
   return text && *text ? vita2d_font_text_width(f, size, text) : 0;
 }
 
+void theme_ellipsize(vita2d_font *f, unsigned int size, const char *text, int max_w,
+                     char *out, int outlen) {
+  static const char ellipsis[] = "\xE2\x80\xA6"; /* U+2026 */
+  snprintf(out, outlen, "%s", text ? text : "");
+  if (max_w <= 0 || theme_text_width(f, size, out) <= max_w)
+    return;
+  int len = strlen(out);
+  while (len > 0) {
+    /* step back one UTF-8 character */
+    do { len--; } while (len > 0 && ((unsigned char)out[len] & 0xC0) == 0x80);
+    while (len > 0 && out[len - 1] == ' ')
+      len--;
+    if (len + (int)sizeof(ellipsis) > outlen)
+      continue;
+    memcpy(out + len, ellipsis, sizeof(ellipsis));
+    if (theme_text_width(f, size, out) <= max_w)
+      return;
+  }
+  snprintf(out, outlen, "%s", ellipsis);
+}
+
 void theme_draw_background(void) {
   if (background)
     vita2d_draw_texture(background, 0, 0);

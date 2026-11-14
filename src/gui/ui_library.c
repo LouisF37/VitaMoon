@@ -27,6 +27,7 @@
 #include <ctype.h>
 #include <stdio.h>
 #include <string.h>
+#include "../i18n.h"
 
 int read_buttons();
 void ui_start();
@@ -167,7 +168,7 @@ static void draw_cover(lib_item *it, float x, float bottom, float w, float h, bo
   }
   if (running) {
     theme_rounded_rect(x + 8, y + 8, 64, 20, 10, TH_OK);
-    vita2d_font_draw_text(theme_font(), x + 15, y + 23, TH_INK, 12, "en cours");
+    vita2d_font_draw_text(theme_font(), x + 15, y + 23, TH_INK, 12, tr("running"));
   }
   if (focused) {
     float r = it->tex ? 4 : 11;
@@ -194,11 +195,11 @@ static void draw_hero(lib_item *it, const char *host_name, bool running, bool ot
 
   char meta[160];
   if (running)
-    snprintf(meta, sizeof(meta), "En cours sur le PC : reprends là où tu en étais");
+    snprintf(meta, sizeof(meta), "%s", tr("Running on the PC: pick up where you left off"));
   else if (it->has_stats)
-    snprintf(meta, sizeof(meta), "Dernière session : %s, %u min", it->last.when, (it->last.seconds + 59) / 60);
+    snprintf(meta, sizeof(meta), tr("Last session: %s, %u min"), it->last.when, (it->last.seconds + 59) / 60);
   else
-    snprintf(meta, sizeof(meta), "Jamais lancé depuis cette Vita");
+    snprintf(meta, sizeof(meta), "%s", tr("Never played from this Vita"));
   vita2d_font_draw_text(f, HERO_X, y + 70, TH_TEXT3, 15, meta);
 
   int cy = y + 88;
@@ -206,23 +207,23 @@ static void draw_hero(lib_item *it, const char *host_name, bool running, bool ot
     char v[32];
     int x = HERO_X;
     snprintf(v, sizeof(v), "%d,%d", it->last.shown_fps_x10 / 10, it->last.shown_fps_x10 % 10);
-    x = draw_chip(x, cy, v, " img/s affichées", it->last.shown_fps_x10 >= 575 ? TH_OK : TH_TEXT);
+    x = draw_chip(x, cy, v, tr(" fps shown"), it->last.shown_fps_x10 >= 575 ? TH_OK : TH_TEXT);
     snprintf(v, sizeof(v), "%d ms", (it->last.r2p_ms_x10 + 5) / 10);
-    x = draw_chip(x, cy, v, " réception > écran", TH_TEXT);
+    x = draw_chip(x, cy, v, tr(" receive to screen"), TH_TEXT);
     snprintf(v, sizeof(v), "%u", it->last.lost);
-    draw_chip(x, cy, v, it->last.lost > 1 ? " images perdues" : " image perdue", it->last.lost ? TH_WARN : TH_TEXT);
+    draw_chip(x, cy, v, it->last.lost > 1 ? tr(" frames lost") : tr(" frame lost"), it->last.lost ? TH_WARN : TH_TEXT);
   }
 
   int ay = it->has_stats ? cy + 42 : cy + 4;
   int x = HERO_X;
   if (other_running) {
-    x = draw_action(x, ay, GLYPH_SQUARE, "Quitter le jeu en cours", true);
+    x = draw_action(x, ay, GLYPH_SQUARE, tr("Quit running game"), true);
   } else {
-    x = draw_action(x, ay, theme_confirm_glyph(), running ? "Reprendre" : "Jouer", true);
+    x = draw_action(x, ay, theme_confirm_glyph(), running ? tr("Resume") : tr("Play"), true);
     if (running)
-      x = draw_action(x, ay, GLYPH_SQUARE, "Quitter le jeu", false);
+      x = draw_action(x, ay, GLYPH_SQUARE, tr("Quit game"), false);
   }
-  draw_action(x, ay, GLYPH_TRIANGLE, "Options", false);
+  draw_action(x, ay, GLYPH_TRIANGLE, tr("Options"), false);
 }
 
 int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *app_id) {
@@ -291,7 +292,7 @@ int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *
       focus = tapped;
     } else if (((buttons & config.btn_confirm) && !hold) || tapped == focus) {
       if (other_running) {
-        display_error("Un autre jeu tourne déjà sur le PC.\nQuitte-le d'abord avec la touche carré.");
+        display_error(tr("Another game is already running on the PC.\nQuit it first with the square button."));
       } else {
         *app_id = cur->id;
         result = LIBRARY_LAUNCH;
@@ -374,15 +375,15 @@ int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *
 
     int hx = 24;
     if (other_running) {
-      hx = theme_hint(hx, TH_HINTS_Y, GLYPH_SQUARE, "Quitter le jeu en cours");
+      hx = theme_hint(hx, TH_HINTS_Y, GLYPH_SQUARE, tr("Quit running game"));
     } else {
-      hx = theme_hint(hx, TH_HINTS_Y, theme_confirm_glyph(), running ? "Reprendre" : "Jouer");
+      hx = theme_hint(hx, TH_HINTS_Y, theme_confirm_glyph(), running ? tr("Resume") : tr("Play"));
       if (running)
-        hx = theme_hint(hx, TH_HINTS_Y, GLYPH_SQUARE, "Quitter le jeu");
+        hx = theme_hint(hx, TH_HINTS_Y, GLYPH_SQUARE, tr("Quit game"));
     }
-    hx = theme_hint(hx, TH_HINTS_Y, GLYPH_TRIANGLE, "Options");
-    hx = theme_hint(hx, TH_HINTS_Y, GLYPH_START, "Réglages");
-    theme_hint(hx, TH_HINTS_Y, theme_cancel_glyph(), "Retour");
+    hx = theme_hint(hx, TH_HINTS_Y, GLYPH_TRIANGLE, tr("Options"));
+    hx = theme_hint(hx, TH_HINTS_Y, GLYPH_START, tr("Settings"));
+    theme_hint(hx, TH_HINTS_Y, theme_cancel_glyph(), tr("Back"));
     ui_end();
   }
 

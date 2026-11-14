@@ -90,6 +90,7 @@ typedef struct _CONFIGURATION {
   int pin;
   uint16_t port;
   int keyboard_layout; // 0=EN_US, 1=ES_ES, 2=ES_LATAM
+  int language; // interface language: LANG_EN / LANG_FR / LANG_ES (see i18n.h)
   int touchscreen_mode; // 0=off, 1=DS4, 2=Mouse absoluto, 3=Tableta multitouch
   int controller_type; // 1: Xbox, 2: PS (default), 3: Nintendo, 4: Generic
   bool swap_shoulder_buttons; // Nuevo: swap R1/L1 <-> R2/L2

@@ -45,6 +45,10 @@ void theme_init(void);
 vita2d_font *theme_font(void);        /* Roboto Regular (falls back to the icon font) */
 vita2d_font *theme_font_light(void);  /* Roboto Light */
 int theme_text_width(vita2d_font *f, unsigned int size, const char *text);
+/* Copies text into out, cut with an ellipsis if it is wider than max_w.
+   Cuts on UTF-8 boundaries so accented letters are never split. */
+void theme_ellipsize(vita2d_font *f, unsigned int size, const char *text, int max_w,
+                     char *out, int outlen);
 
 void theme_draw_background(void);
 void theme_rounded_rect(float x, float y, float w, float h, float r, unsigned int color);

@@ -101,6 +101,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/font.c
 	src/gui/guilib.c
 	src/gui/theme.c
+	src/i18n.c
 	src/gui/ime.c
 	src/gui/ui.c
 	src/gui/ui_settings.c

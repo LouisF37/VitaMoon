@@ -32,6 +32,7 @@
 #include <Limelight.h>
 #include <client.h>
 #include <errors.h>
+#include "../i18n.h"
 
 #define MILLISECOND 1000
 #define SECOND      (1000 * MILLISECOND)
@@ -245,7 +246,8 @@ int ui_search_device_loop() {
   } while(0)
 #define MENU_MESSAGE(MESSAGE) \
   do { \
-    menu[idx] = (menu_entry) { .name = "", .disabled = true, .subname = (MESSAGE) }; \
+    menu[idx] = (menu_entry) { .name = "", .disabled = true }; \
+    snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s", (MESSAGE)); \
     idx++; \
   } while(0)
 #define MENU_SEPARATOR() \
@@ -255,9 +257,9 @@ int ui_search_device_loop() {
   } while(0)
 
   // Mostrar mensaje de refresco con triángulo
-  MENU_MESSAGE("Press TRIANGLE to refresh the search");
+  MENU_MESSAGE(tr("Press TRIANGLE to refresh the search"));
 
-  MENU_CATEGORY("Search device ...");
+  MENU_CATEGORY(tr("Search device ..."));
   for (int i = 0; i < found_device; i++) {
     if (devices[i].internal[0] == '\0') {
       continue;
@@ -276,7 +278,7 @@ int ui_search_device_loop() {
     MENU_ENTRY(DEVICE_ITEM + i, DEVICE_VIEW_ITEM + i, devices[i].name, suffix);
   }
   MENU_SEPARATOR();
-  MENU_ENTRY(DEVICE_EXIT_SEARCH, DEVICE_VIEW_EXIT_SEARCH, "Return", "");
+  MENU_ENTRY(DEVICE_EXIT_SEARCH, DEVICE_VIEW_EXIT_SEARCH, tr("Return"), "");
 
   return display_menu(menu, idx, NULL, &ui_search_device_callback, &ui_search_device_back, NULL, &menu);
 }

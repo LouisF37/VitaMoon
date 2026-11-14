@@ -27,6 +27,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include "../i18n.h"
 
 #ifndef BUILD_ID
 #define BUILD_ID "unknown"
@@ -231,47 +232,47 @@ static void write_fd(SceUID fd, const char *s) {
     sceIoWrite(fd, s, strlen(s));
 }
 
-/* Column legend written next to each session (French: read by the tester). */
+/* Column legend written next to each session. */
 static const char *k_legend =
-  "Colonnes du CSV (une ligne par seconde ; temps en microsecondes sauf mention) :\n"
-  "  t_ms            temps depuis le debut de la session, en ms\n"
-  "  win_ms          duree reelle de la fenetre de mesure (~1000 ms)\n"
-  "  vblank          rafraichissements de l'ecran Vita pendant la fenetre\n"
-  "  recv            images recues du PC\n"
-  "  shown           images affichees\n"
-  "  lost            images jamais arrivees (trous dans la numerotation)\n"
-  "  dropped         images decodees mais jetees par le regulateur d'images\n"
-  "  idr             images completes (cle) recues\n"
-  "  dec_err         erreurs du decodeur\n"
-  "  dec_noout       images acceptees par le decodeur sans image en sortie\n"
-  "  ooo             numerotation revenue en arriere (redemarrage du flux)\n"
-  "  kbps            debit video recu\n"
-  "  rx_*            temps de reception complete d'une image (1er -> dernier paquet)\n"
-  "  queue_*         attente entre fin de reception et decodage\n"
-  "  host_*          temps de capture + encodage cote PC (donne par Sunshine)\n"
-  "  dec_*           duree de l'appel au decodeur\n"
-  "  hold_avg_x100   images retenues par le decodeur, moyenne x100 (150 = 1,5 image)\n"
-  "  hold_max        images retenues, maximum\n"
-  "  render_*        dessin de l'image (jusqu'a la fin du travail GPU)\n"
-  "  swap_*          echange d'ecran (peut attendre le rafraichissement)\n"
-  "  r2p_*           du 1er paquet recu a l'image affichee (latence cote Vita)\n"
-  "  rtt_ms, rtt_var_ms  ping estime et sa variation\n"
-  "  poor            alertes \"connexion faible\"\n"
-  "  pend_vid, pend_aud  images video / paquets audio en attente\n"
-  "  aud_pkts, aud_err   paquets audio decodes / en erreur\n"
-  "  aud_out_*       temps de blocage de la sortie audio\n"
-  "  aud_buf_*       son en attente avant la sortie (mode audio faible latence)\n"
-  "  aud_underrun    coupures : plus assez de son en reserve (mode faible latence)\n"
-  "  aud_skip_us     son jete pour limiter le retard (mode faible latence)\n"
-  "  replaced        images decodees mais jamais affichees (modes d'affichage low latency / smooth)\n"
-  "  idle            rafraichissements sans nouvelle image (mode smooth)\n"
-  "  disp_q_avg_x100, disp_q_max  images en attente quand l'affichage en prend une (x100 pour la moyenne)\n"
-  "  cpu_mhz, gpu_mhz    frequences du processeur et de la puce graphique\n"
-  "  *_avg = moyenne sur la seconde, *_max = maximum sur la seconde\n";
+  "CSV columns (one line per second; times in microseconds unless stated):\n"
+  "  t_ms            time since the start of the session, in ms\n"
+  "  win_ms          actual length of the measurement window (~1000 ms)\n"
+  "  vblank          Vita screen refreshes during the window\n"
+  "  recv            frames received from the PC\n"
+  "  shown           frames shown\n"
+  "  lost            frames that never arrived (gaps in frame numbers)\n"
+  "  dropped         frames decoded but skipped by the original frame pacer\n"
+  "  idr             full (key) frames received\n"
+  "  dec_err         decoder errors\n"
+  "  dec_noout       frames accepted by the decoder with no picture out\n"
+  "  ooo             frame numbers going backwards (stream restart)\n"
+  "  kbps            video bitrate received\n"
+  "  rx_*            time to receive a whole frame (first -> last packet)\n"
+  "  queue_*         wait between end of reception and decoding\n"
+  "  host_*          capture + encode time on the PC (reported by Sunshine)\n"
+  "  dec_*           duration of the decoder call\n"
+  "  hold_avg_x100   frames held back by the decoder, average x100 (150 = 1.5 frames)\n"
+  "  hold_max        frames held back, maximum\n"
+  "  render_*        drawing the frame (until the GPU is done)\n"
+  "  swap_*          screen buffer swap (may wait for the refresh)\n"
+  "  r2p_*           first packet received -> frame shown (Vita-side latency)\n"
+  "  rtt_ms, rtt_var_ms  estimated ping and its variation\n"
+  "  poor            \"poor connection\" warnings\n"
+  "  pend_vid, pend_aud  video frames / audio packets waiting\n"
+  "  aud_pkts, aud_err   audio packets decoded / failed\n"
+  "  aud_out_*       time blocked in the audio output\n"
+  "  cpu_mhz, gpu_mhz    CPU and GPU clock frequencies\n"
+  "  aud_buf_*       audio buffered before output (low-latency audio)\n"
+  "  aud_underrun    audio gaps: buffer ran empty (low-latency audio)\n"
+  "  aud_skip_us     audio dropped to cap the delay (low-latency audio)\n"
+  "  replaced        frames decoded but never shown (low latency / smooth display)\n"
+  "  idle            screen refreshes with no new frame (smooth display)\n"
+  "  disp_q_avg_x100, disp_q_max  frames waiting when the display picks one (average x100)\n"
+  "  *_avg = average over the second, *_max = maximum over the second\n";
 
-/* Creates <data>/stats/session-<date>.csv (numbers only, ';' separated so that a
- * French Excel opens it with a double click) and session-<date>.txt (settings of
- * the session + column legend). */
+/* Creates <data>/stats/session-<date>.csv (integers only, ';' separated so that
+ * Excel in a French locale opens it with a double click) and session-<date>.txt
+ * (settings of the session + column legend). */
 static void open_session_files(void) {
   char dir[512];
   char path[640];
@@ -293,18 +294,18 @@ static void open_session_files(void) {
     sceDisplayGetRefreshRate(&refresh);
     char line[512];
     snprintf(line, sizeof(line),
-             "vita-moonlight - statistiques de stream\n"
+             "vita-moonlight stream statistics\n"
              "build: %s\n"
              "date: %04d-%02d-%02d %02d:%02d:%02d\n"
-             "flux: %dx%d @ %d img/s, debit demande %d kbps, paquets %d octets\n",
+             "stream: %dx%d @ %d fps, requested bitrate %d kbps, packets %d bytes\n",
              BUILD_ID, t.year, t.month, t.day, t.hour, t.minute, t.second,
              s_width, s_height, s_fps, config.stream.bitrate, config.stream.packetSize);
     write_fd(info, line);
     snprintf(line, sizeof(line),
-             "reglages: vblank_wait=%d frame_pacer=%d ref_frame_invalidation=%d center_region_only=%d\n"
-             "phase 2: boost_clocks=%d match_refresh_rate=%d (envoye a l'hote: %d) low_latency_audio=%d display_mode=%d (0 direct, 1 low latency, 2 smooth)\n"
-             "ecran Vita: %.4f Hz (frequence annoncee par le systeme)\n"
-             "frequences: cpu %d MHz, gpu %d MHz, bus %d MHz, xbar %d MHz\n\n",
+             "settings: vblank_wait=%d frame_pacer=%d ref_frame_invalidation=%d center_region_only=%d\n"
+             "phase 2: boost_clocks=%d match_refresh_rate=%d (sent to host: %d) low_latency_audio=%d display_mode=%d (0 direct, 1 low latency, 2 smooth)\n"
+             "Vita screen: %.4f Hz (rate reported by the system)\n"
+             "clocks: cpu %d MHz, gpu %d MHz, bus %d MHz, xbar %d MHz\n\n",
              config.enable_vita_vblank_wait, config.enable_frame_pacer,
              config.enable_ref_frame_invalidation, config.center_region_only,
              config.boost_clocks, config.match_refresh_rate, config.stream.clientRefreshRateX100,
@@ -543,7 +544,7 @@ void stream_stats_draw_overlay(void) {
   vita2d_font *f = theme_font();
   if (!s_overlay_valid) {
     theme_rounded_rect(8, 8, 220, 26, 8, TH_PANEL);
-    vita2d_font_draw_text(f, 18, 26, TH_TEXT2, 14, "stats : première seconde...");
+    vita2d_font_draw_text(f, 18, 26, TH_TEXT2, 14, tr("stats: first second..."));
     return;
   }
   int idx = s_overlay_idx;
