@@ -6,7 +6,7 @@
   **Stream your PC games to a PlayStation Vita, built for a smooth picture over Wi-Fi**
 
   [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-  [![Build](https://img.shields.io/github/actions/workflow/status/LouisF37/lune-vita/cmake-psvita.yml?branch=phase2)](https://github.com/LouisF37/lune-vita/actions)
+  [![Build](https://img.shields.io/github/actions/workflow/status/LouisF37/lune-vita/cmake-psvita.yml?branch=phase2)](../../actions)
   [![Version](https://img.shields.io/badge/version-1.0.0--beta.1%20%22Nouvelle%20Lune%22-orange)](CHANGELOG.md)
 </div>
 
@@ -67,8 +67,8 @@ measurements).</sub>
 ## Install
 
 1. Download the VPK of the
-   [1.0.0-beta.1 release](https://github.com/LouisF37/lune-vita/releases/tag/v1.0.0-beta.1), or of
-   [the latest development build](https://github.com/LouisF37/lune-vita/releases/tag/build-phase2).
+   [1.0.0-beta.1 release](../../releases/tag/v1.0.0-beta.1), or of
+   [the latest development build](../../releases/tag/build-phase2).
 2. Copy it to the Vita and install it with VitaShell.
 
 Lune has its own title ID (`LUNE00001`) and data folder (`ux0:data/lune`): it installs next to
@@ -114,7 +114,7 @@ The French user and test guide, with every option and the test plan, is in
   a bug report, with the build shown at the bottom left of the home screen.
 - *Settings > General > Save a debug log* writes `ux0:data/lune/lune.log`.
 - A crash leaves `ux0:data/psp2core-*.psp2dmp`; `tools/dev/crash-dump.sh` decodes it.
-- Bugs and ideas: [Issues](https://github.com/LouisF37/lune-vita/issues).
+- Bugs and ideas: [Issues](../../issues).
 
 ## How it works
 

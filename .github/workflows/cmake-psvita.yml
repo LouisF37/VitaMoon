@@ -22,6 +22,8 @@ jobs:
     env:
       VITASDK: ${{ github.workspace }}/vitasdk
       BUILD_BRANCH: ${{ github.head_ref || github.ref_name }}
+      # Branch whose pushes publish the version set in CMakeLists.txt (docs/RELEASING.md).
+      RELEASE_BRANCH: phase2
     defaults:
       run:
         shell: bash
@@ -116,6 +118,32 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "Build $BUILD_BRANCH (${GITHUB_SHA::7})" \
             --notes "Automatic build of branch $BUILD_BRANCH, commit ${GITHUB_SHA::7}, $(date -u +%Y-%m-%dT%H:%MZ)."
+
+      # A version without a release yet is published once built and tested: tag
+      # v<version> on this commit, its CHANGELOG.md section as notes, the VPK
+      # (docs/RELEASING.md). Pushes that keep the same version change nothing.
+      - name: Publish version release
+        if: github.event_name == 'push' && github.ref_name == env.RELEASE_BRANCH
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          python3 tools/dev/release_info.py --repo "$GITHUB_REPOSITORY" --notes ci/release-notes.md > ci/release.env
+          source ci/release.env
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "$TAG is already released"
+            exit 0
+          fi
+          VPK="$(ls build/*.vpk | head -1)"
+          cp "$VPK" "lune-$TAG.vpk"
+          flags=()
+          [ "$PRERELEASE" = 1 ] && flags+=(--prerelease)
+          gh release create "$TAG" "lune-$TAG.vpk" \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "$TITLE" \
+            --notes-file ci/release-notes.md \
+            "${flags[@]}"
 
       # Always store the logs (also on failure) on the ci-logs branch, one folder per branch.
       - name: Publish build log

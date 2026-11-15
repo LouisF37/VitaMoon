@@ -44,6 +44,7 @@ Set the Vita's address in `VITA_IP` or in `tools/dev/vita_ip.txt` (not committed
 | `deploy-vpk.sh` | build, send the VPK to VitaShell's FTP (`ux0:/ABM/`), open VitaShell |
 | `deploy-eboot.sh` | build and replace only `eboot.bin` of the installed app, then start it (vitacompanion) |
 | `crash-dump.sh` | fetch the newest `psp2core` dump and decode it against `build/lune.elf` |
+| `release_info.py` | tag, title and notes of the version CI will release ([RELEASING.md](RELEASING.md)) |
 
 ## Translations
 
@@ -57,3 +58,4 @@ Spanish texts are in `tools/i18n/table.py` and `table2.py`; `python3 tools/i18n/
   to Sunshine with their cover art.
 - `tools/wol_sniffer.py`: listens for Wake-on-LAN packets, to check them without turning the PC off.
 - `tools/make_background.py`: generates the interface background.
+- `tools/art/make_icons.py`: draws the LiveArea bubble icon and gate image.

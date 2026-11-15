@@ -37,7 +37,11 @@ phases of the moon, in French: *Nouvelle Lune* (1.0), then *Premier Croissant*, 
 3. Run the PC tests and the interface preview ([TESTING.md](TESTING.md)).
 4. For a release that changes the stream, write a checkpoint report with Vita measurements in
    `docs/checkpoints/`.
-5. Commit and push; wait for CI to build the commit.
-6. Tag `v<version>` (for example `v1.0.0-beta.1`) on that commit and push the tag. Create a GitHub
-   release for the tag (a pre-release for a beta) with the changelog section as notes, and attach the
-   VPK built by CI for the commit as `lune-v<version>.vpk`.
+5. Commit and push to `phase2` (the `RELEASE_BRANCH` of the CI workflow). Once the VPK is built and
+   the PC tests pass, CI publishes the version if it has no release yet: tag `v<version>` on that
+   commit, a GitHub release (a pre-release when the version has a label) with the version's
+   `CHANGELOG.md` section as notes, and the VPK as `lune-v<version>.vpk`. Later pushes with the same
+   version change nothing.
+
+`python3 tools/dev/release_info.py` prints the tag and title CI will use and writes the notes, to
+check them before pushing. Every push also refreshes the development build `build-<branch>`.
