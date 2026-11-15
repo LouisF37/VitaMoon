@@ -43,23 +43,42 @@ enum {
  * the previous 20 ms have played.
  *
  * Low latency: decoded packets go into a ring buffer; a dedicated thread feeds a
- * 5.33 ms port (256 frames; the port size must be a multiple of 64 frames).
- * The receive thread never blocks on audio, playback starts with ~10 ms of
- * cushion, and accumulated delay (Wi-Fi bursts, clock drift between PC and
- * Vita) is dropped as soon as it exceeds 40 ms.
+ * 5.33 ms port (256 frames; the port size must be a multiple of 64 frames) and
+ * the receive thread never blocks on audio. The ring is an adaptive jitter
+ * buffer:
+ *   - playback (re)starts once a small cushion ("target") is buffered;
+ *   - each gap (the ring ran empty) raises the target by 5 ms, so the cushion
+ *     grows to what the Wi-Fi link actually needs; it shrinks again by 1 ms
+ *     per 30 s without a gap;
+ *   - delay that builds up (a burst after a Wi-Fi stall, clock drift between
+ *     PC and Vita) is trimmed back to the target with a short cross-fade,
+ *     based on the smallest cushion seen over the last half second.
+ *
+ * In both modes a lost packet is replaced by Opus loss concealment, which
+ * keeps the timing and avoids a hard gap.
  */
 #define FRAME_SIZE 240
 #define VITA_SAMPLES 960
 #define BUFFER_SIZE (2 * VITA_SAMPLES)
 
-#define LL_GRAIN 256          /* frames per port write: 5.33 ms at 48 kHz */
-#define LL_RING_FRAMES 4096   /* ring capacity: 85 ms (power of two) */
-#define LL_PREBUFFER 512      /* cushion before (re)starting playback: 10.7 ms */
-#define LL_MAX_FILL 1920      /* above 40 ms buffered, drop back to LL_PREBUFFER */
-#define LL_MAX_PACKET 960     /* largest Opus packet accepted: 20 ms */
+#define LL_GRAIN 256            /* frames per port write: 5.33 ms at 48 kHz */
+#define LL_RING_FRAMES 8192     /* ring capacity: 170 ms (power of two) */
+#define LL_TARGET_START 480     /* cushion kept in the ring: 10 ms to begin with */
+#define LL_TARGET_MIN 240       /* never below 5 ms */
+#define LL_TARGET_MAX 2400      /* never above 50 ms */
+#define LL_TARGET_STEP 240      /* +5 ms after each gap */
+#define LL_TARGET_DECAY 48      /* -1 ms after LL_CALM_GRAINS without a gap */
+#define LL_CALM_GRAINS 5625     /* 30 s of output */
+#define LL_TRIM_SLACK 240       /* extra cushion tolerated before trimming: 5 ms */
+#define LL_HARD_EXCESS 2880     /* trim at once above target + 60 ms */
+#define LL_WINDOW_GRAINS 96     /* the cushion is judged over ~0.5 s */
+#define LL_XFADE 64             /* cross-fade length when trimming: 1.3 ms */
+#define LL_OUT_BUFFERS 4        /* output blocks used in rotation */
+#define LL_MAX_PACKET 960       /* largest Opus packet accepted: 20 ms */
 
 static int decode_offset;
 static int port = -1;
+static int samples_per_frame = FRAME_SIZE;
 
 static int active_audio_thread = true;
 static OpusMSDecoder* decoder = NULL;
@@ -73,7 +92,10 @@ static short ll_ring[LL_RING_FRAMES * 2];
 static uint32_t ll_head;
 static uint32_t ll_tail;
 static short ll_packet[LL_MAX_PACKET * 2];
-static short ll_out[LL_GRAIN * 2];
+/* The SDK does not say whether sceAudioOutOutput copies the block before it
+ * returns, so a block is not rewritten until three more have been handed over
+ * (same precaution as VitaRPS5). */
+static short ll_out[LL_OUT_BUFFERS][LL_GRAIN * 2];
 static volatile bool ll_running = false;
 static SceUID ll_thread = -1;
 
@@ -81,8 +103,20 @@ static inline uint32_t frames_to_us(uint32_t frames) {
   return frames * 125 / 6; /* 1e6 / 48000 */
 }
 
+static inline void ring_read(uint32_t pos, short *left, short *right) {
+  uint32_t idx = pos & (LL_RING_FRAMES - 1);
+  *left = ll_ring[2 * idx];
+  *right = ll_ring[2 * idx + 1];
+}
+
 static int ll_output_thread(SceSize args, void *argp) {
   bool playing = false;
+  uint32_t target = LL_TARGET_START;  /* cushion wanted in the ring, in frames */
+  uint32_t win_min = 0xFFFFFFFF;      /* smallest cushion seen in the current window */
+  int win_n = 0;
+  uint32_t calm = 0;                  /* grains played since the last gap */
+  int out_idx = 0;
+
   while (ll_running) {
     uint32_t tail = ll_tail;
     uint32_t fill = __atomic_load_n(&ll_head, __ATOMIC_ACQUIRE) - tail;
@@ -95,38 +129,84 @@ static int ll_output_thread(SceSize args, void *argp) {
       continue;
     }
     if (!playing) {
-      // (Re)start only once a small cushion is buffered.
-      if (fill < LL_PREBUFFER) {
+      // (Re)start only once the cushion is there, and from the newest audio.
+      if (fill < target + LL_GRAIN) {
         sceKernelDelayThread(1000);
         continue;
       }
+      if (fill > target + LL_GRAIN) {
+        uint32_t drop = fill - (target + LL_GRAIN);
+        tail += drop;
+        fill -= drop;
+        __atomic_store_n(&ll_tail, tail, __ATOMIC_RELEASE);
+        stream_stats_on_audio_skip(frames_to_us(drop));
+      }
       playing = true;
-    }
-    if (fill > LL_MAX_FILL) {
-      // Too much delay has built up: drop the oldest audio.
-      uint32_t drop = fill - LL_PREBUFFER;
-      tail += drop;
-      fill -= drop;
-      __atomic_store_n(&ll_tail, tail, __ATOMIC_RELEASE);
-      stream_stats_on_audio_skip(frames_to_us(drop));
+      win_min = 0xFFFFFFFF;
+      win_n = 0;
     }
     if (fill < LL_GRAIN) {
-      // Underrun: the port plays silence until the cushion is rebuilt.
+      // Gap: the ring ran empty. Ask for a larger cushion and rebuild it.
       stream_stats_on_audio_underrun();
       playing = false;
+      calm = 0;
+      if (target < LL_TARGET_MAX)
+        target += LL_TARGET_STEP;
       continue;
     }
 
-    stream_stats_on_audio_fill(frames_to_us(fill));
-    for (int i = 0; i < LL_GRAIN; i++) {
-      uint32_t idx = (tail + i) & (LL_RING_FRAMES - 1);
-      ll_out[2 * i] = ll_ring[2 * idx];
-      ll_out[2 * i + 1] = ll_ring[2 * idx + 1];
+    // How much delay can be removed without touching the cushion we need?
+    uint32_t cushion = fill - LL_GRAIN;
+    uint32_t trim = 0;
+    if (cushion > target + LL_HARD_EXCESS) {
+      trim = cushion - target;
+    } else {
+      if (cushion < win_min)
+        win_min = cushion;
+      if (++win_n >= LL_WINDOW_GRAINS) {
+        if (win_min > target + LL_TRIM_SLACK)
+          trim = win_min - target;
+        win_min = 0xFFFFFFFF;
+        win_n = 0;
+      }
+    }
+
+    short *out = ll_out[out_idx];
+    out_idx = (out_idx + 1) % LL_OUT_BUFFERS;
+    if (trim > 0) {
+      // Jump ahead by `trim` frames, blending the two positions over LL_XFADE frames.
+      for (int i = 0; i < LL_GRAIN; i++) {
+        short nl, nr;
+        ring_read(tail + trim + i, &nl, &nr);
+        if (i < LL_XFADE) {
+          short ol, or_;
+          ring_read(tail + i, &ol, &or_);
+          out[2 * i] = (short)((ol * (LL_XFADE - i) + nl * i) / LL_XFADE);
+          out[2 * i + 1] = (short)((or_ * (LL_XFADE - i) + nr * i) / LL_XFADE);
+        } else {
+          out[2 * i] = nl;
+          out[2 * i + 1] = nr;
+        }
+      }
+      tail += trim;
+      stream_stats_on_audio_skip(frames_to_us(trim));
+      win_min = 0xFFFFFFFF;
+      win_n = 0;
+    } else {
+      for (int i = 0; i < LL_GRAIN; i++)
+        ring_read(tail + i, &out[2 * i], &out[2 * i + 1]);
     }
     __atomic_store_n(&ll_tail, tail + LL_GRAIN, __ATOMIC_RELEASE);
+    stream_stats_on_audio_fill(frames_to_us(fill), frames_to_us(target));
+
+    if (++calm >= LL_CALM_GRAINS) {
+      calm = 0;
+      if (target > LL_TARGET_MIN)
+        target -= LL_TARGET_DECAY;
+    }
 
     SceUInt64 t0 = sceKernelGetProcessTimeWide();
-    sceAudioOutOutput(port, ll_out); // blocks until the port accepts 256 more frames
+    sceAudioOutOutput(port, out); // blocks until the port accepts 256 more frames
     stream_stats_on_audio_output((uint32_t)(sceKernelGetProcessTimeWide() - t0));
   }
   return 0;
@@ -165,6 +245,9 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
       return VITA_AUDIO_ERROR_BAD_OPUS;
   }
 
+  samples_per_frame = opusConfig->samplesPerFrame > 0 && opusConfig->samplesPerFrame <= LL_MAX_PACKET
+                          ? opusConfig->samplesPerFrame : FRAME_SIZE;
+
   // Both modes assume stereo (2 interleaved channels), as the original code did.
   ll_mode = config.low_latency_audio && opusConfig->channelCount == 2;
   decode_offset = 0;
@@ -180,7 +263,7 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
     ll_head = 0;
     ll_tail = 0;
     ll_running = true;
-    ll_thread = sceKernelCreateThread("vita_audio_out", ll_output_thread, 64, 0x4000, 0, 0, NULL);
+    ll_thread = sceKernelCreateThread("vita_audio_out", ll_output_thread, 64, 0x8000, 0, 0, NULL);
     if (ll_thread >= 0) {
       sceKernelStartThread(ll_thread, 0, NULL);
     } else {
@@ -196,9 +279,11 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
   return VITA_AUDIO_INIT_OK;
 }
 
+/* data == NULL: the packet was lost; Opus synthesises a replacement. */
 static void ll_queue_packet(char* data, int length) {
-  int n = opus_multistream_decode(decoder, data, length, ll_packet, LL_MAX_PACKET, 0);
-  stream_stats_on_audio_packet(n > 0);
+  int n = data ? opus_multistream_decode(decoder, (const unsigned char *)data, length, ll_packet, LL_MAX_PACKET, 0)
+               : opus_multistream_decode(decoder, NULL, 0, ll_packet, samples_per_frame, 0);
+  stream_stats_on_audio_packet(data != NULL && n > 0);
   if (n <= 0) {
     vita_debug_log("Opus error from decode: %d\n", n);
     return;
@@ -219,9 +304,6 @@ static void ll_queue_packet(char* data, int length) {
 }
 
 static void vita_renderer_decode_and_play_sample(char* data, int length) {
-  if (!data)
-    return;
-
   // Runs on the audio receive thread: raise it once to the highest user priority.
   static SceUID boosted_thread = -1;
   if (boosted_thread != sceKernelGetThreadId()) {
@@ -237,8 +319,9 @@ static void vita_renderer_decode_and_play_sample(char* data, int length) {
   // Classic mode: each packet carries 5 ms of sound (FRAME_SIZE samples). They are
   // accumulated up to VITA_SAMPLES (20 ms) before being handed to the audio port,
   // which blocks until the previous 20 ms have been played.
-  int decodeLen = opus_multistream_decode(decoder, data, length, buffer + 2 * decode_offset, FRAME_SIZE, 0);
-  stream_stats_on_audio_packet(decodeLen == FRAME_SIZE);
+  int decodeLen = data ? opus_multistream_decode(decoder, (const unsigned char *)data, length, buffer + 2 * decode_offset, FRAME_SIZE, 0)
+                       : opus_multistream_decode(decoder, NULL, 0, buffer + 2 * decode_offset, FRAME_SIZE, 0);
+  stream_stats_on_audio_packet(data != NULL && decodeLen == FRAME_SIZE);
   if (decodeLen > 0) {
     if (decodeLen != FRAME_SIZE)
       return;

@@ -29,13 +29,17 @@ void stream_stats_on_frame(int frame_number, int frame_type, int length,
                            uint16_t host_latency_tenth_ms, uint64_t submit_us);
 void stream_stats_on_decode(uint32_t decode_us, int result, bool has_output, uint32_t hold_frames);
 void stream_stats_on_pacer_drop(void);
-void stream_stats_on_present(uint32_t render_us, uint32_t swap_us, uint64_t receive_us, uint64_t presented_us);
+/* visible_us: when the frame becomes visible (the vertical blank after the flip). */
+void stream_stats_on_present(uint32_t render_us, uint32_t swap_us, uint64_t receive_us, uint64_t visible_us);
+void stream_stats_on_decoder_pull(bool got_picture);  /* decoder catch-up attempt */
 /* First-packet time of a frame recently seen by stream_stats_on_frame (0 if unknown). Receive thread only. */
 uint64_t stream_stats_receive_time(int frame_number);
 /* Display thread (LOW_LATENCY / SMOOTH modes) */
 void stream_stats_on_frame_replaced(void);           /* decoded but never shown */
 void stream_stats_on_display_idle(void);             /* SMOOTH: a refresh with no new frame */
 void stream_stats_on_display_queue(uint32_t ready);  /* frames waiting when the display picked one */
+void stream_stats_on_display_late(void);             /* SMOOTH: a flip missed its vertical blank */
+void stream_stats_on_latch_budget(uint32_t budget_us); /* SMOOTH: time kept for drawing */
 
 /* Connection callbacks */
 void stream_stats_on_conn_status(bool poor);
@@ -43,7 +47,7 @@ void stream_stats_on_conn_status(bool poor);
 /* Audio thread */
 void stream_stats_on_audio_packet(bool ok);
 void stream_stats_on_audio_output(uint32_t block_us);
-void stream_stats_on_audio_fill(uint32_t buffered_us);  /* low-latency mode */
+void stream_stats_on_audio_fill(uint32_t buffered_us, uint32_t target_us);  /* low-latency mode */
 void stream_stats_on_audio_underrun(void);
 void stream_stats_on_audio_skip(uint32_t dropped_us);
 

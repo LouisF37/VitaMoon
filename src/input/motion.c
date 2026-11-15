@@ -44,6 +44,16 @@ bool vita_motion_init() {
     return false;
 }
 
+/* Delay between two reports for a rate asked by the host. Bounded so that an
+ * unexpected rate (0, or above 500 Hz) can neither divide by zero nor turn the
+ * thread into a busy loop. */
+static SceUInt motion_period_us(uint32_t rate_hz) {
+  if (rate_hz == 0)
+    return 1000000;
+  SceUInt period = 1000000 / rate_hz;
+  return period < 2000 ? 2000 : period;
+}
+
 int vitainput_motion_gyro_thread(SceSize args, void *argp) {
   while (1) {
     if (motion_state.motion_type_gyro_enabled == true && active_motion_threads == true) {
@@ -66,7 +76,7 @@ int vitainput_motion_gyro_thread(SceSize args, void *argp) {
     } else {
       sceKernelDelayThread(1000000);
     }
-    sceKernelDelayThread((1000/motion_state.report_rate_gyro) * 1000);
+    sceKernelDelayThread(motion_period_us(motion_state.report_rate_gyro));
   }
   
   return 0;
@@ -80,7 +90,7 @@ int vitainput_motion_accel_thread(SceSize args, void *argp) {
       sceKernelDelayThread(1000000);
     }
 
-    sceKernelDelayThread((1000/motion_state.report_rate_accel) * 1000);
+    sceKernelDelayThread(motion_period_us(motion_state.report_rate_accel));
   }
 
   return 0;

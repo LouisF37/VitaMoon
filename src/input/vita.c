@@ -759,7 +759,6 @@ inline void vitainput_process(void) {
   memset(&pad, 0, sizeof(pad));
   memset(&touch, 0, sizeof(TouchData));
   memset(&curr, 0, sizeof(input_data));
-  sceCtrlSetSamplingModeExt(SCE_CTRL_MODE_ANALOG_WIDE);
   sceCtrlPeekBufferPositiveExt2(controller_port, &pad, 1);
   sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
   sceTouchPeek(SCE_TOUCH_PORT_BACK, &back, 1);
@@ -869,13 +868,19 @@ inline void vitainput_process(void) {
 
 static uint8_t active_input_thread = 0;
 
+/* Input thread: reads the pad and the touch panels every 2 ms and sends what
+ * changed. It runs above the default priority (96, as in VitaRPS5) so a press
+ * is not delayed by background work, and below the media threads (64). */
+#define INPUT_THREAD_PRIORITY 96
+
 int vitainput_thread(SceSize args, void *argp) {
   while (1) {
     if (active_input_thread) {
       vitainput_process();
+      sceKernelDelayThread(2000); // 2 ms
+    } else {
+      sceKernelDelayThread(20000); // idle: nothing to send
     }
-
-    sceKernelDelayThread(2000); // 2 ms
   }
 
   return 0;
@@ -886,7 +891,7 @@ bool vitainput_init() {
   sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
   sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START);
 
-  SceUID thid = sceKernelCreateThread("vitainput_thread", vitainput_thread, 0, 0x40000, 0, 0, NULL);
+  SceUID thid = sceKernelCreateThread("vitainput_thread", vitainput_thread, INPUT_THREAD_PRIORITY, 0x40000, 0, 0, NULL);
   if (thid >= 0) {
     sceKernelStartThread(thid, 0, NULL);
     return true;
@@ -1009,6 +1014,9 @@ void vitainput_start(void) {
   LiSendControllerArrivalEvent(0, gamepadMask, controller_type, gamepadSupportedButtonFlags, gamepadCapabilites);
 
   LiSendControllerBatteryEvent(0, LI_BATTERY_STATE_FULL, 100);
+
+  // Menus may have changed the sampling mode: set it once here, not on every poll.
+  sceCtrlSetSamplingModeExt(SCE_CTRL_MODE_ANALOG_WIDE);
 
   if(config.enable_psbutton_capture)
     lock_psbutton();

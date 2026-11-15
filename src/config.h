@@ -77,6 +77,8 @@ typedef struct _CONFIGURATION {
   bool match_refresh_rate;  // tell the host the Vita's exact refresh rate
   bool low_latency_audio;   // 5 ms audio port fed from a ring buffer
   int display_mode;         // DISPLAY_MODE_*
+  bool decoder_catchup;     // pull pictures the hardware decoder holds back
+  bool auto_bitrate;        // bitrate follows resolution and frame rate
   bool enable_motion_controls; //Metalface
   bool enable_psbutton_capture;
   bool enable_double_tap_sprint; //**
@@ -97,6 +99,11 @@ typedef struct _CONFIGURATION {
 } CONFIGURATION, *PCONFIGURATION;
 
 extern CONFIGURATION config;
+
+/* Bitrate (kbps) suited to the Vita's Wi-Fi for a resolution and frame rate. */
+int config_auto_bitrate(int width, int height, int fps);
+/* Recomputes stream.bitrate when the automatic bitrate is on. */
+void config_apply_auto_bitrate(PCONFIGURATION config);
 extern char *config_path;
 
 extern bool inputAdded;

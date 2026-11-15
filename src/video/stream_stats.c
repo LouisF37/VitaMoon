@@ -99,7 +99,7 @@ static struct {
   acc_t hold;          /* decoder retention, in frames */
   acc_t render_us;     /* draw + wait_rendering_done */
   acc_t swap_us;       /* vita2d_swap_buffers */
-  acc_t r2p_us;        /* first packet of the shown frame -> after swap */
+  acc_t r2p_us;        /* first packet of the shown frame -> visible on screen */
   acc_t aud_out_us;    /* sceAudioOutOutput blocking time */
   acc_t aud_buf_us;    /* audio buffered before output (low-latency mode) */
   uint32_t aud_underrun;
@@ -107,6 +107,11 @@ static struct {
   uint32_t replaced;     /* decoded frames never shown (display modes) */
   uint32_t idle;         /* SMOOTH: refreshes without a new frame */
   acc_t queue_depth;     /* frames waiting when the display picked one */
+  uint32_t late;         /* SMOOTH: flips that missed their vertical blank */
+  acc_t budget_us;       /* SMOOTH: time kept for drawing before the blank */
+  uint32_t pull_try;     /* decoder catch-up attempts */
+  uint32_t pull_got;     /* ... that returned a picture */
+  acc_t aud_target_us;   /* audio cushion wanted (low-latency mode) */
 } c;
 
 /* Video-thread-only state */
@@ -128,6 +133,8 @@ static SceDateTime s_start_time;
 static uint64_t sess_ms, sess_shown, sess_lost, sess_r2p_sum, sess_r2p_n;
 static volatile int s_overlay_idx = 0;
 static volatile bool s_overlay_valid = false;
+static int s_overlay_measured = -1;   /* display thread: which text s_overlay_width belongs to */
+static int s_overlay_width = 0;
 
 /* ---- hooks ---- */
 
@@ -167,7 +174,7 @@ void stream_stats_on_decode(uint32_t decode_us, int result, bool has_output, uin
   }
   if (!has_output)
     cnt_add(&c.dec_noout, 1);
-  else if (hold_frames != STREAM_STATS_HOLD_UNKNOWN)
+  if (hold_frames != STREAM_STATS_HOLD_UNKNOWN)
     acc_add(&c.hold, hold_frames);
 }
 
@@ -180,12 +187,26 @@ uint64_t stream_stats_receive_time(int frame_number) {
   return rx_ring_fn[slot] == frame_number ? rx_ring_us[slot] : 0;
 }
 
-void stream_stats_on_present(uint32_t render_us, uint32_t swap_us, uint64_t receive_us, uint64_t presented_us) {
+void stream_stats_on_present(uint32_t render_us, uint32_t swap_us, uint64_t receive_us, uint64_t visible_us) {
   cnt_add(&c.shown, 1);
   acc_add(&c.render_us, render_us);
   acc_add(&c.swap_us, swap_us);
-  if (receive_us != 0 && presented_us >= receive_us)
-    acc_add(&c.r2p_us, (uint32_t)(presented_us - receive_us));
+  if (receive_us != 0 && visible_us >= receive_us)
+    acc_add(&c.r2p_us, (uint32_t)(visible_us - receive_us));
+}
+
+void stream_stats_on_decoder_pull(bool got_picture) {
+  cnt_add(&c.pull_try, 1);
+  if (got_picture)
+    cnt_add(&c.pull_got, 1);
+}
+
+void stream_stats_on_display_late(void) {
+  cnt_add(&c.late, 1);
+}
+
+void stream_stats_on_latch_budget(uint32_t budget_us) {
+  acc_add(&c.budget_us, budget_us);
 }
 
 void stream_stats_on_frame_replaced(void) {
@@ -213,8 +234,9 @@ void stream_stats_on_audio_output(uint32_t block_us) {
   acc_add(&c.aud_out_us, block_us);
 }
 
-void stream_stats_on_audio_fill(uint32_t buffered_us) {
+void stream_stats_on_audio_fill(uint32_t buffered_us, uint32_t target_us) {
   acc_add(&c.aud_buf_us, buffered_us);
+  acc_add(&c.aud_target_us, target_us);
 }
 
 void stream_stats_on_audio_underrun(void) {
@@ -251,23 +273,28 @@ static const char *k_legend =
   "  queue_*         wait between end of reception and decoding\n"
   "  host_*          capture + encode time on the PC (reported by Sunshine)\n"
   "  dec_*           duration of the decoder call\n"
-  "  hold_avg_x100   frames held back by the decoder, average x100 (150 = 1.5 frames)\n"
-  "  hold_max        frames held back, maximum\n"
+  "  hold_avg_x100   pictures still inside the decoder after each frame, average x100 (150 = 1.5)\n"
+  "  hold_max        pictures inside the decoder, maximum\n"
   "  render_*        drawing the frame (until the GPU is done)\n"
-  "  swap_*          screen buffer swap (may wait for the refresh)\n"
-  "  r2p_*           first packet received -> frame shown (Vita-side latency)\n"
+  "  swap_*          queuing the screen buffer flip\n"
+  "  r2p_*           first packet received -> frame visible on screen, i.e. the\n"
+  "                  vertical blank after the flip (Vita-side latency)\n"
   "  rtt_ms, rtt_var_ms  estimated ping and its variation\n"
   "  poor            \"poor connection\" warnings\n"
   "  pend_vid, pend_aud  video frames / audio packets waiting\n"
-  "  aud_pkts, aud_err   audio packets decoded / failed\n"
+  "  aud_pkts, aud_err   audio packets decoded / lost or failed (concealed)\n"
   "  aud_out_*       time blocked in the audio output\n"
   "  cpu_mhz, gpu_mhz    CPU and GPU clock frequencies\n"
   "  aud_buf_*       audio buffered before output (low-latency audio)\n"
   "  aud_underrun    audio gaps: buffer ran empty (low-latency audio)\n"
-  "  aud_skip_us     audio dropped to cap the delay (low-latency audio)\n"
+  "  aud_skip_us     audio trimmed to bring the delay back (low-latency audio)\n"
   "  replaced        frames decoded but never shown (low latency / smooth display)\n"
   "  idle            screen refreshes with no new frame (smooth display)\n"
   "  disp_q_avg_x100, disp_q_max  frames waiting when the display picks one (average x100)\n"
+  "  late            flips that missed their vertical blank (smooth display)\n"
+  "  budget_avg_us   time kept for drawing before the vertical blank (smooth display)\n"
+  "  pull_try, pull_got  decoder catch-up: extra reads tried / that returned a picture\n"
+  "  aud_target_us   audio cushion wanted by the adaptive buffer (low-latency audio)\n"
   "  *_avg = average over the second, *_max = maximum over the second\n";
 
 /* Creates <data>/stats/session-<date>.csv (integers only, ';' separated so that
@@ -329,7 +356,8 @@ static void open_session_files(void) {
                  "dec_avg_us;dec_max_us;hold_avg_x100;hold_max;render_avg_us;render_max_us;"
                  "swap_avg_us;swap_max_us;r2p_avg_us;r2p_max_us;rtt_ms;rtt_var_ms;poor;"
                  "pend_vid;pend_aud;aud_pkts;aud_err;aud_out_avg_us;aud_out_max_us;cpu_mhz;gpu_mhz;"
-                 "aud_buf_avg_us;aud_buf_max_us;aud_underrun;aud_skip_us;replaced;idle;disp_q_avg_x100;disp_q_max\n");
+                 "aud_buf_avg_us;aud_buf_max_us;aud_underrun;aud_skip_us;replaced;idle;disp_q_avg_x100;disp_q_max;"
+                 "late;budget_avg_us;pull_try;pull_got;aud_target_us\n");
 }
 
 /* Takes (and resets) every counter for the window that just ended, writes the
@@ -362,6 +390,11 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   uint32_t replaced = cnt_take(&c.replaced);
   uint32_t idle = cnt_take(&c.idle);
   acc_snap_t qd = acc_take(&c.queue_depth);
+  uint32_t late = cnt_take(&c.late);
+  acc_snap_t budget = acc_take(&c.budget_us);
+  uint32_t pull_try = cnt_take(&c.pull_try);
+  uint32_t pull_got = cnt_take(&c.pull_got);
+  acc_snap_t aud_target = acc_take(&c.aud_target_us);
 
   uint32_t win_ms = (uint32_t)(win_us / 1000);
   uint32_t kbps = win_ms ? (uint32_t)(((uint64_t)bytes * 8) / win_ms) : 0;
@@ -376,21 +409,23 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   int gpu = scePowerGetGpuClockFrequency();
 
   /* One CSV line: integers only, so no decimal-separator issue in Excel. */
-  char line[640];
+  char line[768];
   snprintf(line, sizeof(line),
            "%u;%u;%d;%u;%u;%u;%u;%u;%u;%u;%u;%u;"
            "%u;%u;%u;%u;%u;%u;"
            "%u;%u;%u;%u;%u;%u;"
            "%u;%u;%u;%u;%u;%u;%u;"
            "%d;%d;%u;%u;%u;%u;%d;%d;"
-           "%u;%u;%u;%u;%u;%u;%u;%u\n",
+           "%u;%u;%u;%u;%u;%u;%u;%u;"
+           "%u;%u;%u;%u;%u\n",
            (unsigned)(t_us / 1000), win_ms, vblanks,
            recv, shown, lost, dropped, idr, dec_err, dec_noout, ooo, kbps,
            rx.avg, rx.max, queue.avg, queue.max, host.avg, host.max,
            dec.avg, dec.max, hold.avg_x100, hold.max, render.avg, render.max,
            swap.avg, swap.max, r2p.avg, r2p.max, rtt, rtt_var, poor,
            pend_vid, pend_aud, aud_pkts, aud_err, aud_out.avg, aud_out.max, cpu, gpu,
-           aud_buf.avg, aud_buf.max, aud_underrun, aud_skip_us, replaced, idle, qd.avg_x100, qd.max);
+           aud_buf.avg, aud_buf.max, aud_underrun, aud_skip_us, replaced, idle, qd.avg_x100, qd.max,
+           late, budget.avg, pull_try, pull_got, aud_target.avg);
   write_fd(s_fd, line);
 
   sess_ms += win_ms;
@@ -403,19 +438,19 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   int next = s_overlay_idx ^ 1;
   float hz = win_us ? (float)vblanks * 1000000.0f / (float)win_us : 0.0f;
   snprintf(s_overlay[next][0], OVERLAY_LINE_LEN,
-           "screen %.2fHz  shown %u  recv %u  lost %u  skip %u  idle %u  idr %u  err %u",
-           hz, shown, recv, lost, dropped + replaced, idle, idr, dec_err);
+           "shown %u  recv %u  lost %u  skipped %u  late %u  idle %u   screen %.2f Hz",
+           shown, recv, lost, dropped + replaced, late, idle, hz);
   snprintf(s_overlay[next][1], OVERLAY_LINE_LEN,
-           "decode %.1f/%.1fms  hold %.2f/%uf  render %.1f/%.1fms  swap %.1f/%.1fms",
-           dec.avg / 1000.0f, dec.max / 1000.0f, hold.avg_x100 / 100.0f, hold.max,
-           render.avg / 1000.0f, render.max / 1000.0f, swap.avg / 1000.0f, swap.max / 1000.0f);
+           "to screen %.1f ms (max %.1f)   decode %.1f   draw %.1f   in decoder %.2f",
+           r2p.avg / 1000.0f, r2p.max / 1000.0f, dec.avg / 1000.0f,
+           (render.avg + swap.avg) / 1000.0f, hold.avg_x100 / 100.0f);
   snprintf(s_overlay[next][2], OVERLAY_LINE_LEN,
-           "rx %.1f/%.1fms  host %.1f/%.1fms  rx>shown %.1f/%.1fms",
-           rx.avg / 1000.0f, rx.max / 1000.0f, host.avg / 1000.0f, host.max / 1000.0f,
-           r2p.avg / 1000.0f, r2p.max / 1000.0f);
+           "network %.1f Mbps   ping %u ms (+-%u)   frame rx %.1f ms   PC %.1f ms   key frames %u",
+           kbps / 1000.0f, rtt, rtt_var, rx.avg / 1000.0f, host.avg / 1000.0f, idr);
   snprintf(s_overlay[next][3], OVERLAY_LINE_LEN,
-           "rtt %u+-%ums  %.1fMbps  poor %u  audio buf %.1fms gaps %u  cpu %dMHz",
-           rtt, rtt_var, kbps / 1000.0f, poor, aud_buf.avg / 1000.0f, aud_underrun, cpu);
+           "audio %.1f ms (target %.1f)  gaps %u   draw budget %.1f ms   errors %u   cpu %d MHz",
+           aud_buf.avg / 1000.0f, aud_target.avg / 1000.0f, aud_underrun,
+           budget.avg / 1000.0f, dec_err, cpu);
   s_overlay_idx = next;
   s_overlay_valid = true;
 }
@@ -463,6 +498,8 @@ void stream_stats_session_start(int width, int height, int fps) {
     rx_ring_fn[i] = -1;
   last_frame_number = -1;
   s_overlay_valid = false;
+  s_overlay_idx = 0;
+  s_overlay_measured = -1;
 
   s_width = width;
   s_height = height;
@@ -547,13 +584,17 @@ void stream_stats_draw_overlay(void) {
     vita2d_font_draw_text(f, 18, 26, TH_TEXT2, 14, tr("stats: first second..."));
     return;
   }
+  /* The text changes once per second: measure it once, not on every frame. */
   int idx = s_overlay_idx;
-  int w = 0;
-  for (int i = 0; i < OVERLAY_LINES; i++) {
-    int lw = theme_text_width(f, 14, s_overlay[idx][i]);
-    if (lw > w) w = lw;
+  if (idx != s_overlay_measured) {
+    s_overlay_width = 0;
+    for (int i = 0; i < OVERLAY_LINES; i++) {
+      int lw = theme_text_width(f, 14, s_overlay[idx][i]);
+      if (lw > s_overlay_width) s_overlay_width = lw;
+    }
+    s_overlay_measured = idx;
   }
-  theme_rounded_rect(8, 8, w + 22, OVERLAY_LINES * 19 + 12, 10, TH_PANEL);
+  theme_rounded_rect(8, 8, s_overlay_width + 22, OVERLAY_LINES * 19 + 12, 10, TH_PANEL);
   for (int i = 0; i < OVERLAY_LINES; i++)
     vita2d_font_draw_text(f, 19, 26 + i * 19, i == 0 ? TH_TEXT : TH_TEXT2, 14, s_overlay[idx][i]);
 }

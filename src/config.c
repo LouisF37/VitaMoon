@@ -103,7 +103,11 @@ static int ini_handle(void *out, const char *section, const char *name,
     } else if (strcmp(name, "fps") == 0) {
       config->stream.fps = INT(value);
     } else if (strcmp(name, "bitrate") == 0) {
+      // A bitrate saved by an older version was chosen by hand.
       config->stream.bitrate = INT(value);
+      config->auto_bitrate = false;
+    } else if (strcmp(name, "auto_bitrate") == 0) {
+      config->auto_bitrate = BOOL(value);
     } else if (strcmp(name, "sops") == 0) {
       config->sops = BOOL(value);
     } else if (strcmp(name, "localaudio") == 0) {
@@ -138,6 +142,8 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->low_latency_audio = BOOL(value);
     } else if (strcmp(name, "display_mode") == 0) {
       config->display_mode = INT(value);
+    } else if (strcmp(name, "decoder_catchup") == 0) {
+      config->decoder_catchup = BOOL(value);
     } else if (strcmp(name, "enable_motion_controls") == 0) {
       config->enable_motion_controls = BOOL(value);
     } else if (strcmp(name, "enable_front_touchzones") == 0) {
@@ -185,14 +191,13 @@ void config_save(const char* filename, PCONFIGURATION config) {
   if (config->mapping)
     write_config_string(fd, "mapping", config->mapping);
 
-  if (config->stream.width != 1280)
-    write_config_int(fd, "width", config->stream.width);
-  if (config->stream.height != 720)
-    write_config_int(fd, "height", config->stream.height);
-  if (config->stream.fps != 60)
-    write_config_int(fd, "fps", config->stream.fps);
-  if (config->stream.bitrate != -1)
-    write_config_int(fd, "bitrate", config->stream.bitrate);
+  write_config_int(fd, "width", config->stream.width);
+  write_config_int(fd, "height", config->stream.height);
+  write_config_int(fd, "fps", config->stream.fps);
+  // "bitrate" first, "auto_bitrate" after it: the parser treats a bitrate with
+  // no auto_bitrate line (older versions) as a manual choice.
+  write_config_int(fd, "bitrate", config->stream.bitrate);
+  write_config_bool(fd, "auto_bitrate", config->auto_bitrate);
   write_config_int(fd, "packetsize", config->stream.packetSize);
   if (!config->sops)
     write_config_bool(fd, "sops", config->sops);
@@ -219,6 +224,7 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_bool(fd, "match_refresh_rate", config->match_refresh_rate);
   write_config_bool(fd, "low_latency_audio", config->low_latency_audio);
   write_config_int(fd, "display_mode", config->display_mode);
+  write_config_bool(fd, "decoder_catchup", config->decoder_catchup);
   write_config_bool(fd, "enable_motion_controls", config->enable_motion_controls);
   write_config_bool(fd, "enable_psbutton_capture", config->enable_psbutton_capture);
   write_config_bool(fd, "enable_double_tap_sprint", config->enable_double_tap_sprint);
@@ -249,6 +255,30 @@ void config_save(const char* filename, PCONFIGURATION config) {
   fclose(fd);
 }
 
+/*
+ * Automatic bitrate. The Vita's Wi-Fi is 2.4 GHz 802.11n with one antenna: a
+ * moderate bitrate keeps key frames small enough to arrive without loss, and
+ * hardware H.264 encoders look clean at these values for these sizes.
+ */
+int config_auto_bitrate(int width, int height, int fps) {
+  long pixels = (long)width * height;
+  int kbps;
+  if (pixels <= 960L * 544)
+    kbps = 8000;
+  else if (pixels <= 1280L * 720)
+    kbps = 10000;
+  else
+    kbps = 15000;
+  if (fps <= 30)
+    kbps = kbps * 5 / 8;
+  return kbps;
+}
+
+void config_apply_auto_bitrate(PCONFIGURATION config) {
+  if (config->auto_bitrate)
+    config->stream.bitrate = config_auto_bitrate(config->stream.width, config->stream.height, config->stream.fps);
+}
+
 void update_layout() {
   if (config.jp_layout) {
     config.btn_confirm = SCE_CTRL_CIRCLE;
@@ -263,10 +293,13 @@ void update_layout() {
 void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   LiInitializeStreamConfiguration(&config->stream);
 
-  config->stream.width = 1280;
-  config->stream.height = 720;
+  // The Vita screen is 960x544: streaming at that size is the sharpest (one
+  // stream pixel per screen pixel) and the lightest to send and decode.
+  config->stream.width = 960;
+  config->stream.height = 544;
   config->stream.fps = 60;
   config->stream.bitrate = -1;
+  config->auto_bitrate = true;
   config->stream.packetSize = 1392; // beta default: fewer packets per frame on a home LAN
   config->stream.streamingRemotely = 0;
   config->stream.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
@@ -302,6 +335,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->match_refresh_rate = true;
   config->low_latency_audio = true;
   config->display_mode = DISPLAY_MODE_SMOOTH; // beta default
+  config->decoder_catchup = true;
   config->language = 0; // English
   config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;
@@ -352,14 +386,9 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   if (config->stream.fps == -1)
     config->stream.fps = config->stream.height >= 1080 ? 30 : 60;
 
-  if (config->stream.bitrate == -1) {
-    if (config->stream.height >= 1080 && config->stream.fps >= 60)
-      config->stream.bitrate = 20000;
-    else if (config->stream.height >= 1080 || config->stream.fps >= 60)
-      config->stream.bitrate = 10000;
-    else
-      config->stream.bitrate = 5000;
-  }
+  if (config->stream.bitrate <= 0)
+    config->auto_bitrate = true;
+  config_apply_auto_bitrate(config);
 
   if (inputAdded) {
     if (!mapped) {

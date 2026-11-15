@@ -42,11 +42,8 @@ void vita_debug_log(const char *s, ...) {
 
   pthread_mutex_lock(&print_mutex);
 
-  char* buffer = malloc(8192);
-  if (!buffer) {
-    pthread_mutex_unlock(&print_mutex);
-    return;
-  }
+  // One buffer for all callers, protected by print_mutex: no allocation per line.
+  static char buffer[8192];
 
   SceDateTime time;
   sceRtcGetCurrentClock(&time, 0);
@@ -76,8 +73,6 @@ void vita_debug_log(const char *s, ...) {
   // Also print through mdns_log (sceClibPrintf)
   mdns_log("%s", &buffer[25]);
 #endif
-
-  free(buffer);
 
   pthread_mutex_unlock(&print_mutex);
 }

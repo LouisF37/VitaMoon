@@ -64,6 +64,7 @@ enum {
 #define DECODER_BUFFER_SIZE (128 * 1024)
 
 #define AV_INPUT_BUFFER_PADDING_SIZE 64
+#define SPS_GROWTH_MAX 128  /* gs_sps_fix rewrites the SPS into at most 128 bytes */
 
 static char* decoder_buffer = NULL;
 
@@ -91,20 +92,41 @@ vita2d_texture *frame_texture = NULL;
 enum VideoStatus video_status = NOT_INIT;
 
 /*
- * Display modes (setting "Display mode", phase 2b):
+ * Display modes (setting "Display mode"):
  *   DIRECT      original path: the receive thread decodes, draws and swaps.
  *   LOW_LATENCY the receive thread only decodes; a display thread draws the
  *               newest decoded frame as soon as it is ready (older ones are
  *               skipped). The network is no longer blocked by drawing.
  *   SMOOTH      same split, but the display thread shows exactly one frame per
  *               screen refresh, oldest first, so bursts of frames are spread
- *               out instead of overwriting each other. Costs about one frame of
- *               latency; a backlog that persists is trimmed automatically.
+ *               out instead of overwriting each other.
+ *
+ * SMOOTH draws "just in time": after each vertical blank the thread sleeps
+ * until only the time needed to draw remains before the next one, and only
+ * then picks the frame. A frame that arrives during most of a refresh is still
+ * shown at the end of that same refresh, instead of waiting a whole extra one.
+ * The time kept for drawing (the budget) follows the measured cost.
+ *
+ * Buffer flips are always queued for the next vertical blank
+ * (SCE_DISPLAY_SETBUF_NEXTFRAME in vita2d), so no mode tears.
+ *
  * Decoded frames go into a small pool of textures ("slots") so that the decoder
  * never writes into the texture being drawn.
  */
 #define VIDEO_SLOTS 3
-#define SMOOTH_BACKLOG_LIMIT 30   /* refreshes with 2+ frames waiting before one is dropped */
+#define SMOOTH_BACKLOG_LIMIT 20   /* refreshes in a row with 2+ frames waiting before one is dropped */
+
+/* Just-in-time drawing (SMOOTH): time kept before the vertical blank. */
+#define LATCH_BUDGET_MIN_US   3500
+#define LATCH_BUDGET_MAX_US   12000
+#define LATCH_MARGIN_START_US 2000
+#define LATCH_MARGIN_MIN_US   1500
+#define LATCH_MARGIN_MAX_US   5000
+#define FLIP_GUARD_US         400    /* a flip queued this close to the blank counts as late */
+
+/* vita2d has 3 screen buffers: a third draw inside one refresh would go into
+ * the buffer still on screen. */
+#define MAX_DRAWS_PER_REFRESH 2
 
 enum { SLOT_FREE, SLOT_DECODING, SLOT_READY, SLOT_DRAWING };
 
@@ -125,6 +147,24 @@ static SceUID ready_sema = -1;   /* LOW_LATENCY: signalled when a frame is ready
 static SceUID draw_mutex = -1;   /* held while the display thread draws */
 static SceUID display_thread = -1;
 static volatile bool display_running = false;
+
+/* Screen timing. The thread that waits for the vertical blank stores when it
+ * happened (low 32 bits of the microsecond clock: only differences are used). */
+static uint32_t refresh_period_us = 16683;
+static volatile uint32_t last_vblank_lo = 0;
+static volatile uint32_t vblank_count = 0;
+static SceUID vblank_thread = -1;
+static volatile bool vblank_running = false;
+
+/* Decoder bookkeeping (receive thread only). hold = pictures still inside. */
+static uint32_t dec_fed = 0;
+static uint32_t dec_handed = 0;
+static uint32_t pull_floor = 0;
+static uint32_t pull_base = 0;
+static bool pull_base_set = false;
+static bool pull_disabled = false;
+static uint64_t pull_floor_change_us = 0;
+#define PULL_FLOOR_DECAY_US 3000000
 
 SceAvcdecCtrl *decoder = NULL;
 SceUID displayblock = -1;
@@ -256,9 +296,12 @@ static int vita_pacer_thread_main(SceSize args, void *argp) {
 
 static void display_stop(void);
 static bool display_start(void);
+static void vblank_clock_stop(void);
+static bool vblank_clock_start(void);
 
 static void vita_cleanup() {
   display_stop();
+  vblank_clock_stop();
   stream_stats_session_end();
 
   if (video_status == INIT_FRAME_PACER_THREAD) {
@@ -338,7 +381,7 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
     // INIT_FRAMEBUFFER
     update_scaling_settings(width, height);
 
-    decoder_buffer_size = DECODER_BUFFER_SIZE + AV_INPUT_BUFFER_PADDING_SIZE;
+    decoder_buffer_size = DECODER_BUFFER_SIZE + SPS_GROWTH_MAX + AV_INPUT_BUFFER_PADDING_SIZE;
     decoder_buffer = malloc(decoder_buffer_size);
     if (decoder_buffer == NULL) {
       printf("decoder_buffer: not enough memory\n");
@@ -469,10 +512,29 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
     video_status++;
   }
 
+  // Screen timing for the just-in-time display and the latency statistics.
+  float refresh_hz = 0.0f;
+  if (sceDisplayGetRefreshRate(&refresh_hz) == 0 && refresh_hz > 20.0f && refresh_hz < 240.0f)
+    refresh_period_us = (uint32_t)(1000000.0f / refresh_hz + 0.5f);
+  else
+    refresh_period_us = 16683;
+  last_vblank_lo = 0;
+  vblank_count = 0;
+
+  dec_fed = dec_handed = 0;
+  pull_floor = pull_base = 0;
+  pull_base_set = false;
+  pull_disabled = false;
+  pull_floor_change_us = 0;
+
   if (display_mode != DISPLAY_MODE_DIRECT && !display_start()) {
     printf("display thread failed, falling back to direct mode\n");
+    display_stop();
     display_mode = DISPLAY_MODE_DIRECT;
   }
+  // SMOOTH follows the vertical blank itself; the other modes need the clock.
+  if (display_mode != DISPLAY_MODE_SMOOTH)
+    vblank_clock_start();
 
   stream_stats_session_start(width, height, redrawRate);
 
@@ -573,23 +635,101 @@ static int slot_pick_for_display(int *backlog) {
   return pick;
 }
 
+/* When a flip queued at t_queued becomes visible: the next vertical blank
+ * (t_queued itself if the screen timing is not known yet). */
+static uint64_t visible_time(uint64_t t_queued) {
+  uint64_t t = t_queued + FLIP_GUARD_US;
+  if (vblank_count == 0)
+    return t_queued;
+  uint32_t since = (uint32_t)t - last_vblank_lo;
+  if (since > 1000000)
+    return t_queued;
+  return t + (refresh_period_us - (since % refresh_period_us));
+}
+
+/* Keeps the screen timing up to date in the modes whose display code does not
+ * wait for the vertical blank itself (DIRECT, LOW_LATENCY). */
+static int vblank_thread_main(SceSize args, void *argp) {
+  while (vblank_running) {
+    sceDisplayWaitVblankStart();
+    last_vblank_lo = (uint32_t)LiGetMicroseconds();
+    vblank_count++;
+  }
+  return 0;
+}
+
+/* Draws one frame and queues the buffer flip. Returns when the flip is queued.
+ * *render_us covers drawing until the GPU is done, *swap_us the flip call. */
+static uint64_t draw_and_flip(vita2d_texture *tex, uint32_t *render_us, uint32_t *swap_us) {
+  uint64_t t0 = LiGetMicroseconds();
+  vita2d_start_drawing();
+  draw_streaming(tex);
+  draw_fps();
+  draw_indicators();
+  vita2d_end_drawing();
+  vita2d_wait_rendering_done();       // the GPU has finished reading the texture
+  uint64_t t1 = LiGetMicroseconds();
+  vita2d_swap_buffers();              // shown at the next vertical blank
+  uint64_t t2 = LiGetMicroseconds();
+  *render_us = (uint32_t)(t1 - t0);
+  *swap_us = (uint32_t)(t2 - t1);
+  return t2;
+}
+
 static int display_thread_main(SceSize args, void *argp) {
   int backlog = 0;
+  // SMOOTH: time kept before the vertical blank = measured cost + safety margin.
+  uint32_t cost_peak_us = 4000;
+  uint32_t margin_us = LATCH_MARGIN_START_US;
+  uint32_t on_time_run = 0;
+  // LOW_LATENCY: draws already made during the current refresh.
+  uint32_t draws_vblank = 0;
+  int draws_this_refresh = 0;
+
   while (display_running) {
-    // Wait for something to show: a new frame (LOW_LATENCY) or the next screen refresh (SMOOTH).
+    uint64_t t_vblank = 0;      // SMOOTH: start of the current refresh
+    uint64_t t_latch = 0;       // SMOOTH: when the frame was picked
+
     if (display_mode == DISPLAY_MODE_SMOOTH) {
       sceDisplayWaitVblankStart();
+      t_vblank = LiGetMicroseconds();
+      last_vblank_lo = (uint32_t)t_vblank;
+      vblank_count++;
+      if (!display_running)
+        break;
+      if (active_video_thread) {
+        // Sleep until just enough time is left to draw before the next blank.
+        uint32_t budget = cost_peak_us + margin_us;
+        if (budget < LATCH_BUDGET_MIN_US) budget = LATCH_BUDGET_MIN_US;
+        if (budget > LATCH_BUDGET_MAX_US) budget = LATCH_BUDGET_MAX_US;
+        if (refresh_period_us > budget + 500)
+          sceKernelDelayThread(refresh_period_us - budget);
+        stream_stats_on_latch_budget(budget);
+      }
+      t_latch = LiGetMicroseconds();
     } else {
       SceUInt timeout = 100000;
       if (sceKernelWaitSema(ready_sema, 1, &timeout) < 0)
         continue;
+      // Never draw into the buffer that is still on screen: after two draws in
+      // one refresh, wait for the next one (the newest frame is picked then).
+      if (vblank_running) {
+        if (vblank_count == draws_vblank && draws_this_refresh >= MAX_DRAWS_PER_REFRESH) {
+          while (display_running && vblank_count == draws_vblank)
+            sceKernelDelayThread(500);
+        }
+        if (vblank_count != draws_vblank) {
+          draws_vblank = vblank_count;
+          draws_this_refresh = 0;
+        }
+      }
     }
     if (!display_running)
       break;
 
     int slot = slot_pick_for_display(&backlog);
     if (slot < 0) {
-      if (display_mode == DISPLAY_MODE_SMOOTH)
+      if (display_mode == DISPLAY_MODE_SMOOTH && active_video_thread)
         stream_stats_on_display_idle(); // a refresh with no new frame
       continue;
     }
@@ -599,25 +739,59 @@ static int display_thread_main(SceSize args, void *argp) {
     }
 
     sceKernelLockMutex(draw_mutex, 1, NULL);
-    uint64_t t_render0 = LiGetMicroseconds();
-    vita2d_start_drawing();
-    draw_streaming(slots[slot].tex);
-    draw_fps();
-    draw_indicators();
-    vita2d_end_drawing();
-    vita2d_wait_rendering_done();       // the texture has been copied: it can be reused
-    uint64_t t_render1 = LiGetMicroseconds();
+    uint32_t render_us, swap_us;
     uint64_t receive_us = slots[slot].receive_us;
-    slot_set_free(slot);
-    vita2d_swap_buffers();              // flip at the next refresh (no tearing)
-    uint64_t t_swap1 = LiGetMicroseconds();
+    uint64_t t_done = draw_and_flip(slots[slot].tex, &render_us, &swap_us);
+    slot_set_free(slot);                // drawing is finished: the texture can be reused
     sceKernelUnlockMutex(draw_mutex, 1);
-
+    draws_this_refresh++;
     frame_count++;
-    stream_stats_on_present((uint32_t)(t_render1 - t_render0), (uint32_t)(t_swap1 - t_render1),
-                            receive_us, t_swap1);
+
+    uint64_t visible_us;
+    if (display_mode == DISPLAY_MODE_SMOOTH) {
+      // Was the flip queued before the blank it was meant for?
+      uint64_t deadline = t_vblank + refresh_period_us;
+      bool late = t_done + FLIP_GUARD_US > deadline;
+      uint32_t cost = (uint32_t)(t_done - t_latch);
+      // Peak cost with a slow decay towards the current cost (about 1 s).
+      cost_peak_us = cost > cost_peak_us ? cost : cost_peak_us - (cost_peak_us - cost) / 64;
+      if (late) {
+        stream_stats_on_display_late();
+        if (margin_us < LATCH_MARGIN_MAX_US) margin_us += 500;
+        on_time_run = 0;
+      } else if (++on_time_run >= 600) {      // ~10 s without a miss: tighten a little
+        if (margin_us > LATCH_MARGIN_MIN_US) margin_us -= 100;
+        on_time_run = 0;
+      }
+      visible_us = late ? deadline + refresh_period_us : deadline;
+    } else {
+      visible_us = visible_time(t_done);
+    }
+    stream_stats_on_present(render_us, swap_us, receive_us, visible_us);
   }
   return 0;
+}
+
+static bool vblank_clock_start(void) {
+  vblank_running = true;
+  vblank_thread = sceKernelCreateThread("vid_vblank", vblank_thread_main, 64, 0x4000, 0, 0, NULL);
+  if (vblank_thread < 0) {
+    vblank_running = false;
+    return false;
+  }
+  sceKernelStartThread(vblank_thread, 0, NULL);
+  return true;
+}
+
+static void vblank_clock_stop(void) {
+  if (vblank_running) {
+    vblank_running = false;
+    SceUInt timeout = 1000000;
+    int thread_ret = 0;
+    sceKernelWaitThreadEnd(vblank_thread, &thread_ret, &timeout);
+    sceKernelDeleteThread(vblank_thread);
+  }
+  vblank_thread = -1;
 }
 
 static bool display_start(void) {
@@ -654,15 +828,76 @@ static void display_stop(void) {
 }
 
 /*
+ * Decoder catch-up (idea and method from VitaRPS5, issue #413).
+ *
+ * The hardware decoder hands back at most one picture per sceAvcdecDecode
+ * call, so each call that returns none leaves one more picture inside for the
+ * rest of the stream: one frame of delay that never goes away. When pictures
+ * are held (fed - handed > floor), one extra call with an empty access unit
+ * feeds nothing and only lets the decoder hand a picture back.
+ *
+ * An empty answer means the pictures inside are not ready: the floor rises to
+ * the current hold so the same level is not probed again, and steps back down
+ * every few seconds. An error turns the catch-up off for the session.
+ */
+typedef enum { PULL_NOT_TRIED, PULL_GOT_PICTURE, PULL_NO_PICTURE, PULL_FAILED } pull_result;
+
+static pull_result decoder_pull(const SceAvcdecAu *fed_au, SceAvcdecArrayPicture *array_picture,
+                                struct SceAvcdecPicture *picture, uint64_t now_us) {
+  if (!config.decoder_catchup || pull_disabled || dec_handed == 0)
+    return PULL_NOT_TRIED;
+  if (pull_floor > pull_base && now_us - pull_floor_change_us >= PULL_FLOOR_DECAY_US) {
+    pull_floor--;
+    pull_floor_change_us = now_us;
+  }
+  if (dec_fed - dec_handed <= pull_floor)
+    return PULL_NOT_TRIED;
+
+  SceAvcdecAu pull_au = *fed_au;
+  pull_au.es.pBuf = NULL;
+  pull_au.es.size = 0;
+  picture->info.pts.lower = 0xFFFFFFFF;
+  picture->info.pts.upper = 0xFFFFFFFF;
+  array_picture->numOfOutput = 0;
+  int ret = sceAvcdecDecode(decoder, &pull_au, array_picture);
+  if (ret < 0) {
+    pull_disabled = true;
+    printf("decoder catch-up: error 0x%x, turned off for this stream\n", ret);
+    return PULL_FAILED;
+  }
+  if (array_picture->numOfOutput == 1) {
+    dec_handed++;
+    return PULL_GOT_PICTURE;
+  }
+  pull_floor = dec_fed - dec_handed;
+  pull_floor_change_us = now_us;
+  if (!pull_base_set) {
+    pull_base = pull_floor;
+    pull_base_set = true;
+  }
+  return PULL_NO_PICTURE;
+}
+
+/* Frame number carried by the picture the decoder just handed back (it copies
+ * the pts of the access unit); -1 when it cannot be trusted. */
+static int picture_frame_number(const struct SceAvcdecPicture *picture, int fed_frame) {
+  if (picture->info.pts.upper != 0)
+    return -1;
+  uint32_t lag = (uint32_t)fed_frame - picture->info.pts.lower;
+  return lag < 64 ? (int)picture->info.pts.lower : -1;
+}
+
+/*
  * Called by moonlight-common-c for each complete video frame.
  *
  * With CAPABILITY_DIRECT_SUBMIT this runs on the video receive thread itself:
  * until it returns, newly arrived packets wait in the socket buffer. Steps:
  *   1. statistics: arrival times of the frame
  *   2. copy the frame into one buffer for the decoder (SPS header patched on the way)
- *   3. hardware H.264 decode, written straight into the texture shown on screen
- *   4. draw that texture and swap the screen buffers
- * Decode and display are therefore in series with the network; phase 2 splits them.
+ *   3. hardware H.264 decode, written straight into a texture
+ *   4. DIRECT mode: draw that texture and swap the screen buffers here;
+ *      LOW_LATENCY / SMOOTH: hand the texture to the display thread and return
+ *      to the network at once.
  */
 static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   SceAvcdecAu au = {0};
@@ -685,32 +920,19 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
                         decodeUnit->receiveTimeUs, decodeUnit->enqueueTimeUs,
                         decodeUnit->frameHostProcessingLatency, LiGetMicroseconds());
 
-  picture.size = sizeof(picture);
-  picture.frame.pixelType = 0;
-  picture.frame.framePitch = image_scaling.texture_width;
-  picture.frame.frameWidth = image_scaling.texture_width;
-  picture.frame.frameHeight = image_scaling.texture_height;
-  // In LOW_LATENCY / SMOOTH mode, decode into a texture nobody is drawing.
-  int slot = display_mode == DISPLAY_MODE_DIRECT ? 0 : slot_acquire_for_decode();
-  picture.frame.pPicture[0] = vita2d_texture_get_datap(slots[slot].tex);
-
-  //ensure_buf_size((void *)&decoder_buffer, &decoder_buffer_size, decodeUnit->fullLength + 64);
-
-  if (decoder_buffer_size < (decodeUnit->fullLength + AV_INPUT_BUFFER_PADDING_SIZE)) {
-    printf("Reallocating decoder buffer to %u bytes", (size_t)decodeUnit->fullLength + AV_INPUT_BUFFER_PADDING_SIZE);
-    decoder_buffer = realloc(decoder_buffer, decodeUnit->fullLength + AV_INPUT_BUFFER_PADDING_SIZE);
-    decoder_buffer_size = decodeUnit->fullLength+AV_INPUT_BUFFER_PADDING_SIZE;
-    if (decoder_buffer == NULL) {
-      printf("Out of memory! could not reallocate buffer!!");
-      exit(1);
+  // The patched SPS can be a few bytes longer than the one received.
+  size_t needed = (size_t)decodeUnit->fullLength + SPS_GROWTH_MAX + AV_INPUT_BUFFER_PADDING_SIZE;
+  if (decoder_buffer_size < needed) {
+    printf("Reallocating decoder buffer to %u bytes", (unsigned)needed);
+    char *bigger = realloc(decoder_buffer, needed);
+    if (bigger == NULL) {
+      // Keep the old buffer and skip this frame: the next key frame resynchronises.
+      printf("Out of memory: could not grow the decoder buffer");
+      return DR_NEED_IDR;
     }
+    decoder_buffer = bigger;
+    decoder_buffer_size = needed;
   }
-
-
-/*   if (decodeUnit->fullLength >= DECODER_BUFFER_SIZE + 64) {
-    printf("Video decode buffer too small\n");
-    exit(1);
-  } */
 
   // 2. The frame arrives as a chain of NAL buffers; concatenate them. The SPS
   //    (stream parameters) goes through gs_sps_fix (libgamestream/sps.c), which sets the
@@ -726,9 +948,22 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     }
     entry = entry->next;
   }
+  // Zero padding after the data, as hardware bitstream readers expect.
+  memset(decoder_buffer + length, 0, AV_INPUT_BUFFER_PADDING_SIZE);
+
+  picture.size = sizeof(picture);
+  picture.frame.pixelType = SCE_AVCDEC_PIXELFORMAT_RGBA8888;
+  picture.frame.framePitch = image_scaling.texture_width;
+  picture.frame.frameWidth = image_scaling.texture_width;
+  picture.frame.frameHeight = image_scaling.texture_height;
+  // In LOW_LATENCY / SMOOTH mode, decode into a texture nobody is drawing.
+  int slot = display_mode == DISPLAY_MODE_DIRECT ? 0 : slot_acquire_for_decode();
+  picture.frame.pPicture[0] = vita2d_texture_get_datap(slots[slot].tex);
 
   au.es.pBuf = decoder_buffer;
-  au.es.size = decodeUnit->fullLength;
+  // The real length: the original code passed fullLength, which is wrong
+  // whenever patching the SPS changed its size (key frames).
+  au.es.size = length;
   au.dts.lower = 0xFFFFFFFF;
   au.dts.upper = 0xFFFFFFFF;
   // Tag the access unit with its frame number: the decoder copies the pts of the
@@ -739,79 +974,79 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   picture.info.pts.lower = 0xFFFFFFFF;
   picture.info.pts.upper = 0xFFFFFFFF;
 
-  // 3. Decode. The output picture is written directly into frame_texture.
+  // 3. Decode. The output picture is written directly into the texture.
   uint64_t t_dec0 = LiGetMicroseconds();
-  int ret = 0;
-  ret = sceAvcdecDecode(decoder, &au, &array_picture);
-  uint32_t dec_us = (uint32_t)(LiGetMicroseconds() - t_dec0);
+  int ret = sceAvcdecDecode(decoder, &au, &array_picture);
+  uint64_t t_dec1 = LiGetMicroseconds();
+  uint32_t dec_us = (uint32_t)(t_dec1 - t_dec0);
   if (ret < 0) {
     if (display_mode != DISPLAY_MODE_DIRECT)
       slot_set_free(slot);
     stream_stats_on_decode(dec_us, ret, false, STREAM_STATS_HOLD_UNKNOWN);
-    printf("sceAvcdecDecode (len=0x%x): 0x%x numOfOutput %d\n", decodeUnit->fullLength, ret, array_picture.numOfOutput);
+    printf("sceAvcdecDecode (len=0x%x): 0x%x numOfOutput %d\n", length, ret, array_picture.numOfOutput);
     return DR_NEED_IDR;
   }
 
-  // The decoder may keep frames back. The pts read back tells which frame came
-  // out: hold = frame just fed - frame that came out (0 = nothing held back).
   bool has_output = array_picture.numOfOutput == 1;
-  int shown_frame = decodeUnit->frameNumber;
-  uint32_t hold = STREAM_STATS_HOLD_UNKNOWN;
-  if (has_output && picture.info.pts.upper == 0) {
-    uint32_t lag = (uint32_t)decodeUnit->frameNumber - picture.info.pts.lower;
-    if (lag < 64) {
-      hold = lag;
-      shown_frame = (int)picture.info.pts.lower;
-    }
+  dec_fed++;
+  if (has_output)
+    dec_handed++;
+  int shown_frame = has_output ? picture_frame_number(&picture, decodeUnit->frameNumber) : -1;
+
+  // Catch-up: take one more picture out when the decoder is holding some back.
+  // A pulled picture replaces the one just decoded (same texture), which is
+  // therefore skipped on screen: that skip is the delay being recovered.
+  switch (decoder_pull(&au, &array_picture, &picture, t_dec1)) {
+    case PULL_GOT_PICTURE:
+      if (has_output)
+        stream_stats_on_frame_replaced();
+      has_output = true;
+      shown_frame = picture_frame_number(&picture, decodeUnit->frameNumber);
+      stream_stats_on_decoder_pull(true);
+      break;
+    case PULL_NO_PICTURE:
+      stream_stats_on_decoder_pull(false);
+      break;
+    case PULL_FAILED:
+      // The texture may be partly written: show nothing from this call.
+      if (display_mode != DISPLAY_MODE_DIRECT)
+        slot_set_free(slot);
+      stream_stats_on_decode(dec_us, -1, false, STREAM_STATS_HOLD_UNKNOWN);
+      return DR_NEED_IDR;
+    default:
+      break;
   }
-  stream_stats_on_decode(dec_us, ret, has_output, hold);
+
+  stream_stats_on_decode(dec_us, ret, has_output, dec_fed - dec_handed);
 
   if (!has_output) {
-    //printf("numOfOutput %d\n", array_picture.numOfOutput);
     if (display_mode != DISPLAY_MODE_DIRECT)
       slot_set_free(slot);
     return DR_OK;
   }
+  if (shown_frame < 0)
+    shown_frame = decodeUnit->frameNumber;
 
-  // LOW_LATENCY / SMOOTH: hand the picture to the display thread and return to
-  // the network immediately.
+  // 4. LOW_LATENCY / SMOOTH: hand the picture to the display thread and return to
+  //    the network immediately.
   if (display_mode != DISPLAY_MODE_DIRECT) {
     slot_publish(slot, shown_frame, stream_stats_receive_time(shown_frame));
     return DR_OK;
   }
 
-  //TODO: Seems silly to decode the unit if we're going to drop the frame?
-  // Find out why we decode or if we even need to
-  // 4. Display, unless the frame pacer asked to drop this frame.
+  // DIRECT: draw here, unless the original frame pacer asked to drop this frame.
   if (active_video_thread) {
     if (need_drop > 0) {
-      vita_debug_log("remain frameskip: %d\n", need_drop);
-      // skip
       need_drop--;
       stream_stats_on_pacer_drop();
     } else {
-      uint64_t t_render0 = LiGetMicroseconds();
-      vita2d_start_drawing();
-
-      draw_streaming(frame_texture);
-      draw_fps();
-      draw_indicators();
-
-      vita2d_end_drawing();
-
-      vita2d_wait_rendering_done();   // GPU finished drawing
-      uint64_t t_render1 = LiGetMicroseconds();
-      vita2d_swap_buffers();          // queue the new image for the screen (vblank wait if enabled)
-      uint64_t t_swap1 = LiGetMicroseconds();
-
+      uint32_t render_us, swap_us;
+      uint64_t t_done = draw_and_flip(frame_texture, &render_us, &swap_us);
       frame_count++;
-      stream_stats_on_present((uint32_t)(t_render1 - t_render0), (uint32_t)(t_swap1 - t_render1),
-                              stream_stats_receive_time(shown_frame), t_swap1);
+      stream_stats_on_present(render_us, swap_us, stream_stats_receive_time(shown_frame),
+                              visible_time(t_done));
     }
   }
-
-  // if (numframes++ % 6 == 0)
-  //   return DR_NEED_IDR;
 
   return DR_OK;
 }
