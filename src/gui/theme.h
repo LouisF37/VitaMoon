@@ -6,63 +6,135 @@
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
- * Visual theme shared by every screen: the "Ocean" palette of VitaRPS5, the
- * Roboto fonts, the wave background and a few drawing primitives (rounded
- * panels, gradients, PlayStation button glyphs, top bar, hint row).
+ * Visual theme shared by every screen, in the spirit of VitaRPS5's "Ocean"
+ * theme: wave background, Roboto type, thin dividers, rounded focus
+ * highlight, outlined PlayStation symbols on the hint row.
+ *
+ * Everything is drawn on one grid (see the TH_* layout constants) so that
+ * screens line up with each other, and all text goes through theme_text*():
+ * each size has its own font instance, so glyphs are always drawn at the size
+ * they were rasterised for (vita2d otherwise rescales the first size used).
  */
 #pragma once
 
 #include <stdbool.h>
 #include <vita2d.h>
 
+/* ---- colours (vita2d RGBA8) ---- */
 #define TH_TEXT        RGBA8(0xFF, 0xFF, 0xFF, 0xFF)
 #define TH_TEXT2       RGBA8(0xDD, 0xE3, 0xF0, 0xFF)
 #define TH_TEXT3       RGBA8(0xB3, 0xBD, 0xD2, 0xFF)
+#define TH_TEXT_OFF    RGBA8(0xB3, 0xBD, 0xD2, 0x8C)   /* unavailable rows */
 #define TH_ACCENT      RGBA8(109, 180, 255, 0xFF)
 #define TH_ACCENT_HI   RGBA8(160, 205, 255, 0xFF)
 #define TH_INK         RGBA8(2, 5, 14, 0xFF)
 #define TH_OK          RGBA8(0x4E, 0xE0, 0x9A, 0xFF)
 #define TH_WARN        RGBA8(0xFF, 0xBE, 0x4D, 0xFF)
 #define TH_ERR         RGBA8(0xFF, 0x80, 0x80, 0xFF)
-#define TH_PANEL       RGBA8(6, 12, 28, 190)       /* glass panels */
+#define TH_PANEL       RGBA8(6, 12, 28, 200)           /* floating panels */
 #define TH_PANEL_EDGE  RGBA8(255, 255, 255, 36)
-#define TH_FILL_FOCUS  RGBA8(255, 255, 255, 31)
-#define TH_FILL_SOFT   RGBA8(255, 255, 255, 20)
-#define TH_LINE_FAINT  RGBA8(255, 255, 255, 36)
+#define TH_FILL_FOCUS  RGBA8(255, 255, 255, 30)
+#define TH_FILL_SOFT   RGBA8(255, 255, 255, 18)
+#define TH_DIVIDER     RGBA8(255, 255, 255, 38)
+#define TH_LINE_FAINT  TH_DIVIDER
 #define TH_SHADE       RGBA8(2, 5, 14, 150)
-#define TH_GLYPH_X     RGBA8(0xB2, 0xDE, 0xFA, 0xFF)
-#define TH_GLYPH_O     RGBA8(0xF6, 0xC5, 0xD0, 0xFF)
-#define TH_GLYPH_TRI   RGBA8(0xC3, 0xF2, 0xD0, 0xFF)
-#define TH_GLYPH_SQ    RGBA8(0xFF, 0xDC, 0x7B, 0xFF)
+#define TH_GLYPH_X     RGBA8(0x9F, 0xD0, 0xFF, 0xFF)
+#define TH_GLYPH_O     RGBA8(0xFF, 0xA9, 0xC0, 0xFF)
+#define TH_GLYPH_TRI   RGBA8(0x8F, 0xE8, 0xB4, 0xFF)
+#define TH_GLYPH_SQ    RGBA8(0xF2, 0xB8, 0xE8, 0xFF)
 
-#define TH_TOPBAR_H 32
-#define TH_HINTS_Y  530   /* baseline of the hint row */
+/* ---- layout grid (the screen is 960x544) ---- */
+#define TH_MARGIN        48    /* left edge of all content */
+#define TH_RIGHT         912   /* right edge of all content */
+#define TH_TOPBAR_BASE   40    /* baseline of the top bar */
+#define TH_HEADER_BASE   100   /* baseline of a page title */
+#define TH_HEADER_LINE   120   /* divider under the page title */
+#define TH_CONTENT_Y     128   /* first row of a page with a title */
+#define TH_CONTENT_Y0    72    /* first row of a page without a title */
+#define TH_CONTENT_END   476   /* content never goes below this line */
+#define TH_HINTS_Y       524   /* baseline of the hint row */
 
-enum { GLYPH_CROSS, GLYPH_CIRCLE, GLYPH_TRIANGLE, GLYPH_SQUARE, GLYPH_START, GLYPH_LR };
+/* ---- type scale: use only these sizes ---- */
+#define TS_MICRO   12
+#define TS_SMALL   14
+#define TS_HINT    16
+#define TS_BODY    18
+#define TS_CLOCK   20
+#define TS_LEAD    22
+#define TS_TITLE   28
+#define TS_HERO    34
+
+enum {
+  GLYPH_CROSS, GLYPH_CIRCLE, GLYPH_TRIANGLE, GLYPH_SQUARE,
+  GLYPH_START, GLYPH_SELECT, GLYPH_LR, GLYPH_DPAD_LR
+};
+
+typedef struct {
+  int glyph;
+  const char *label;
+} theme_hint_item;
 
 void theme_init(void);
 
-vita2d_font *theme_font(void);        /* Roboto Regular (falls back to the icon font) */
-vita2d_font *theme_font_light(void);  /* Roboto Light */
-int theme_text_width(vita2d_font *f, unsigned int size, const char *text);
+/* Global opacity for everything drawn through theme_*(), for fades. */
+void theme_set_alpha(float alpha);
+unsigned int theme_color(unsigned int color);
+
+/* Moves current towards target, a fraction of the way per frame. */
+float theme_approach(float current, float target);
+
+/* ---- text (y is the baseline) ---- */
+void theme_text(float x, float y, unsigned int color, int size, const char *text);
+void theme_text_right(float right, float y, unsigned int color, int size, const char *text);
+void theme_text_center(float cx, float y, unsigned int color, int size, const char *text);
+/* Left-aligned, cut with an ellipsis if wider than max_w. */
+void theme_text_fit(float x, float y, unsigned int color, int size, const char *text, int max_w);
+/* Right-aligned at `right`, cut with an ellipsis if wider than max_w. */
+void theme_text_fit_right(float right, float y, unsigned int color, int size, const char *text, int max_w);
+/* Centred on cx, cut with an ellipsis if wider than max_w. */
+void theme_text_fit_center(float cx, float y, unsigned int color, int size, const char *text, int max_w);
+int theme_text_width(int size, const char *text);
 /* Copies text into out, cut with an ellipsis if it is wider than max_w.
    Cuts on UTF-8 boundaries so accented letters are never split. */
-void theme_ellipsize(vita2d_font *f, unsigned int size, const char *text, int max_w,
-                     char *out, int outlen);
+void theme_ellipsize(int size, const char *text, int max_w, char *out, int outlen);
+/* Splits text into lines (on spaces and newlines) that fit max_w; returns the count. */
+int theme_wrap(int size, const char *text, int max_w, char lines[][256], int max_lines);
 
+/* ---- shapes ---- */
 void theme_draw_background(void);
+void theme_rect(float x, float y, float w, float h, unsigned int color);
 void theme_rounded_rect(float x, float y, float w, float h, float r, unsigned int color);
 void theme_rounded_outline(float x, float y, float w, float h, float r, unsigned int color);
-void theme_glass(float x, float y, float w, float h, float r);
+void theme_circle(float cx, float cy, float r, unsigned int color);
+void theme_ring(float cx, float cy, float r, float thickness, unsigned int color);
+void theme_stroke(float x0, float y0, float x1, float y1, float thickness, unsigned int color);
 void theme_vgradient(float x, float y, float w, float h, unsigned int top, unsigned int bottom);
+/* Floating panel: shadow, dark translucent fill, thin edge. */
+void theme_glass(float x, float y, float w, float h, float r);
 
-/* PlayStation button glyph in a coloured disc centred on (cx, cy). */
-void theme_glyph(int glyph, float cx, float cy, float r);
-/* Glyph + label on the hint row; returns the x after it. */
-int theme_hint(int x, int baseline, int glyph, const char *label);
+/* ---- widgets ---- */
+/* "<" (dir = -1) or ">" (dir = +1) centred on (cx, cy). */
+void theme_chevron(float cx, float cy, float size, int dir, unsigned int color);
+/* On/off switch, 44x24, left edge at x, centred on cy. knob: 0 = off ... 1 = on. */
+void theme_toggle(float x, float cy, float knob);
+/* Focus highlight of a row: soft rounded fill with an accent bar on the left. */
+void theme_focus(float x, float y, float w, float h);
+/* Wi-Fi style signal bars (0-4 lit), bottom-left corner at (x, y). */
+void theme_signal(float x, float y, int bars, unsigned int color);
+
+/* PlayStation symbol centred on (cx, cy); returns its width. */
+int theme_glyph(int glyph, float cx, float cy);
+int theme_glyph_width(int glyph);
+/* Hint row centred at the bottom of the screen. */
+void theme_hints(const theme_hint_item *items, int count);
+/* Same, centred on cx with the baseline at y (dialogs). */
+void theme_hints_at(const theme_hint_item *items, int count, float cx, float y);
 /* Confirm / cancel glyphs, following the "Swap X & O" setting. */
 int theme_confirm_glyph(void);
 int theme_cancel_glyph(void);
 
-/* "Moonlight" + optional section on the left, clock and battery on the right. */
+/* Top bar: "Moonlight" + optional section on the left; Wi-Fi, battery and
+ * clock on the right. */
 void theme_topbar(const char *section);
+/* Page title with a back chevron and the divider under it. */
+void theme_header(const char *title);

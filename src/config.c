@@ -144,6 +144,10 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->display_mode = INT(value);
     } else if (strcmp(name, "decoder_catchup") == 0) {
       config->decoder_catchup = BOOL(value);
+    } else if (strcmp(name, "http_keepalive") == 0) {
+      config->http_keepalive = BOOL(value);
+    } else if (strcmp(name, "ui_msaa") == 0) {
+      config->ui_msaa = BOOL(value);
     } else if (strcmp(name, "enable_motion_controls") == 0) {
       config->enable_motion_controls = BOOL(value);
     } else if (strcmp(name, "enable_front_touchzones") == 0) {
@@ -225,6 +229,8 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_bool(fd, "low_latency_audio", config->low_latency_audio);
   write_config_int(fd, "display_mode", config->display_mode);
   write_config_bool(fd, "decoder_catchup", config->decoder_catchup);
+  write_config_bool(fd, "http_keepalive", config->http_keepalive);
+  write_config_bool(fd, "ui_msaa", config->ui_msaa);
   write_config_bool(fd, "enable_motion_controls", config->enable_motion_controls);
   write_config_bool(fd, "enable_psbutton_capture", config->enable_psbutton_capture);
   write_config_bool(fd, "enable_double_tap_sprint", config->enable_double_tap_sprint);
@@ -336,6 +342,8 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->low_latency_audio = true;
   config->display_mode = DISPLAY_MODE_SMOOTH; // beta default
   config->decoder_catchup = true;
+  config->http_keepalive = false;
+  config->ui_msaa = true;
   config->language = 0; // English
   config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;

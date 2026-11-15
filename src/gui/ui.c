@@ -1,6 +1,7 @@
 #include "ui.h"
 
 #include "guilib.h"
+#include "theme.h"
 #include "ime.h"
 
 #include "ui_settings.h"
@@ -59,9 +60,48 @@ enum {
   HOST_MANAGE_DELETE,
   HOST_MANAGE_CHANGE_IP,
   HOST_MANAGE_CHANGE_NAME,
-  HOST_MANAGE_FORCE_CONNECT,
   HOST_MANAGE_BACK
 };
+
+/* Index of a device in known_devices, or -1. */
+static int host_index(const device_info_t *info) {
+  for (int i = 0; i < known_devices.count; i++) {
+    if (&known_devices.devices[i] == info)
+      return i;
+  }
+  return -1;
+}
+
+enum { HOST_STATE_OFFLINE, HOST_STATE_ONLINE, HOST_STATE_MOVED };
+
+/* What the background scan knows about a saved host. */
+static int host_state(int host_idx) {
+  if (host_idx < 0 || host_idx >= MAX_HOSTS)
+    return HOST_STATE_OFFLINE;
+  const device_info_t *info = &known_devices.devices[host_idx];
+  struct host_status st = g_host_status[host_idx];
+  if (pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0')
+    return HOST_STATE_MOVED;
+  if (st.current_ip[0] && strcmp(info->internal, st.current_ip) != 0)
+    return HOST_STATE_MOVED;
+  return st.status == HOST_ONLINE ? HOST_STATE_ONLINE : HOST_STATE_OFFLINE;
+}
+
+static const char *host_state_text(int state) {
+  switch (state) {
+    case HOST_STATE_ONLINE: return tr("Online");
+    case HOST_STATE_MOVED: return tr("Address changed");
+    default: return tr("Offline");
+  }
+}
+
+static unsigned int host_state_color(int state) {
+  switch (state) {
+    case HOST_STATE_ONLINE: return 0xFF00FF00;
+    case HOST_STATE_MOVED: return 0xFF00FFFF;
+    default: return 0xFF0000FF;
+  }
+}
 
 static int ui_host_manage_menu_loop(int cursor, void *context, const input_data *input) {
   device_info_t *info = (device_info_t *)context;
@@ -73,105 +113,54 @@ static int ui_host_manage_menu_loop(int cursor, void *context, const input_data 
     return 0;
   }
   switch (cursor) {
-    case HOST_MANAGE_CHECK_MAC: {
-      vita_debug_log("[UI] Host menu: check MAC %s", info->name);
-      char mac[18] = {0};
-      if (info->mac[0]) {
-        strncpy(mac, info->mac, sizeof(mac)-1);
-        mac[sizeof(mac)-1] = '\0';
-        char msg[64];
-        snprintf(msg, sizeof(msg), "MAC: %s", mac);
-        flash_message(msg);
-        vita_debug_log("[UI] MAC saved for %s: %s", info->internal, mac);
-      } else {
-        flash_message(tr("No MAC saved for this host"));
-        vita_debug_log("[UI] No MAC saved for %s", info->internal);
-      }
-      sceKernelDelayThread(2*1000*1000); // Wait 2 seconds so the message can be read
-      return 1;
-    }
     case HOST_MANAGE_WAKE: {
       vita_debug_log("[UI] Host menu: Wake-on-LAN %s", info->name);
       if (!info->mac[0]) {
-        flash_message(tr("No MAC saved for this host"));
-        vita_debug_log("[UI] Wake-on-LAN: No MAC for %s", info->name);
-        sceKernelDelayThread(2*1000*1000);
-        return 1;
+        display_notice(3000, "%s", tr("The network address of this PC is not known yet. Connect to it once while it is on."));
+        return 0;
       }
-      // Derive the broadcast address from the internal IP
+      // Derive the broadcast address from the internal IP: last number replaced by 255
       char broadcast[32] = {0};
-      const char *ip = info->internal;
-      if (!ip[0]) {
-        flash_message(tr("No IP for this host"));
-        return 1;
-      }
-      // Copy the IP and replace the last octet with 255
-      strncpy(broadcast, ip, sizeof(broadcast)-1);
+      strncpy(broadcast, info->internal, sizeof(broadcast) - 5);
       char *last_dot = strrchr(broadcast, '.');
-      if (last_dot) {
-        strcpy(last_dot+1, "255");
-      } else {
-        flash_message(tr("Invalid IP"));
-        return 1;
+      if (!info->internal[0] || !last_dot) {
+        display_notice(2000, "%s", tr("Invalid IP"));
+        return 0;
       }
+      strcpy(last_dot + 1, "255");
       extern bool send_wol_packet(const char *mac, const char *ip_broadcast, int port);
       bool wol_ok = send_wol_packet(info->mac, broadcast, 9);
-      if (wol_ok) {
-        flash_message(tr("Wake-on-LAN sent!"));
-        vita_debug_log("[UI] Wake-on-LAN sent to %s (%s)", info->name, info->mac);
-      } else {
-        flash_message(tr("Wake-on-LAN failed"));
-        vita_debug_log("[UI] Wake-on-LAN failed for %s (%s)", info->name, info->mac);
-      }
-      sceKernelDelayThread(2*1000*1000);
+      vita_debug_log("[UI] Wake-on-LAN %s for %s (%s)", wol_ok ? "sent" : "failed", info->name, info->mac);
+      display_notice(2500, "%s", wol_ok ? tr("Wake-up signal sent. The PC needs a moment to start.") : tr("Wake-on-LAN failed"));
       return 1;
     }
     case HOST_MANAGE_CONNECT: {
       vita_debug_log("[UI] Host menu: connect to %s", info->name);
       stop_host_scan();
-      // If the IP changed, ask before pairing
-      extern int pending_ip_update_idx;
-      extern char pending_ip_update[64];
-      int host_idx = -1;
-      for (int i = 0; i < known_devices.count; i++) {
-        if (&known_devices.devices[i] == info) {
-          host_idx = i;
-          break;
-        }
-      }
+      // The scan saw this PC at another address: offer to use it first
+      int host_idx = host_index(info);
       if (host_idx >= 0 && pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0') {
-        char msg[320];
-        snprintf(msg, sizeof(msg), tr("Host IP changed!\nOld: %s\nNew: %s\nDo you want to pair with the new IP?"), info->internal, pending_ip_update);
-        int res = display_confirm(msg);
-        if (res) {
-          ui_check_ip_update(info, pending_ip_update);
-          device_info_t *updated = find_device(info->name);
-          if (updated) info = updated;
-          ui_connect_paired_device(info);
-        } else {
-          flash_message(tr("Connection cancelled"));
-        }
-      } else {
-        ui_connect_paired_device(info);
+        char name[sizeof(info->name)];
+        snprintf(name, sizeof(name), "%s", info->name);
+        if (!ui_check_ip_update(info, pending_ip_update))
+          return 1;
+        // the list was reloaded: look the PC up again
+        info = find_device(name);
+        if (!info)
+          return 1;
       }
+      ui_connect_paired_device(info);
       return 1;
     }
     case HOST_MANAGE_DELETE: {
       char msg[320];
-      snprintf(msg, sizeof(msg), tr("Delete host?\nAre you sure you want to delete %s?"), info->name);
-      int res = display_confirm(msg);
-      if (res) {
+      snprintf(msg, sizeof(msg), tr("Forget %s?\nIts pairing is removed from this Vita."), info->name);
+      if (display_confirm(msg)) {
         vita_debug_log("[UI] Host management: delete %s", info->name);
-        if (remove_device(info->name)) {
-          flash_message(tr("Host deleted"));
-        } else {
-          flash_message(tr("Error deleting host"));
-        }
+        display_notice(1200, "%s", remove_device(info->name) ? tr("Host deleted") : tr("Error deleting host"));
         return 1;
-      } else {
-        flash_message(tr("Delete cancelled"));
-        return 0;
       }
+      return 0;
     }
     case HOST_MANAGE_CHANGE_IP: {
       vita_debug_log("[UI] Host menu: change IP %s", info->name);
@@ -183,40 +172,24 @@ static int ui_host_manage_menu_loop(int cursor, void *context, const input_data 
         info->external[sizeof(info->external)-1] = '\0';
         info->prefer_external = false;
         save_device_info(info);
-        flash_message(tr("IP updated: %s"), new_ip);
-      } else {
-        flash_message(tr("IP change cancelled"));
+        display_notice(1200, tr("IP updated: %s"), new_ip);
       }
       return 1;
     }
     case HOST_MANAGE_CHANGE_NAME: {
       vita_debug_log("[UI] Host menu: rename %s", info->name);
       char new_name[256] = "";
-      if (ime_dialog_string(new_name, tr("Enter new name:"), info->name) == 0 && strlen(new_name) > 0) {
-        // Keep the old name to delete the old file
-        char old_name[256];
-        strncpy(old_name, info->name, sizeof(old_name)-1);
-        old_name[sizeof(old_name)-1] = '\0';
-        strncpy(info->name, new_name, sizeof(info->name)-1);
-        info->name[sizeof(info->name)-1] = '\0';
-        save_device_info(info);
-        // Delete the old file if the name changed
-        if (strcmp(old_name, new_name) != 0) {
-          remove_device(old_name);
-        }
-        flash_message(tr("Name updated: %s"), new_name);
-      } else {
-        flash_message(tr("Name change cancelled"));
+      if (ime_dialog_string(new_name, tr("Enter new name:"), info->name) == 0 && strlen(new_name) > 0 &&
+          strcmp(new_name, info->name) != 0) {
+        // The host folder (pairing keys included) is renamed: the pairing is kept.
+        // The original code wrote a new folder and so lost the pairing.
+        if (rename_device(info, new_name))
+          display_notice(1200, tr("Name updated: %s"), new_name);
+        else
+          display_notice(2500, "%s", tr("This name cannot be used (already taken, or it contains / : * ? < > |)."));
       }
       return 1;
     }
-    case HOST_MANAGE_FORCE_CONNECT:
-      vita_debug_log("[UI] Host menu: forced connection to %s", info->name);
-      stop_host_scan();
-      ui_connect_paired_device(info);
-      return 1;
-    case HOST_MANAGE_BACK:
-      return 1;
   }
   return 0;
 }
@@ -228,57 +201,33 @@ static int ui_host_manage_menu_back(void *context) {
 void ui_host_manage_menu(device_info_t *info) {
   menu_entry menu[12];
   int idx = 0;
-  char title[256];
-  snprintf(title, sizeof(title), tr("Host: %s"), info->name);
-  // Header rows
-  menu[idx++] = (menu_entry){ .name = tr("Host management"), .disabled = true, .color = 0xFFFFFFFF };
-  menu[idx++] = (menu_entry){ .name = title, .disabled = true, .color = 0xFF00AAFF };
-  // IP and status with a colored dot
-  char ipinfo[320];
-  char status_text[64];
-  snprintf(status_text, sizeof(status_text), "%s", tr("Unpaired"));
-  int host_idx = -1;
-  for (int i = 0; i < known_devices.count; i++) {
-    if (&known_devices.devices[i] == info) {
-      host_idx = i;
-      break;
-    }
-  }
-  if (host_idx >= 0) {
-    struct host_status st = g_host_status[host_idx];
-    if (pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0') {
-      snprintf(status_text, sizeof(status_text), "%s", tr("[IP changed]"));
-    } else if (st.current_ip[0] && strcmp(info->internal, st.current_ip) != 0) {
-      snprintf(status_text, sizeof(status_text), "%s", tr("[IP changed]"));
-    } else {
-      if (st.status == HOST_ONLINE) {
-        snprintf(status_text, sizeof(status_text), tr("%s (Online)"), info->paired ? tr("Paired") : tr("Unpaired"));
-      } else {
-        snprintf(status_text, sizeof(status_text), tr("%s (Offline)"), info->paired ? tr("Paired") : tr("Unpaired"));
-      }
-    }
-  }
-  // IP and port on one line
-  snprintf(ipinfo, sizeof(ipinfo), "IP: %s  PORT: %d", info->internal, info->port);
-  menu[idx] = (menu_entry){ .name = ipinfo, .disabled = true };
-  strncpy(menu[idx].subname, status_text, sizeof(menu[idx].subname)-1);
-  menu[idx].subname[sizeof(menu[idx].subname)-1] = '\0';
+  int state = host_state(host_index(info));
+
+  // Address and state of the host, then the actions
+  char address[320];
+  snprintf(address, sizeof(address), "%s : %d", info->internal, info->port);
+  menu[idx] = (menu_entry){ .name = address, .disabled = true, .is_host_entry = true, .color = host_state_color(state) };
+  snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s, %s", host_state_text(state),
+           info->paired ? tr("paired") : tr("not paired"));
   idx++;
-  menu[idx++] = (menu_entry){ .name = "", .disabled = true, .separator = true };
-  // Options (no Info entry)
+  // Connect is offered whatever the state shown: the scan can miss a PC that is
+  // on, and a PC that does not answer is given up on after a few seconds.
   menu[idx++] = (menu_entry){ .name = tr("Connect"), .id = HOST_MANAGE_CONNECT };
-  // menu[idx++] = (menu_entry){ .name = "Check MAC", .id = HOST_MANAGE_CHECK_MAC }; // Check MAC hidden
-  menu[idx++] = (menu_entry){ .name = tr("Wake on LAN (WOL)"), .id = HOST_MANAGE_WAKE };
-// Extra option for testing
-#define HOST_MANAGE_CHECK_MAC 3001
-  menu[idx++] = (menu_entry){ .name = tr("Force connect"), .id = HOST_MANAGE_FORCE_CONNECT };
-  menu[idx++] = (menu_entry){ .name = tr("Delete"), .id = HOST_MANAGE_DELETE };
-  menu[idx++] = (menu_entry){ .name = tr("Change IP"), .id = HOST_MANAGE_CHANGE_IP };
-  menu[idx++] = (menu_entry){ .name = tr("Change Name"), .id = HOST_MANAGE_CHANGE_NAME };
-  menu[idx++] = (menu_entry){ .name = tr("Back"), .id = HOST_MANAGE_BACK };
-  menu_geom geom = make_geom_centered(600, 320);
-  display_menu(menu, idx, &geom, &ui_host_manage_menu_loop, &ui_host_manage_menu_back, NULL, info);
+  menu[idx++] = (menu_entry){ .name = tr("Wake the PC (Wake-on-LAN)"), .id = HOST_MANAGE_WAKE };
+  menu[idx++] = (menu_entry){ .name = tr("Change the address"), .id = HOST_MANAGE_CHANGE_IP };
+  menu[idx++] = (menu_entry){ .name = tr("Rename"), .id = HOST_MANAGE_CHANGE_NAME };
+  menu[idx++] = (menu_entry){ .name = tr("Forget this PC"), .id = HOST_MANAGE_DELETE };
+
+  char title[128];
+  snprintf(title, sizeof(title), "%.120s", info->name);
+  gui_set_next_title(title);
+  display_menu(menu, idx, NULL, &ui_host_manage_menu_loop, &ui_host_manage_menu_back, NULL, info);
 }
+
+/* Entry focused on the home screen: kept so the cursor stays put when the
+ * list is rebuilt (the host scan refreshes it), and used by the details pane. */
+static int home_focus_id = 0;
+static bool home_has_focus = false;
 
 int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
   // menu_entry *menu = (menu_entry*)context; // unused
@@ -321,46 +270,36 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
     return 2; // Force a menu refresh
   }
 
-  if ((input->buttons & config.btn_confirm) == 0 || (input->buttons & SCE_CTRL_HOLD) != 0) {
+  home_focus_id = cursor;
+  home_has_focus = true;
+
+  bool on_host = cursor >= MAIN_MENU_CONNECT_PAIRED && cursor < MAIN_MENU_QUIT;
+  bool held = (input->buttons & SCE_CTRL_HOLD) != 0;
+  // Square: the host's own menu (wake, rename, change the address, forget)
+  if (on_host && (input->buttons & SCE_CTRL_SQUARE) && !held) {
+    stop_host_scan();
+    ui_host_manage_menu(&known_devices.devices[cursor - MAIN_MENU_CONNECT_PAIRED]);
+    start_host_scan();
+    return 2;
+  }
+  if ((input->buttons & config.btn_confirm) == 0 || held) {
     return 0;
   }
-  // The host menu is always reachable, even offline or after an IP change
-  if (cursor >= MAIN_MENU_CONNECT_PAIRED && cursor < MAIN_MENU_QUIT) {
+  // X on a host that answers: connect straight away. Anything else (offline,
+  // address changed) goes through the host menu, which handles those cases.
+  if (on_host) {
     int host_idx = cursor - MAIN_MENU_CONNECT_PAIRED;
     device_info_t *info = &known_devices.devices[host_idx];
     stop_host_scan();
-    ui_host_manage_menu(info);
+    if (host_state(host_idx) == HOST_STATE_ONLINE)
+      ui_connect_paired_device(info);
+    else
+      ui_host_manage_menu(info);
     start_host_scan();
     return 2;
   }
 
-  // Any option that leaves this menu stops the host scan
   int exit_menu = 0;
-  if (cursor >= MAIN_MENU_CONNECT_PAIRED && cursor < MAIN_MENU_QUIT) {
-    device_info_t *info = &known_devices.devices[cursor - MAIN_MENU_CONNECT_PAIRED];
-    int host_idx = cursor - MAIN_MENU_CONNECT_PAIRED;
-    struct host_status st;
-    st = g_host_status[host_idx];
-    vita_debug_log("[UI] (LOOP) host_idx=%d, scan_state=%d, st.status=%d, st.current_ip=%s", host_idx, g_host_scan_thread_status, st.status, st.current_ip);
-
-    if (st.status == HOST_IP_CHANGED && strcmp(info->internal, st.current_ip) != 0) {
-      vita_debug_log("[UI] Host %s detected IP change: old=%s, new=%s. Deferring IP update dialog.", info->name, info->internal, st.current_ip);
-      pending_ip_update_idx = host_idx;
-      strncpy(pending_ip_update, st.current_ip, sizeof(pending_ip_update)-1);
-      pending_ip_update[sizeof(pending_ip_update)-1] = '\0';
-      exit_menu = 1;
-    } else if (st.status == HOST_ONLINE) {
-      vita_debug_log("[UI] Host %s is ONLINE. Connecting normally.", info->name);
-      vita_debug_log("[UI] Stopping the host scan before connecting");
-      stop_host_scan();
-      ui_connect_paired_device(info);
-      exit_menu = 2;
-    } else {
-      vita_debug_log("[UI] Host %s is OFFLINE or unreachable.", info->name);
-      flash_message(tr("Host is offline or unreachable."));
-      return 0;
-    }
-  }
   switch (cursor) {
     case MAIN_MENU_CONNECT:
       vita_debug_log("[UI] Selected: Add manually");
@@ -424,6 +363,115 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
 int ui_main_menu_back(void *context) {
   return 1;
 }
+/* ---- home screen: the list on the left, details of the focused entry on the right ---- */
+#define HOME_LIST_W 400
+#define HOME_PANE_X (TH_MARGIN + HOME_LIST_W + 32)
+#define HOME_PANE_W (TH_RIGHT - HOME_PANE_X)
+#define HOME_PANE_Y (TH_CONTENT_Y0 + 8)
+
+static char home_version[96];
+static int home_wifi_power_save = -1;   /* read when the home screen opens */
+
+static void home_detail_row(int y, const char *label, const char *value, unsigned int value_color) {
+  theme_text(HOME_PANE_X + 24, y, TH_TEXT3, TS_SMALL, label);
+  theme_text_fit_right(HOME_PANE_X + HOME_PANE_W - 24, y, value_color, TS_HINT, value, HOME_PANE_W - 190);
+  theme_rect(HOME_PANE_X + 24, y + 12, HOME_PANE_W - 48, 1, TH_DIVIDER);
+}
+
+/* Explanation of a non-host entry, wrapped inside the details pane. */
+static void home_explain(const char *title, const char *text) {
+  theme_text_fit(HOME_PANE_X + 24, HOME_PANE_Y + 44, TH_TEXT, TS_LEAD, title, HOME_PANE_W - 48);
+  char lines[6][256];
+  int n = theme_wrap(TS_HINT, text, HOME_PANE_W - 48, lines, 6);
+  for (int i = 0; i < n; i++)
+    theme_text(HOME_PANE_X + 24, HOME_PANE_Y + 80 + i * 24, TH_TEXT2, TS_HINT, lines[i]);
+}
+
+static void home_draw(void) {
+  int pane_h = TH_CONTENT_END - HOME_PANE_Y;
+  theme_glass(HOME_PANE_X, HOME_PANE_Y, HOME_PANE_W, pane_h, 14);
+  theme_text(TH_MARGIN, TH_HINTS_Y, TH_TEXT3, TS_MICRO, home_version);
+
+  int id = home_focus_id;
+  if (home_has_focus && id >= MAIN_MENU_CONNECT_PAIRED && id < MAIN_MENU_QUIT &&
+      id - MAIN_MENU_CONNECT_PAIRED < known_devices.count) {
+    int host_idx = id - MAIN_MENU_CONNECT_PAIRED;
+    const device_info_t *info = &known_devices.devices[host_idx];
+    int state = host_state(host_idx);
+    unsigned int state_color = state == HOST_STATE_ONLINE ? TH_OK : (state == HOST_STATE_MOVED ? TH_WARN : TH_ERR);
+
+    theme_text_fit(HOME_PANE_X + 24, HOME_PANE_Y + 44, TH_TEXT, TS_LEAD, info->name, HOME_PANE_W - 48);
+    theme_circle(HOME_PANE_X + 29, HOME_PANE_Y + 65, 5, state_color);
+    theme_text(HOME_PANE_X + 44, HOME_PANE_Y + 70, TH_TEXT2, TS_SMALL, host_state_text(state));
+
+    char value[320];
+    int y = HOME_PANE_Y + 112;
+    snprintf(value, sizeof(value), "%s : %d", info->internal, info->port);
+    home_detail_row(y, tr("Address"), value, TH_TEXT);
+    home_detail_row(y + 38, tr("Pairing"), info->paired ? tr("Paired") : tr("Not paired"), TH_TEXT);
+    home_detail_row(y + 76, tr("Wake-on-LAN"), info->mac[0] ? tr("Ready") : tr("Not ready yet"),
+                    info->mac[0] ? TH_TEXT : TH_TEXT3);
+    snprintf(value, sizeof(value), "%d x %d, %d fps", config.stream.width, config.stream.height, config.stream.fps);
+    home_detail_row(y + 114, tr("Stream"), value, TH_TEXT);
+
+    /* One piece of advice: what stands between the user and a good stream. */
+    bool warn = false;
+    const char *advice;
+    if (state == HOST_STATE_MOVED) {
+      advice = tr("This PC answers from a new address: open it to update.");
+    } else if (state != HOST_STATE_ONLINE) {
+      advice = tr("No answer. Is the PC on, with Sunshine running?");
+    } else if (home_wifi_power_save == 1) {
+      advice = tr("Wi-Fi power save is on and adds lag: turn it off in the Vita's Settings, Power Save Settings.");
+      warn = true;
+    } else {
+      advice = tr("Ready to play.");
+    }
+    char lines[3][256];
+    int n = theme_wrap(TS_SMALL, advice, HOME_PANE_W - 48, lines, 3);
+    for (int i = 0; i < n; i++)
+      theme_text(HOME_PANE_X + 24, y + 166 + i * 19, warn ? TH_WARN : TH_TEXT2, TS_SMALL, lines[i]);
+    return;
+  }
+
+  switch (home_has_focus ? id : -1) {
+    case MAIN_MENU_CONNECT_RESUME:
+      home_explain(tr("Stream paused"), tr("The game is still running on the PC. Resume to go back to it."));
+      break;
+    case MAIN_MENU_SEARCH:
+      home_explain(tr("Search the network"), tr("Lists the PCs running Sunshine on your Wi-Fi network. Pick one, then type the PIN shown on the Vita into Sunshine's web page."));
+      break;
+    case MAIN_MENU_CONNECT:
+      home_explain(tr("Enter an address"), tr("Type the IP address of the PC, as shown in Sunshine or in the network settings of Windows."));
+      break;
+    case MAIN_MENU_SETTINGS:
+      home_explain(tr("Settings"), tr("Language, video quality, performance profile, controls and touch screen."));
+      break;
+    case MAIN_MENU_QUIT:
+      home_explain(tr("Quit"), tr("Closes Moonlight and returns to the Vita home screen."));
+      break;
+    default:
+      break;
+  }
+}
+
+/* Hint row of the home screen: what the buttons do on the focused entry. */
+static int home_hints(int id, theme_hint_item *out, int max) {
+  int n = 0;
+  bool on_host = id >= MAIN_MENU_CONNECT_PAIRED && id < MAIN_MENU_QUIT &&
+                 id - MAIN_MENU_CONNECT_PAIRED < known_devices.count;
+  if (on_host) {
+    bool online = host_state(id - MAIN_MENU_CONNECT_PAIRED) == HOST_STATE_ONLINE;
+    out[n++] = (theme_hint_item){theme_confirm_glyph(), online ? tr("Connect") : tr("Open")};
+    out[n++] = (theme_hint_item){GLYPH_SQUARE, tr("PC options")};
+  } else {
+    out[n++] = (theme_hint_item){theme_confirm_glyph(), id == MAIN_MENU_CONNECT_RESUME ? tr("Resume") : tr("Select")};
+  }
+  if (id != MAIN_MENU_CONNECT_RESUME && n < max)
+    out[n++] = (theme_hint_item){GLYPH_TRIANGLE, tr("Refresh")};
+  return n;
+}
+
 int ui_main_menu() {
   // Restart the host scan whenever the main menu opens
   vita_debug_log("[UI] Entering the main menu");
@@ -438,15 +486,12 @@ int ui_main_menu() {
     stop_host_scan(); // Stop the scan in case it is still running
   }
 
-  menu_entry menu[16];
+  home_wifi_power_save = vitapower_wifi_power_save();
+
+  /* static: an entry is over 1 KB, too much for the stack with many hosts */
+  static menu_entry menu[MAX_HOSTS + 12];
   int idx = 0;
 
-#define MENU_TITLE(NAME) \
-  do { \
-    menu[idx] = (menu_entry) { .name = "", .disabled = true, .color = 0xff00aa00 }; \
-    strcpy(menu[idx].subname, (NAME)); \
-    idx++; \
-  } while (0)
 #define MENU_ENTRY(ID, NAME, DISABLED) \
   do { \
     menu[idx] = (menu_entry) { .name = (NAME), .disabled = (DISABLED), .id = (ID) }; \
@@ -458,106 +503,88 @@ int ui_main_menu() {
     idx++; \
   } while(0)
 
-  char program_info[256];
-#ifdef __vita__
 #ifdef BUILD_ID
-  snprintf(program_info, 256, "Moonlight v%d.%d.%d (%s)", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, BUILD_ID);
+  snprintf(home_version, sizeof(home_version), "v%d.%d.%d  %s", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, BUILD_ID);
 #else
-  snprintf(program_info, 256, "Moonlight v%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
-#endif
-  MENU_TITLE(program_info);
+  snprintf(home_version, sizeof(home_version), "v%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
 #endif
 
-  //char name[256] = {0};
-  char addr[256] = {0};
-  char resume_msg[512] = {0};
-  //if (ui_connect_connected()) {
-  //  ui_connect_address(addr);
-  //  sprintf(name, "Resume connection to %s", addr);
-  //} else {
-  //  sprintf(name, "Connect to %s", config.address ? config.address : "none");
-  //}
-
-  static char last_ip_logged[256] = "";
+  static char resume_msg[512];
   if (ui_connect_connected()) {
     MENU_SEPARATOR(tr("Current connection"));
-    ui_connect_address(addr);
-    sprintf(resume_msg, tr("Resume connection to %s"), addr);
+    snprintf(resume_msg, sizeof(resume_msg), tr("Resume on %s"), ui_connect_host_label());
     MENU_ENTRY(MAIN_MENU_CONNECT_RESUME, resume_msg, false);
   } else {
-    MENU_SEPARATOR(tr("Add new computer"));
-    MENU_ENTRY(MAIN_MENU_SEARCH, tr("Search devices ..."), false);
-    MENU_ENTRY(MAIN_MENU_CONNECT, tr("Add manually ..."), false);
-
-    if (known_devices.count) {
-      MENU_SEPARATOR(tr("Paired computers"));
-      // Use the scan thread results
-      for (int i = 0; i < known_devices.count; i++) {
-        device_info_t *cur = &known_devices.devices[i];
-        if (!cur->paired) {
-          continue;
-        }
-        struct host_status st;
-        st = g_host_status[i];
-
-        // unsigned int color = 0; // No usado
-        // const char* color_str = ""; // No usado
-        // bool ip_changed = (st.current_ip[0] && strcmp(cur->internal, st.current_ip) != 0); // No usado
-        // bool ip_pending = (pending_ip_update_idx == i && pending_ip_update[0] != '\0'); // No usado
-        MENU_ENTRY(MAIN_MENU_CONNECT_PAIRED + i, cur->name, false);
-        int real_idx = idx - 1;
-        menu[real_idx].is_host_entry = true;
-        // Pending IP change for this host: force yellow and skip the rest
-        if (pending_ip_update_idx == i && pending_ip_update[0] != '\0') {
-          strcpy(menu[real_idx].subname, tr("[IP changed]"));
-          menu[real_idx].color = 0xFF00FFFF;
-          vita_debug_log("[UI] Host %s menu idx=%d, color=0x%08X (YELLOW, IP pending)", cur->name, real_idx, 0xFF00FFFF);
-          continue;
-        }
-        // ...normal color logic...
-        if (st.current_ip[0] && strcmp(cur->internal, st.current_ip) != 0) {
-          if (strcmp(last_ip_logged, st.current_ip) != 0) {
-            vita_debug_log("[UI] Host %s IP changed: old=%s, new=%s", cur->name, cur->internal, st.current_ip);
-            strncpy(last_ip_logged, st.current_ip, sizeof(last_ip_logged)-1);
-            last_ip_logged[sizeof(last_ip_logged)-1] = '\0';
-          }
-          strcpy(menu[real_idx].subname, tr("[IP changed]"));
-          menu[real_idx].color = 0xFF00FFFF;
-          vita_debug_log("[UI] Host %s menu idx=%d, color=0x%08X (YELLOW)", cur->name, real_idx, 0xFF00FFFF);
-        } else if (strcmp(menu[real_idx].subname, tr("[IP changed]")) == 0) {
-          menu[real_idx].color = 0xFF00FFFF;
-          vita_debug_log("[UI] Host %s menu idx=%d, color=0x%08X (YELLOW)", cur->name, real_idx, 0xFF00FFFF);
-        } else if (st.status == HOST_ONLINE) {
-          menu[real_idx].color = 0xFF00FF00;
-          vita_debug_log("[UI] Host %s menu idx=%d, color=0x%08X (GREEN)", cur->name, real_idx, 0xFF00FF00);
-        } else {
-          menu[real_idx].color = 0xFF0000FF;
-          vita_debug_log("[UI] Host %s menu idx=%d, color=0x%08X (RED)", cur->name, real_idx, 0xFF0000FF);
-        }
+    bool any_host = false;
+    for (int i = 0; i < known_devices.count && i < MAX_HOSTS; i++) {
+      device_info_t *cur = &known_devices.devices[i];
+      if (!cur->paired) {
+        continue;
       }
+      if (!any_host) {
+        MENU_SEPARATOR(tr("Computers"));
+        any_host = true;
+      }
+      // Status from the background scan: green online, red offline, yellow address changed
+      int state = host_state(i);
+      MENU_ENTRY(MAIN_MENU_CONNECT_PAIRED + i, cur->name, false);
+      menu[idx - 1].is_host_entry = true;
+      menu[idx - 1].color = host_state_color(state);
+      snprintf(menu[idx - 1].subname, sizeof(menu[idx - 1].subname), "%s", host_state_text(state));
     }
+    MENU_SEPARATOR(tr("Add a computer"));
+    MENU_ENTRY(MAIN_MENU_SEARCH, tr("Search the network"), false);
+    MENU_ENTRY(MAIN_MENU_CONNECT, tr("Enter an address"), false);
   }
 
-  MENU_SEPARATOR("");
   MENU_ENTRY(MAIN_MENU_SETTINGS, tr("Settings"), false);
   MENU_ENTRY(MAIN_MENU_QUIT, tr("Quit"), false);
 
-  // Start the scan only if no IP change is pending and it has not run yet
-  menu_geom geom = make_geom_centered(560, 330);
-  return display_menu(menu, idx, &geom, &ui_main_menu_loop, &ui_main_menu_back, NULL, NULL);
+  menu_geom geom = {0};
+  geom.page = true;
+  geom.x = TH_MARGIN;
+  geom.width = HOME_LIST_W;
+  geom.y = TH_CONTENT_Y0;
+  geom.el = 44;
+  geom.height = (TH_CONTENT_END - geom.y) / geom.el * geom.el;
+  geom.total_y = geom.y + geom.height;
+
+  /* The list is rebuilt whenever the scan reports a change: keep the cursor
+   * where it was and skip the opening animation in that case. */
+  static bool opened_before = false;
+  if (!home_has_focus) {
+    /* first time: describe the entry the cursor starts on */
+    for (int i = 0; i < idx; i++) {
+      if (!menu[i].disabled) {
+        home_focus_id = menu[i].id;
+        home_has_focus = true;
+        break;
+      }
+    }
+  }
+  menu_options options = {0};
+  options.has_focus = home_has_focus;
+  options.focus_id = home_focus_id;
+  options.instant = opened_before;
+  options.hints_for = home_hints;
+  gui_set_next_options(&options);
+  opened_before = true;
+  return display_menu(menu, idx, &geom, &ui_main_menu_loop, &ui_main_menu_back, &home_draw, NULL);
 }
 
 int global_loop(int cursor, void *ctx, const input_data *input) {
-  if (is_rectangle_touched(&input->touch, 0, 0, 150, 150)) {
+  if (is_rectangle_touched(&input->touch, 0, 0, 200, 56)) {
     if (connection_get_status() == LI_MINIMIZED) {
       vitapower_config(config);
       vitainput_config(config);
+      // The stream draws from its own thread: no menu frame may be left open.
+      ui_end();
 
       sceKernelDelayThread(500 * 1000);
       connection_resume();
 
       while (connection_is_connected()) {
-        sceKernelDelayThread(500 * 1000);
+        sceKernelDelayThread(100 * 1000);
       }
     }
   }

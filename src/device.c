@@ -23,6 +23,22 @@
 #define write_string(fd, key, value) fprintf(fd, "%s = %s\n", key, value)
 
 // Deletes the device folder and its file
+bool rename_device(device_info_t *info, const char *new_name) {
+  if (!new_name[0] || strpbrk(new_name, "/\\:*?\"<>|") || find_device(new_name))
+    return false;
+  char old_dir[512], new_dir[512];
+  snprintf(old_dir, sizeof(old_dir), "%s%s", config.key_dir, info->name);
+  snprintf(new_dir, sizeof(new_dir), "%s%s", config.key_dir, new_name);
+  int ret = sceIoRename(old_dir, new_dir);
+  if (ret < 0) {
+    vita_debug_log("rename_device: %s -> %s failed: 0x%x\n", old_dir, new_dir, ret);
+    return false;
+  }
+  snprintf(info->name, sizeof(info->name), "%s", new_name);
+  save_device_info(info);
+  return true;
+}
+
 bool remove_device(const char *name) {
   int idx = -1;
   for (int i = 0; i < known_devices.count; i++) {

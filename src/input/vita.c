@@ -153,6 +153,9 @@ inline void move_wheel(TouchData old, TouchData cur) {
   LiSendScrollEvent(delta_y);
 }
 
+/* Shoulder/trigger swap in effect (copied from the config when a stream starts). */
+bool swap_shoulder_buttons = false;
+
 SceCtrlData pad, pad_old;
 TouchData touch;
 TouchData touch_old, swipe;
@@ -787,7 +790,7 @@ inline void vitainput_process(void) {
   static SceCtrlData pad_snapshot = {0};
   static input_data curr_snapshot = {0};
 
-  bool shortcut_triggered = process_physical_shortcuts(&pad, &pad_old);
+  process_physical_shortcuts(&pad, &pad_old);
   bool keyboard_now = keyboardsystem_is_open();
   bool pause_now = pause_overlay_is_open();
 

@@ -20,11 +20,14 @@
 #include <psp2/power.h>
 #include "../i18n.h"
 
-#define BUTTON_DELAY 150 * 1000
+#ifndef ASSET_PREFIX
+#define ASSET_PREFIX "app0:assets/"
+#endif
 
 static gui_draw_callback gui_global_draw_callback;
 static gui_loop_callback gui_global_loop_callback;
 
+/* Icon font (stream indicators). All interface text uses theme_text(). */
 vita2d_font *font;
 
 menu_geom make_geom_centered(int w, int h) {
@@ -34,274 +37,60 @@ menu_geom make_geom_centered(int w, int h) {
   geom.width = w;
   geom.height = h;
   geom.total_y = geom.y + geom.height;
-  geom.el = 30;
+  geom.el = 34;
   return geom;
 }
 
-void draw_border(menu_geom geom, unsigned int border_color) {
-  vita2d_draw_line(geom.x, geom.y, geom.x+geom.width, geom.y, border_color);
-  vita2d_draw_line(geom.x, geom.y, geom.x, geom.y+geom.height, border_color);
-  vita2d_draw_line(geom.x+geom.width, geom.y, geom.x+geom.width, geom.y+geom.height, border_color);
-  vita2d_draw_line(geom.x, geom.y+geom.height, geom.x+geom.width, geom.y+geom.height, border_color);
-}
+/* ---------------- input helpers ---------------- */
 
-void draw_text_hcentered(int x, int y, unsigned int color, char *text) {
-  int width = vita2d_font_text_width(font, 18, text);
-  vita2d_font_draw_text(font, x - width / 2, y, color, 18, text);
-}
-
-static int battery_percent;
-static bool battery_charging;
-static SceRtcTick battery_tick;
-
-void draw_statusbar(menu_geom geom) {
-  SceRtcTick current_tick;
-  sceRtcGetCurrentTick(&current_tick);
-  if (current_tick.tick - battery_tick.tick > 10 * 1000 * 1000) {
-    battery_percent = scePowerGetBatteryLifePercent();
-    battery_charging = scePowerIsBatteryCharging();
-
-    battery_tick = current_tick;
-  }
-
-  SceDateTime time;
-  sceRtcGetCurrentClockLocalTime(&time);
-
-  char dt_text[256];
-  sprintf(dt_text, "%02d:%02d", time.hour, time.minute);
-  int dt_width = vita2d_font_text_width(font, 18, dt_text);
-  int battery_width = 30,
-      battery_height = 16,
-      battery_padding = 2,
-      battery_plus_height = 4,
-      battery_y_offset = 4,
-      battery_charge_width = (float) battery_percent / 100 * battery_width;
-  unsigned int battery_color = battery_charging ? 0xff99ffff : (battery_percent < 20 ? 0xff0000ff : 0xff00ff00);
-
-  vita2d_font_draw_text(font, geom.x + geom.width - dt_width - battery_width - 5, geom.y - 5, 0xffffffff, 18, dt_text);
-
-  vita2d_draw_rectangle(
-      geom.x + geom.width - battery_width,
-      geom.y - battery_height - battery_y_offset,
-      battery_width,
-      battery_height,
-      0xffffffff);
-
-  vita2d_draw_rectangle(
-      geom.x + geom.width - battery_width - battery_padding,
-      geom.y - battery_y_offset - ((float) battery_height / 2 + (float) battery_plus_height / 2),
-      battery_padding,
-      battery_plus_height,
-      0xffffffff
-      );
-
-  vita2d_draw_rectangle(
-      geom.x + geom.width - battery_width + battery_padding,
-      geom.y - battery_height + battery_padding - battery_y_offset,
-      battery_width - battery_padding * 2,
-      battery_height - battery_padding * 2,
-      0xff000000);
-
-  vita2d_draw_rectangle(
-      geom.x + geom.width - battery_charge_width + battery_padding,
-      geom.y - battery_height + battery_padding - battery_y_offset,
-      battery_charge_width - battery_padding * 2,
-      battery_height - battery_padding * 2,
-      battery_color);
-}
-
-SceTouchData touch_data;
-SceCtrlData ctrl_new_pad;
-
-static SceRtcTick button_current_tick, button_until_tick;
-bool was_button_pressed(short id) {
-  sceRtcGetCurrentTick(&button_current_tick);
-
-  if (ctrl_new_pad.buttons & id) {
-    if (sceRtcCompareTick(&button_current_tick, &button_until_tick) > 0) {
-      sceRtcTickAddMicroseconds(&button_until_tick, &button_current_tick, BUTTON_DELAY);
-      return true;
-    }
-  }
-
-  return false;
-}
-
-bool is_button_down(short id) {
-  return ctrl_new_pad.buttons & id;
-}
-
-#define lerp(value, from_max, to_max) ((((value*10) * (to_max*10))/(from_max*10))/10)
 bool is_rectangle_touched(const SceTouchData *touch, int lx, int ly, int rx, int ry) {
   for (int i = 0; i < touch->reportNum; i++) {
-    int x = lerp(touch->report[i].x, 1919, WIDTH);
-    int y = lerp(touch->report[i].y, 1087, HEIGHT);
+    int x = touch->report[i].x * WIDTH / 1920;
+    int y = touch->report[i].y * HEIGHT / 1088;
     if (x < lx || x > rx || y < ly || y > ry) continue;
     return true;
   }
-
   return false;
 }
 
-/* Status colours used by the host list (vita2d ABGR values) mapped to the theme. */
-static unsigned int theme_status_color(unsigned int c) {
-  switch (c) {
-    case 0xFF00FF00: return TH_OK;
-    case 0xFF0000FF: return TH_ERR;
-    case 0xFF00FFFF: return TH_WARN;
-    default: return c ? c : TH_TEXT3;
-  }
+static struct {
+  bool down, ignore;
+  int x0, y0, x, y;
+} tap;
+
+void gui_touch_reset(void) {
+  tap.down = false;
+  tap.ignore = true;   /* until the finger currently on the screen is lifted */
 }
 
-/* Menus: glass panel, highlighted row with an accent bar, values on the right,
- * hint row at the bottom. Row geometry (geom.el) and scrolling are unchanged. */
-void draw_menu(menu_entry menu[], int total_elements, menu_geom geom, int cursor, int offset) {
-  vita2d_font *f = theme_font();
-  theme_topbar(NULL);
-  theme_glass(geom.x - 14, geom.y - 12, geom.width + 28, geom.height + 20, 14);
-
-  for (int i = 0, cursor_idx = 0; i < total_elements; i++) {
-    bool selected = false;
-    if (!menu[i].disabled) {
-      selected = cursor == cursor_idx;
-      cursor_idx++;
+bool gui_touch_tap(const SceTouchData *touch, int *x, int *y) {
+  if (touch->reportNum > 0) {
+    if (tap.ignore)
+      return false;
+    int px = touch->report[0].x * WIDTH / 1920;
+    int py = touch->report[0].y * HEIGHT / 1088;
+    if (!tap.down) {
+      tap.down = true;
+      tap.x0 = px;
+      tap.y0 = py;
     }
-
-    int el_x = geom.x, el_y = geom.y + i * geom.el - offset;
-    if (el_y < geom.y - 2 || el_y > geom.total_y - geom.el)
-      continue;
-    int baseline = el_y + geom.el / 2 + 6;
-    const char *name = menu[i].name ? menu[i].name : "";
-
-    if (menu[i].separator) {
-      int line_x = el_x + 4;
-      if (*name) {
-        vita2d_font_draw_text(f, el_x + 4, baseline, TH_ACCENT_HI, 13, name);
-        line_x += theme_text_width(f, 13, name) + 10;
-      }
-      vita2d_draw_rectangle(line_x, baseline - 5, el_x + geom.width - line_x, 1, TH_LINE_FAINT);
-      continue;
-    }
-
-    if (selected) {
-      theme_rounded_rect(el_x - 6, el_y + 1, geom.width + 12, geom.el - 2, 8, TH_FILL_FOCUS);
-      theme_rounded_rect(el_x - 6, el_y + 6, 3, geom.el - 12, 1.5f, TH_ACCENT);
-    }
-    unsigned int text_color = menu[i].disabled ? TH_TEXT3 : (selected ? TH_TEXT : TH_TEXT2);
-
-    int tx = el_x + 6;
-    if (menu[i].is_host_entry && *name) {
-      vita2d_draw_fill_circle(tx + 5, baseline - 5, 5, theme_status_color(menu[i].color));
-      tx += 18;
-    }
-    int right_x = el_x + geom.width - 4;
-    if (menu[i].suffix && *menu[i].suffix) {
-      /* suffixes are icons from the icon font */
-      int w = vita2d_font_text_width(font, 18, menu[i].suffix);
-      right_x -= w;
-      vita2d_font_draw_text(font, right_x, baseline + 1, selected ? TH_ACCENT_HI : TH_TEXT3, 18, menu[i].suffix);
-      right_x -= 10;
-    }
-    if (*menu[i].subname) {
-      /* next to a label a value takes at most half the row; alone (info
-         lines) it may use the whole row */
-      char value[256];
-      int max_w = *name ? geom.width / 2 : right_x - tx;
-      theme_ellipsize(f, 15, menu[i].subname, max_w, value, sizeof(value));
-      int w = theme_text_width(f, 15, value);
-      vita2d_font_draw_text(f, right_x - w, baseline, selected ? TH_ACCENT_HI : TH_TEXT3, 15, value);
-      right_x -= w + 14;
-    }
-    if (*name) {
-      /* translated labels can be longer than the English ones: cut them
-         with an ellipsis instead of letting them run under the value */
-      char label[256];
-      theme_ellipsize(f, 16, name, right_x - tx, label, sizeof(label));
-      vita2d_font_draw_text(f, tx, baseline, text_color, 16, label);
+    tap.x = px;
+    tap.y = py;
+    return false;
+  }
+  tap.ignore = false;
+  if (tap.down) {
+    tap.down = false;
+    if (abs(tap.x - tap.x0) < 24 && abs(tap.y - tap.y0) < 24) {
+      *x = tap.x;
+      *y = tap.y;
+      return true;
     }
   }
-
-  int x = theme_hint(24, TH_HINTS_Y, theme_confirm_glyph(), tr("Select"));
-  theme_hint(x, TH_HINTS_Y, theme_cancel_glyph(), tr("Back"));
+  return false;
 }
 
-/* Splits text into lines (on spaces and newlines) that fit max_w; returns the count. */
-static int wrap_lines(const char *text, vita2d_font *f, unsigned int size, int max_w,
-                      char lines[][256], int max_lines) {
-  int count = 0;
-  char current[256] = "";
-  const char *p = text;
-  while (*p && count < max_lines) {
-    char word[256];
-    int n = 0;
-    while (p[n] && p[n] != ' ' && p[n] != '\n' && n < 255) n++;
-    memcpy(word, p, n);
-    word[n] = 0;
-    p += n;
-
-    char candidate[512];
-    snprintf(candidate, sizeof(candidate), "%s%s%s", current, *current ? " " : "", word);
-    if (*current && theme_text_width(f, size, candidate) > max_w) {
-      snprintf(lines[count++], 256, "%s", current);
-      snprintf(current, sizeof(current), "%s", word);
-    } else {
-      snprintf(current, sizeof(current), "%s", candidate);
-    }
-    if (*p == '\n' || *p == 0) {
-      if (count < max_lines && (*current || *p == '\n'))
-        snprintf(lines[count++], 256, "%s", current);
-      current[0] = 0;
-    }
-    if (*p) p++;
-  }
-  return count;
-}
-
-void draw_alert(char *message, menu_geom geom, char *buttons_captions[], int buttons_count) {
-  vita2d_font *f = theme_font();
-  theme_glass(geom.x, geom.y, geom.width, geom.height, 16);
-
-  char lines[12][256];
-  int n = wrap_lines(message, f, 17, geom.width - 48, lines, 12);
-  int line_h = 24;
-  int area_h = geom.height - (buttons_count ? 56 : 24);
-  int y = geom.y + (area_h - n * line_h) / 2 + 18;
-  if (y < geom.y + 30) y = geom.y + 30;
-  for (int i = 0; i < n; i++) {
-    int w = theme_text_width(f, 17, lines[i]);
-    vita2d_font_draw_text(f, geom.x + (geom.width - w) / 2, y + i * line_h, TH_TEXT, 17, lines[i]);
-  }
-
-  if (buttons_count) {
-    const int glyphs[4] = {theme_confirm_glyph(), theme_cancel_glyph(), GLYPH_TRIANGLE, GLYPH_SQUARE};
-    const char *defaults[4] = {tr("OK"), tr("Cancel"), tr("Options"), tr("Delete")};
-    int total = 0;
-    for (int i = 0; i < buttons_count && i < 4; i++) {
-      const char *cap = buttons_captions && buttons_captions[i] ? buttons_captions[i] : defaults[i];
-      total += 20 + 7 + theme_text_width(f, 15, cap) + 22;
-    }
-    int x = geom.x + geom.width - 20 - total + 22;
-    vita2d_draw_rectangle(geom.x + 16, geom.y + geom.height - 46, geom.width - 32, 1, TH_LINE_FAINT);
-    for (int i = 0; i < buttons_count && i < 4; i++) {
-      const char *cap = buttons_captions && buttons_captions[i] ? buttons_captions[i] : defaults[i];
-      x = theme_hint(x, geom.y + geom.height - 16, glyphs[i], cap);
-    }
-  }
-}
-
-void ui_start() {
-  vita2d_start_drawing();
-  vita2d_clear_screen();
-  theme_draw_background();
-}
-
-void ui_end() {
-  vita2d_end_drawing();
-  vita2d_wait_rendering_done();
-  vita2d_swap_buffers();
-}
-
-int read_buttons() {
+int read_buttons(void) {
     SceCtrlData pad = {0};
     static int old;
     static int hold_times;
@@ -319,9 +108,9 @@ int read_buttons() {
     btn = pad.buttons & ~old;
     if (curr && old == curr) {
         hold_times += 1;
-        if (hold_times >= 10) {
+        if (hold_times >= 14) {       /* held: repeat every 4 frames */
             btn = curr;
-            hold_times = 8;
+            hold_times = 10;
             btn |= SCE_CTRL_HOLD;
         }
     } else {
@@ -331,26 +120,252 @@ int read_buttons() {
     return btn;
 }
 
+/* ---------------- frames ---------------- */
+
+/* Menus open sub-menus and dialogs from inside their own frame; tracking the
+ * state keeps a frame from being presented twice (which showed a stale buffer
+ * for one refresh). */
+static bool frame_open = false;
+static bool msaa_active = false;
+
+/* Whether multisampling is in use (fixed when the graphics start). */
+bool gui_msaa_active(void) {
+  return msaa_active;
+}
+
+void ui_start(void) {
+  if (frame_open)
+    return;
+  frame_open = true;
+  vita2d_start_drawing();
+  vita2d_clear_screen();
+  theme_set_alpha(1.0f);
+  theme_draw_background();
+}
+
+void ui_end(void) {
+  if (!frame_open)
+    return;
+  frame_open = false;
+  vita2d_end_drawing();
+  vita2d_wait_rendering_done();
+  vita2d_swap_buffers();
+}
+
+/* ---------------- menus ---------------- */
+
+/* Status colours used by the host list (vita2d ABGR values) mapped to the theme. */
+static unsigned int theme_status_color(unsigned int c) {
+  switch (c) {
+    case 0xFF00FF00: return TH_OK;
+    case 0xFF0000FF: return TH_ERR;
+    case 0xFF00FFFF: return TH_WARN;
+    default: return c ? c : TH_TEXT3;
+  }
+}
+
+static bool is_arrows(const char *suffix) {
+  return suffix && strcmp(suffix, ICON_LEFT_RIGHT_ARROWS) == 0;
+}
+
+typedef struct {
+  const char *title;   /* page title, or NULL */
+  const theme_hint_item *hints;
+  int hint_count;
+  int (*hints_for)(int focus_id, theme_hint_item *out, int max);
+  bool floating;       /* caller-placed panel instead of a full page */
+  float scroll;        /* current scroll offset in pixels */
+  float focus_y;       /* animated position of the focus highlight */
+  float appear;        /* 0..1 fade-in when the menu opens */
+} menu_view;
+
+#define VALUE_ZONE 248   /* width kept on the right for "< value >" */
+
+/*
+ * Draws a menu. Page style (default): rows across the content width with thin
+ * dividers, label on the left, value on the right ("< value >" for entries that
+ * left/right changes), animated focus highlight. Floating style: the same rows
+ * inside a glass panel placed by the caller.
+ */
+static void draw_menu(menu_entry menu[], int total_elements, menu_geom geom, int real_cursor, menu_view *view) {
+  theme_topbar(NULL);
+  if (view->title)
+    theme_header(view->title);
+
+  int content_h = total_elements * geom.el;
+  int view_h = geom.total_y - geom.y;
+  bool scrollable = content_h > view_h;
+  int pad = view->floating ? 12 : 16;
+  int size = geom.el >= 40 ? TS_BODY : TS_HINT;
+  int value_size = geom.el >= 40 ? TS_HINT : TS_SMALL;
+
+  if (view->floating)
+    theme_glass(geom.x - 14, geom.y - 12, geom.width + 28, view_h + 24, 14);
+
+  theme_set_alpha(view->appear);
+  if (scrollable) {
+    vita2d_set_clip_rectangle(0, geom.y, WIDTH, geom.total_y);
+    vita2d_enable_clipping();
+  }
+
+  /* focus highlight, behind the rows */
+  if (real_cursor >= 0 && real_cursor < total_elements && !menu[real_cursor].disabled)
+    theme_focus(geom.x, view->focus_y - view->scroll + 2, geom.width, geom.el - 4);
+
+  for (int i = 0; i < total_elements; i++) {
+    float el_y = geom.y + i * geom.el - view->scroll;
+    if (el_y + geom.el < geom.y || el_y > geom.total_y)
+      continue;
+    bool selected = i == real_cursor && !menu[i].disabled;
+    float baseline = el_y + geom.el / 2.0f + size * 0.36f;
+    const char *name = menu[i].name ? menu[i].name : "";
+    int left = geom.x + pad, right = geom.x + geom.width - pad;
+
+    if (menu[i].separator) {
+      /* section heading: small accent label and a line */
+      int line_x = geom.x;
+      if (*name) {
+        theme_text(geom.x, el_y + geom.el - 10, TH_ACCENT_HI, TS_SMALL, name);
+        line_x += theme_text_width(TS_SMALL, name) + 12;
+      }
+      theme_rect(line_x, el_y + geom.el - 15, geom.x + geom.width - line_x, 1, TH_DIVIDER);
+      continue;
+    }
+
+    if (!view->floating && !selected)
+      theme_rect(geom.x, el_y + geom.el - 1, geom.width, 1, TH_DIVIDER);
+
+    unsigned int text_color = menu[i].disabled ? TH_TEXT3 : (selected ? TH_TEXT : TH_TEXT2);
+    unsigned int value_color = selected ? TH_TEXT : TH_TEXT3;
+
+    if (menu[i].is_host_entry && *name) {
+      theme_circle(left + 5, el_y + geom.el / 2.0f, 5, theme_status_color(menu[i].color));
+      left += 20;
+    }
+
+    if (is_arrows(menu[i].suffix)) {
+      /* "< value >" in a fixed zone: nothing moves when the text length changes */
+      int zone = geom.width > 520 ? VALUE_ZONE : geom.width / 2;
+      float cy = el_y + geom.el / 2.0f;
+      unsigned int chev = selected ? TH_TEXT : RGBA8(255, 255, 255, 90);
+      theme_chevron(right - zone + 6, cy, 5.5f, -1, chev);
+      theme_chevron(right - 6, cy, 5.5f, 1, chev);
+      theme_text_fit_center(right - zone / 2.0f, el_y + geom.el / 2.0f + value_size * 0.36f,
+                            value_color, value_size, menu[i].subname, zone - 40);
+      right -= zone + 12;
+    } else {
+      if (menu[i].suffix && *menu[i].suffix) {
+        theme_text_right(right, el_y + geom.el / 2.0f + TS_SMALL * 0.36f, TH_TEXT3, TS_SMALL, menu[i].suffix);
+        right -= theme_text_width(TS_SMALL, menu[i].suffix) + 12;
+      }
+      if (*menu[i].subname) {
+        /* next to a label a value takes at most half the row; alone it may use it all */
+        int max_w = *name ? geom.width / 2 : right - left;
+        char value[256];
+        theme_ellipsize(value_size, menu[i].subname, max_w, value, sizeof(value));
+        float vy = el_y + geom.el / 2.0f + value_size * 0.36f;
+        if (*name) {
+          theme_text_right(right, vy, value_color, value_size, value);
+          right -= theme_text_width(value_size, value) + 14;
+        } else {
+          theme_text(left, vy, TH_TEXT3, value_size, value);
+        }
+      }
+    }
+    if (*name)
+      theme_text_fit(left, baseline, text_color, size, name, right - left);
+  }
+
+  if (scrollable) {
+    vita2d_disable_clipping();
+    /* position marker on the right edge */
+    float track_h = view_h - 8;
+    float bar_h = track_h * view_h / content_h;
+    float bar_y = geom.y + 4 + (track_h - bar_h) * view->scroll / (content_h - view_h);
+    theme_rounded_rect(geom.x + geom.width + 6, bar_y, 3, bar_h, 1.5f, RGBA8(255, 255, 255, 70));
+  }
+  theme_set_alpha(1.0f);
+
+  if (view->hints_for && real_cursor >= 0 && real_cursor < total_elements) {
+    theme_hint_item live[6];
+    theme_hints(live, view->hints_for(menu[real_cursor].id, live, 6));
+  } else if (view->hints) {
+    theme_hints(view->hints, view->hint_count);
+  } else {
+    const theme_hint_item hints[] = {
+      {theme_confirm_glyph(), tr("Select")},
+      {theme_cancel_glyph(), tr("Back")},
+    };
+    theme_hints(hints, 2);
+  }
+}
+
+static menu_options next_options;
+static bool next_options_set = false;
+
+void gui_set_next_options(const menu_options *options) {
+  next_options = *options;
+  next_options_set = true;
+}
+
+void gui_set_next_title(const char *title) {
+  menu_options options = {0};
+  options.title = title;
+  gui_set_next_options(&options);
+}
+
 int display_menu(menu_entry menu[], int total_elements, menu_geom *geom_ptr,
                  gui_loop_callback cb, gui_back_callback back_cb,
                  gui_draw_callback draw_callback,
                  void *context) {
   ui_end();
+  gui_touch_reset();
 
-  int offset = 0;
-  int cursor = 0;
+  menu_options options = {0};
+  if (next_options_set)
+    options = next_options;
+  next_options_set = false;
+
+  char title[128] = "";
+  if (options.title)
+    snprintf(title, sizeof(title), "%s", options.title);
+
+  menu_view view = {0};
+  view.title = *title ? title : NULL;
+  view.hints = options.hints;
+  view.hint_count = options.hint_count;
+  view.hints_for = options.hints_for;
+  view.floating = geom_ptr != NULL && !geom_ptr->page;
+  view.appear = options.instant ? 1.0f : 0.0f;
 
   menu_geom geom;
-
   if (!geom_ptr) {
-    geom = make_geom_centered(620, 390);
-    geom.y = 64;
+    geom.x = TH_MARGIN;
+    geom.width = TH_RIGHT - TH_MARGIN;
+    geom.y = view.title ? TH_CONTENT_Y : TH_CONTENT_Y0;
+    geom.el = 44;
+    /* whole rows only, so that nothing is cut at the bottom */
+    geom.height = (TH_CONTENT_END - geom.y) / geom.el * geom.el;
     geom.total_y = geom.y + geom.height;
   } else {
     geom = *geom_ptr;
   }
 
-  int tick_number = 0;
+  int cursor = 0;            /* index among the enabled entries */
+  if (options.has_focus) {
+    int c = 0;
+    for (int i = 0; i < total_elements; i++) {
+      if (menu[i].disabled)
+        continue;
+      if (menu[i].id == options.focus_id) {
+        cursor = c;
+        break;
+      }
+      c++;
+    }
+  }
+  float target_scroll = 0;
+  bool first_frame = true;
   int exit_code = 0;
 
   while (true) {
@@ -358,23 +373,10 @@ int display_menu(menu_entry menu[], int total_elements, menu_geom *geom_ptr,
     for (int i = 0; i < total_elements; i++) {
         active_elements += menu[i].disabled ? 0 : 1;
     }
-
-    ui_start();
-    tick_number++;
-
-    if (tick_number > 3) {
-      if (draw_callback) {
-        draw_callback();
-      }
-      if (gui_global_draw_callback) {
-        gui_global_draw_callback();
-      }
-    }
-
-    draw_menu(menu, total_elements, geom, cursor, offset);
+    cursor = cursor > active_elements - 1 ? active_elements - 1 : cursor;
+    cursor = cursor < 0 ? 0 : cursor;
 
     int real_cursor = 0;
-
     for (int c = 0; real_cursor < total_elements; real_cursor++) {
       if (menu[real_cursor].disabled) {
         continue;
@@ -384,6 +386,41 @@ int display_menu(menu_entry menu[], int total_elements, menu_geom *geom_ptr,
       }
       c++;
     }
+    if (real_cursor >= total_elements)
+      real_cursor = total_elements - 1;
+
+    /* Scroll so that the focused row and one row around it stay visible. */
+    int view_h = geom.total_y - geom.y;
+    int content_h = total_elements * geom.el;
+    float row_top = real_cursor * geom.el;
+    if (cursor == 0)
+      target_scroll = 0;                       /* show any heading above the first entry */
+    else if (row_top - geom.el < target_scroll)
+      target_scroll = row_top - geom.el;
+    else if (row_top + 2 * geom.el > target_scroll + view_h)
+      target_scroll = row_top + 2 * geom.el - view_h;
+    if (target_scroll > content_h - view_h) target_scroll = content_h - view_h;
+    if (target_scroll < 0) target_scroll = 0;
+
+    if (first_frame) {
+      view.scroll = target_scroll;
+      view.focus_y = geom.y + row_top;
+      first_frame = false;
+    } else {
+      view.scroll = theme_approach(view.scroll, target_scroll);
+      view.focus_y = theme_approach(view.focus_y, geom.y + row_top);
+    }
+    view.appear = view.appear + 0.2f > 1.0f ? 1.0f : view.appear + 0.2f;
+
+    ui_start();
+    if (draw_callback) {
+      draw_callback();
+    }
+    if (gui_global_draw_callback) {
+      gui_global_draw_callback();
+    }
+
+    draw_menu(menu, total_elements, geom, total_elements ? real_cursor : -1, &view);
 
     // select item
     input_data input = {0};
@@ -395,21 +432,34 @@ int display_menu(menu_entry menu[], int total_elements, menu_geom *geom_ptr,
     if (input.buttons & SCE_CTRL_UP) {
       cursor -= 1;
     }
+
+    /* Touch: a tap on a row focuses it; a tap on the focused row confirms. */
+    int tx, ty;
+    if (gui_touch_tap(&input.touch, &tx, &ty) &&
+        tx >= geom.x && tx <= geom.x + geom.width && ty >= geom.y && ty < geom.total_y) {
+      int row = (int)((ty - geom.y + view.scroll) / geom.el);
+      if (row >= 0 && row < total_elements && !menu[row].disabled) {
+        if (row == real_cursor) {
+          input.buttons |= config.btn_confirm;
+        } else {
+          int c = 0;
+          for (int i = 0; i < row; i++)
+            c += menu[i].disabled ? 0 : 1;
+          cursor = c;
+        }
+      }
+    }
     cursor = cursor < 0 ? 0 : cursor;
     cursor = cursor > active_elements - 1 ? active_elements - 1 : cursor;
 
-    int cursor_y = geom.y + ((cursor == 0 ? 0 : real_cursor) * geom.el) - offset;
-    offset -= cursor_y < geom.y ? 8 : 0;
-    offset -= cursor_y > geom.total_y - geom.el * 2 ? -8 : 0;
-
-    if (cb) {
+    if (cb && total_elements) {
       exit_code = cb(menu[real_cursor].id, context, &input);
       if (exit_code) {
         goto error;
       }
     }
 
-    if (gui_global_loop_callback) {
+    if (gui_global_loop_callback && total_elements) {
       gui_global_loop_callback(menu[real_cursor].id, context, &input);
     }
 
@@ -430,17 +480,52 @@ error:
   return exit_code;
 }
 
+/* ---------------- dialogs ---------------- */
+
+#define DIALOG_W 540
+#define DIALOG_LINE_H 26
+#define DIALOG_MAX_LINES 12
+
+/* A centred panel sized to its text: message lines, then the button hints. */
+static void draw_dialog(const char *message, char *buttons_captions[], int buttons_count) {
+  char lines[DIALOG_MAX_LINES][256];
+  int n = theme_wrap(TS_BODY, message, DIALOG_W - 72, lines, DIALOG_MAX_LINES);
+  int text_h = n * DIALOG_LINE_H;
+  int h = 44 + text_h + (buttons_count ? 64 : 36);
+  if (h < 132) h = 132;
+  int x = (WIDTH - DIALOG_W) / 2, y = (HEIGHT - h) / 2;
+
+  theme_rect(0, 0, WIDTH, HEIGHT, RGBA8(2, 5, 14, 110));   /* dim what is behind */
+  theme_glass(x, y, DIALOG_W, h, 16);
+
+  int area_h = h - (buttons_count ? 60 : 0);
+  float ty = y + (area_h - text_h) / 2.0f + DIALOG_LINE_H * 0.72f;
+  for (int i = 0; i < n; i++)
+    theme_text_center(WIDTH / 2.0f, ty + i * DIALOG_LINE_H, TH_TEXT, TS_BODY, lines[i]);
+
+  if (buttons_count) {
+    const int glyphs[4] = {theme_confirm_glyph(), theme_cancel_glyph(), GLYPH_TRIANGLE, GLYPH_SQUARE};
+    const char *defaults[4] = {tr("OK"), tr("Cancel"), tr("Options"), tr("Delete")};
+    theme_hint_item hints[4];
+    int count = buttons_count > 4 ? 4 : buttons_count;
+    for (int i = 0; i < count; i++) {
+      hints[i].glyph = glyphs[i];
+      hints[i].label = buttons_captions && buttons_captions[i] ? buttons_captions[i] : defaults[i];
+    }
+    theme_rect(x + 24, y + h - 60, DIALOG_W - 48, 1, TH_DIVIDER);
+    theme_hints_at(hints, count, WIDTH / 2.0f, y + h - 24);
+  }
+}
 
 void display_alert(char *message, char *button_captions[], int buttons_count,
                    gui_loop_callback cb, void *context) {
-
-  menu_geom alert_geom = make_geom_centered(480, 220);
+  ui_end();
+  gui_touch_reset();
 
   while (true) {
     ui_start();
     theme_topbar(NULL);
-
-    draw_alert(message, alert_geom, button_captions, buttons_count);
+    draw_dialog(message, button_captions, buttons_count);
 
     input_data input = {0};
     input.buttons = read_buttons();
@@ -466,14 +551,38 @@ void display_alert(char *message, char *button_captions[], int buttons_count,
     if (cb && result != -1 && result < buttons_count) {
       switch(cb(result, context, &input)) {
         case 1:
+          ui_end();
           return;
       }
     } else if (result == 0) {
+      ui_end();
       return;
     }
 
     ui_end();
   }
+}
+
+void display_notice(int duration_ms, char *format, ...) {
+  char buf[0x1000];
+
+  va_list opt;
+  va_start(opt, format);
+  vsnprintf(buf, sizeof(buf), format, opt);
+  va_end(opt);
+
+  ui_end();
+  /* one frame per refresh (ui_end waits for the screen), so ~60 frames a second */
+  int frames = duration_ms * 60 / 1000;
+  for (int i = 0; i < frames; i++) {
+    ui_start();
+    theme_topbar(NULL);
+    draw_dialog(buf, NULL, 0);
+    ui_end();
+    if (i > 12 && (read_buttons() & (config.btn_confirm | config.btn_cancel)))
+      break;   /* any key dismisses it early */
+  }
+  gui_touch_reset();
 }
 
 void display_error(char *format, ...) {
@@ -482,10 +591,12 @@ void display_error(char *format, ...) {
   va_list opt;
   va_start(opt, format);
   vsnprintf(buf, sizeof(buf), format, opt);
-  display_alert(buf, NULL, 1, NULL, NULL);
   va_end(opt);
+  display_alert(buf, NULL, 1, NULL, NULL);
 }
 
+/* Shows a message for one frame and returns: used before a blocking operation
+ * ("Connecting...") so the screen is not left on the previous menu. */
 void flash_message(char *format, ...) {
   char buf[0x1000];
 
@@ -495,46 +606,87 @@ void flash_message(char *format, ...) {
   va_end(opt);
 
   ui_end();
-
-  menu_geom alert_geom = make_geom_centered(480, 200);
   ui_start();
   theme_topbar(NULL);
-  draw_alert(buf, alert_geom, NULL, 0);
-
+  draw_dialog(buf, NULL, 0);
   ui_end();
 }
 
-void drw() {
-  vita2d_draw_rectangle(0, 0, 150, 150, 0xffffffff);
-}
+/* Pairing screen, drawn once: the code in large digits and where to type it.
+ * The caller then blocks in gs_pair() until the PC has accepted the code. */
+void flash_pairing_code(const char *host, const char *code, const char *url) {
+  char title[160], lines[3][256];
+  snprintf(title, sizeof(title), tr("Pairing with %s"), host);
+  const char *how = tr("On the PC, open the Sunshine web page, choose PIN and type this code.");
+  int n = theme_wrap(TS_HINT, how, DIALOG_W - 72, lines, 3);
+  if (n > 1) {
+    /* lines of similar length rather than a last line of one word */
+    int balanced = theme_text_width(TS_HINT, how) / n + 40;
+    if (balanced < DIALOG_W - 72)
+      n = theme_wrap(TS_HINT, how, balanced, lines, 3);
+  }
 
-void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw_cb) {
-  vita2d_init();
-  vita2d_set_clear_color(0xff000000);
-  font = vita2d_load_font_file("app0:assets/nerdfont.ttf");
-  theme_init();
+  const int box_w = 56, box_h = 68, gap = 14;
+  int digits = (int)strlen(code);
+  int row_w = digits * box_w + (digits - 1) * gap;
+  int h = 64 + box_h + 30 + n * 22 + 34 + 40;
+  int x = (WIDTH - DIALOG_W) / 2, y = (HEIGHT - h) / 2;
 
-  gui_global_draw_callback = global_draw_cb;
-  gui_global_loop_callback = global_loop_cb;
+  ui_end();
+  ui_start();
+  theme_topbar(NULL);
+  theme_rect(0, 0, WIDTH, HEIGHT, RGBA8(2, 5, 14, 110));
+  theme_glass(x, y, DIALOG_W, h, 16);
+  theme_text_fit_center(WIDTH / 2.0f, y + 42, TH_TEXT, TS_LEAD, title, DIALOG_W - 72);
+
+  float bx = (WIDTH - row_w) / 2.0f, by = y + 64;
+  for (int i = 0; i < digits; i++) {
+    char digit[2] = {code[i], 0};
+    theme_rounded_rect(bx, by, box_w, box_h, 10, TH_FILL_SOFT);
+    theme_rounded_outline(bx, by, box_w, box_h, 10, TH_ACCENT);
+    theme_text_center(bx + box_w / 2.0f, by + box_h / 2.0f + TS_HERO * 0.36f, TH_TEXT, TS_HERO, digit);
+    bx += box_w + gap;
+  }
+
+  float ty = by + box_h + 36;
+  for (int i = 0; i < n; i++)
+    theme_text_center(WIDTH / 2.0f, ty + i * 22, TH_TEXT2, TS_HINT, lines[i]);
+  ty += n * 22 + 6;
+  theme_text_fit_center(WIDTH / 2.0f, ty, TH_ACCENT, TS_HINT, url, DIALOG_W - 72);
+  theme_text_center(WIDTH / 2.0f, y + h - 22, TH_TEXT3, TS_SMALL, tr("Waiting for the PC..."));
+  ui_end();
 }
 
 int display_confirm(const char* message) {
     char* buttons[] = {tr("Yes"), tr("No")};
-    menu_geom geom = make_geom_centered(480, 220);
+    ui_end();
+    gui_touch_reset();
     while (1) {
         ui_start();
         theme_topbar(NULL);
-        draw_alert((char*)message, geom, buttons, 2);
-        input_data input = {0};
-        input.buttons = read_buttons();
-        sceTouchPeek(SCE_TOUCH_PORT_FRONT, &input.touch, 1);
-        if (input.buttons & config.btn_confirm) {
-            ui_end();
-            return 1; // X
-        } else if (input.buttons & config.btn_cancel) {
-            ui_end();
-            return 0; // O
-        }
+        draw_dialog(message, buttons, 2);
+        int pressed = read_buttons();
         ui_end();
+        if (pressed & SCE_CTRL_HOLD)
+            continue;
+        if (pressed & config.btn_confirm)
+            return 1;
+        if (pressed & config.btn_cancel)
+            return 0;
     }
+}
+
+void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw_cb) {
+  /* 4x multisampling smooths rounded shapes and diagonal strokes (VitaRPS5
+   * initialises vita2d the same way). It also applies to the stream, which is
+   * drawn with the same context, hence the setting to turn it off. */
+  msaa_active = config.ui_msaa;
+  vita2d_init_advanced_with_msaa(1 * 1024 * 1024,
+                                 msaa_active ? SCE_GXM_MULTISAMPLE_4X : SCE_GXM_MULTISAMPLE_NONE);
+  vita2d_set_clear_color(0xff000000);
+  font = vita2d_load_font_file(ASSET_PREFIX "nerdfont.ttf");
+  theme_init();
+
+  gui_global_draw_callback = global_draw_cb;
+  gui_global_loop_callback = global_loop_cb;
 }

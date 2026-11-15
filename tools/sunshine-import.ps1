@@ -92,7 +92,7 @@ function Convert-ToPng([string]$source, [string]$target) {
 # ---------------------------------------------------------------------------
 
 $appsPath = Join-Path $SunshineConfigDir 'apps.json'
-if (-not (Test-Path $appsPath)) { throw "apps.json introuvable : $appsPath (utilise -SunshineConfigDir)" }
+if (-not (Test-Path $appsPath)) { throw "apps.json not found: $appsPath (use -SunshineConfigDir)" }
 $coversDir = Join-Path $SunshineConfigDir 'covers'
 
 $json = Get-Content $appsPath -Raw | ConvertFrom-Json
@@ -104,9 +104,9 @@ $added = @()
 
 $steam = Find-SteamPath
 if ($steam) {
-  Write-Host "Steam : $steam"
+  Write-Host "Steam: $steam"
   foreach ($g in Get-SteamGames (Get-SteamLibraries $steam)) {
-    if ($existing.ContainsKey($g.Name)) { Write-Host "  deja present : $($g.Name)"; continue }
+    if ($existing.ContainsKey($g.Name)) { Write-Host "  already there: $($g.Name)"; continue }
     $app = [ordered]@{ name = $g.Name; detached = @("steam://rungameid/$($g.Id)") }
     $cover = Find-SteamCover $steam $g.Id
     if ($cover) {
@@ -118,19 +118,19 @@ if ($steam) {
       $app['image-path'] = $png
     }
     $added += [pscustomobject]$app
-    Write-Host ("  + {0}{1}" -f $g.Name, $(if ($cover) { '' } else { ' (sans jaquette)' }))
+    Write-Host ("  + {0}{1}" -f $g.Name, $(if ($cover) { '' } else { ' (no cover)' }))
   }
 } else {
-  Write-Host 'Steam non trouve, etape ignoree.'
+  Write-Host 'Steam not found, step skipped.'
 }
 
 if ($DuckStationExe -and $Ps1Folder) {
-  if (-not (Test-Path $DuckStationExe)) { throw "DuckStation introuvable : $DuckStationExe" }
-  Write-Host "DuckStation : $Ps1Folder"
+  if (-not (Test-Path $DuckStationExe)) { throw "DuckStation not found: $DuckStationExe" }
+  Write-Host "DuckStation: $Ps1Folder"
   $files = Get-ChildItem $Ps1Folder -Recurse -File | Where-Object { $_.Extension -in '.cue', '.chd', '.m3u', '.pbp' }
   foreach ($f in $files | Sort-Object Name) {
     $name = [System.IO.Path]::GetFileNameWithoutExtension($f.Name)
-    if ($existing.ContainsKey($name)) { Write-Host "  deja present : $name"; continue }
+    if ($existing.ContainsKey($name)) { Write-Host "  already there: $name"; continue }
     $app = [ordered]@{ name = $name; cmd = "`"$DuckStationExe`" -batch -fullscreen -- `"$($f.FullName)`"" }
     $cover = @('.png', '.jpg') | ForEach-Object { Join-Path $f.DirectoryName "$name$_" } | Where-Object { Test-Path $_ } | Select-Object -First 1
     if ($cover) {
@@ -146,20 +146,20 @@ if ($DuckStationExe -and $Ps1Folder) {
   }
 }
 
-if ($added.Count -eq 0) { Write-Host 'Rien a ajouter.'; exit 0 }
-if ($DryRun) { Write-Host "$($added.Count) jeux seraient ajoutes (mode -DryRun, rien n'a ete ecrit)."; exit 0 }
+if ($added.Count -eq 0) { Write-Host 'Nothing to add.'; exit 0 }
+if ($DryRun) { Write-Host "$($added.Count) games would be added (-DryRun: nothing was written)."; exit 0 }
 
 $backup = "$appsPath.bak-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 Copy-Item $appsPath $backup
 $json.apps = @($apps + $added)
 # UTF-8 without BOM: Sunshine's JSON parser does not expect a BOM.
 [System.IO.File]::WriteAllText($appsPath, ($json | ConvertTo-Json -Depth 10), (New-Object System.Text.UTF8Encoding $false))
-Write-Host "$($added.Count) jeux ajoutes. Sauvegarde : $backup"
+Write-Host "$($added.Count) games added. Backup: $backup"
 
 $svc = Get-Service -Name 'SunshineService' -ErrorAction SilentlyContinue
 if ($svc) {
   Restart-Service -Name 'SunshineService'
-  Write-Host 'Sunshine redemarre : la liste est a jour.'
+  Write-Host 'Sunshine restarted: the list is up to date.'
 } else {
-  Write-Host 'Redemarre Sunshine pour qu''il relise la liste des jeux.'
+  Write-Host 'Restart Sunshine so that it reads the list of games again.'
 }

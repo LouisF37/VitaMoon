@@ -79,6 +79,8 @@ typedef struct _CONFIGURATION {
   int display_mode;         // DISPLAY_MODE_*
   bool decoder_catchup;     // pull pictures the hardware decoder holds back
   bool auto_bitrate;        // bitrate follows resolution and frame rate
+  bool http_keepalive;      // keep the menu connections to the PC open between requests
+  bool ui_msaa;             // 4x multisampling (read once, when the graphics start)
   bool enable_motion_controls; //Metalface
   bool enable_psbutton_capture;
   bool enable_double_tap_sprint; //**

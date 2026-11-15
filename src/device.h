@@ -30,4 +30,7 @@ void load_all_known_devices();
 bool load_device_info(device_info_t *info);
 void save_device_info(const device_info_t *info);
 bool remove_device(const char *name);
+/* Renames a saved host: its folder holds the pairing keys, so the folder is
+ * renamed rather than recreated. False if the name is unusable or taken. */
+bool rename_device(device_info_t *info, const char *new_name);
 void device_file_path(char *out, const char *dir);

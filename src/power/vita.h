@@ -20,5 +20,10 @@
 bool vitapower_init();
 void vitapower_config(CONFIGURATION config);
 
+/* The Vita system setting "Use Wi-Fi in Power Save Mode", read from the
+ * registry: 1 on, 0 off, -1 if it cannot be read. With it on, the Wi-Fi chip
+ * sleeps between packets, which adds delay to a stream. */
+int vitapower_wifi_power_save(void);
+
 void vitapower_start();
 void vitapower_stop();

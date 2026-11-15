@@ -65,16 +65,6 @@ static int host_scan_thread_count = 0;
 // Forward declaration
 static bool ping_host(const char *ip, uint16_t port);
 
-// Static callback for the host scan thread
-static void host_scan_mdns_cb(int idx, const char* host, const char* pcname, const char* ip, int port) {
-    if (idx < 0 || idx >= MAX_HOSTS) return;
-    if (strcmp(pcname, known_devices.devices[idx].name) == 0) {
-        strncpy(g_host_status[idx].current_ip, ip, sizeof(g_host_status[idx].current_ip)-1);
-        g_host_status[idx].current_ip[sizeof(g_host_status[idx].current_ip)-1] = '\0';
-        // More logic can go here if needed
-    }
-}
-
 static volatile int scan_mdns_found = 0;
 static char scan_mdns_found_ip[64] = "";
 static char scan_mdns_hostname_ref[256] = "";

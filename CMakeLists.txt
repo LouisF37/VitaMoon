@@ -167,7 +167,6 @@ add_executable(${PROJECT_NAME}.elf
 
 	src/keyboardsystem.c
 	src/input/keyboardkeys.c
-	src/gui/ui_keyboard.c
 	src/input/touchabsolute.c
 	src/check_host.c
 )
@@ -196,6 +195,7 @@ target_link_libraries(${PROJECT_NAME}.elf
 	-lSceNet_stub
 	-lSceNetCtl_stub
 	-lScePower_stub
+	-lSceRegistryMgr_stub
 	-lSceVideodec_stub
 	-lSceCommonDialog_stub
 	-lSceShellSvc_stub

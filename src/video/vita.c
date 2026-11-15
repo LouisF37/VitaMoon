@@ -733,12 +733,14 @@ static int display_thread_main(SceSize args, void *argp) {
         stream_stats_on_display_idle(); // a refresh with no new frame
       continue;
     }
+    sceKernelLockMutex(draw_mutex, 1, NULL);
+    // Checked with the mutex held: vitavideo_stop() clears the flag and then takes
+    // the mutex, so the menus never start drawing while a frame is being drawn here.
     if (!active_video_thread) {         // stream paused: menus own the screen
+      sceKernelUnlockMutex(draw_mutex, 1);
       slot_set_free(slot);
       continue;
     }
-
-    sceKernelLockMutex(draw_mutex, 1, NULL);
     uint32_t render_us, swap_us;
     uint64_t receive_us = slots[slot].receive_us;
     uint64_t t_done = draw_and_flip(slots[slot].tex, &render_us, &swap_us);

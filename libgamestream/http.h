@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <stdbool.h>
 #include <stdlib.h>
 
 #define CERTIFICATE_FILE_NAME "client.pem"
@@ -30,6 +31,8 @@ typedef struct _HTTP_DATA {
 } HTTP_DATA, *PHTTP_DATA;
 
 int http_init(const char* keyDirectory, int logLevel);
+void http_set_reuse(bool reuse);
+void http_cleanup();
 PHTTP_DATA http_create_data();
 int http_request(char* url, PHTTP_DATA data);
 void http_free_data(PHTTP_DATA data);

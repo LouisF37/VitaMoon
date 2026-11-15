@@ -1,6 +1,7 @@
 #include "ui_settings.h"
 
 #include "guilib.h"
+#include "theme.h"
 #include "ime.h"
 
 #include "../config.h"
@@ -38,13 +39,7 @@
 #define SECOND      (1000 * MILLISECOND)
 
 enum {
-  DEVICE_EXIT_SEARCH = 100,
-  DEVICE_ITEM,
-};
-
-enum {
-  DEVICE_VIEW_EXIT_SEARCH,
-  DEVICE_VIEW_ITEM,
+  DEVICE_ITEM = 101,   /* menu ids of the PCs found: DEVICE_ITEM + index */
 };
 
 enum {
@@ -56,7 +51,6 @@ enum {
 int search_thread_status = SEARCH_THREAD_IDLE;
 
 static device_info_t devices[64];
-static int DEVICE_ENTRY_IDX[64];
 static int found_device = 0;
 
 void ipv4_address_to_string(const struct sockaddr_in *addr, char *ip, const size_t len) {
@@ -131,12 +125,14 @@ int mdns_discovery_main(SceSize args, void *argp) {
 
 static SceUID search_thread_id = -1;
 
+int end_search_thread(SceUID thid);
+
 void stop_search_thread_if_running() {
   vita_debug_log("[mDNS] stop_search_thread_if_running: status=%d, thid=%d\n", search_thread_status, search_thread_id);
   if (search_thread_status == SEARCH_THREAD_RUNNING && search_thread_id > 0) {
     vita_debug_log("[mDNS] Calling end_search_thread(%d)\n", search_thread_id);
     end_search_thread(search_thread_id);
-    vita_debug_log("[mDNS] end_search_thread terminado\n");
+    vita_debug_log("[mDNS] end_search_thread done\n");
     search_thread_id = -1;
   }
 }
@@ -162,7 +158,6 @@ SceUID start_search_thread() {
 }
 
 // Forward declaration
-int end_search_thread(SceUID thid);
 
 int end_search_thread(SceUID thid) {
   vita_debug_log("[mDNS] end_search_thread: stopping thread %d\n", thid);
@@ -178,6 +173,10 @@ int end_search_thread(SceUID thid) {
   return 0;
 }
 
+static int listed_devices = 0;      /* found_device when the list was last built */
+static int search_focus_id = 0;
+static bool search_reopened = false;
+
 static int ui_search_device_callback(int id, void *context, const input_data *input) {
   if ((input->buttons & SCE_CTRL_TRIANGLE) != 0) {
     vita_debug_log("[mDNS] TRIANGLE pressed: refreshing the search\n");
@@ -185,24 +184,18 @@ static int ui_search_device_callback(int id, void *context, const input_data *in
     start_search_thread();
     return 2; // Force a menu refresh
   }
+  search_focus_id = id;
   if ((input->buttons & config.btn_confirm) == 0 || (input->buttons & SCE_CTRL_HOLD) != 0) {
-    // if remain slot, reload discovered devices
-    if (!DEVICE_ENTRY_IDX[DEVICE_VIEW_ITEM + found_device - 1]) {
+    // a PC was found since the list was built: rebuild it
+    if (found_device != listed_devices) {
       return 2;
     }
     return 0;
   }
-  if (id == DEVICE_EXIT_SEARCH) {
-    return 1;
-  }
   if (id >= DEVICE_ITEM) {
 
-    // Use the IP and port found over mDNS
+    // Address, port (and MAC when known) come from the mDNS answer
     device_info_t *dev = &devices[id - DEVICE_ITEM];
-    strncpy(dev->internal, dev->internal, sizeof(dev->internal)-1); // IP already set
-    dev->internal[sizeof(dev->internal)-1] = '\0';
-    dev->port = dev->port; // port already set
-    // dev->mac already holds the MAC if mDNS provided it
     device_info_t *info = ui_connect_and_pairing(dev);
     if (info == NULL) {
       return 0;
@@ -230,37 +223,12 @@ static int ui_search_device_back(void *context) {
 
 int ui_search_device_loop() {
   int idx = 0;
-  menu_entry menu[64];
-  memset(DEVICE_ENTRY_IDX, 0, sizeof(DEVICE_ENTRY_IDX));
+  static menu_entry menu[64];
+  listed_devices = found_device;
 
-#define MENU_CATEGORY(NAME) \
-  do { \
-    menu[idx] = (menu_entry) { .name = (NAME), .disabled = true, .separator = true }; \
-    idx++; \
-  } while (0)
-#define MENU_ENTRY(ID, TAG, NAME, SUFFIX) \
-  do { \
-    menu[idx] = (menu_entry) { .name = (NAME), .id = (ID), .suffix = (SUFFIX) }; \
-    DEVICE_ENTRY_IDX[(TAG)] = idx; \
-    idx++; \
-  } while(0)
-#define MENU_MESSAGE(MESSAGE) \
-  do { \
-    menu[idx] = (menu_entry) { .name = "", .disabled = true }; \
-    snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s", (MESSAGE)); \
-    idx++; \
-  } while(0)
-#define MENU_SEPARATOR() \
-  do { \
-    menu[idx] = (menu_entry) { .name = "", .disabled = true, .separator = true }; \
-    idx++; \
-  } while(0)
-
-  // Hint: triangle refreshes
-  MENU_MESSAGE(tr("Press TRIANGLE to refresh the search"));
-
-  MENU_CATEGORY(tr("Search device ..."));
-  for (int i = 0; i < found_device; i++) {
+  menu[idx++] = (menu_entry) { .name = tr("PCs found on the network"), .disabled = true, .separator = true };
+  int shown = 0;
+  for (int i = 0; i < found_device && idx < 60; i++) {
     if (devices[i].internal[0] == '\0') {
       continue;
     }
@@ -268,24 +236,40 @@ int ui_search_device_loop() {
     if (p && p->paired) {
       continue;
     }
-    // Show the MAC as the suffix when known
-    char suffix[64] = {0};
-    if (devices[i].mac[0]) {
-      snprintf(suffix, sizeof(suffix), "%s [%s]", devices[i].internal, devices[i].mac);
-    } else {
-      snprintf(suffix, sizeof(suffix), "%s", devices[i].internal);
-    }
-    MENU_ENTRY(DEVICE_ITEM + i, DEVICE_VIEW_ITEM + i, devices[i].name, suffix);
+    // name on the left, address on the right (kept in the entry itself)
+    menu[idx] = (menu_entry) { .name = devices[i].name, .id = DEVICE_ITEM + i };
+    snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s", devices[i].internal);
+    idx++;
+    shown++;
   }
-  MENU_SEPARATOR();
-  MENU_ENTRY(DEVICE_EXIT_SEARCH, DEVICE_VIEW_EXIT_SEARCH, tr("Return"), "");
+  if (!shown) {
+    menu[idx] = (menu_entry) { .name = "", .disabled = true };
+    snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s",
+             tr("Searching... Sunshine must be running on the PC, on the same network."));
+    idx++;
+  }
 
+  theme_hint_item hints[3] = {
+    {theme_confirm_glyph(), tr("Pair")},
+    {GLYPH_TRIANGLE, tr("Search again")},
+    {theme_cancel_glyph(), tr("Back")},
+  };
+  menu_options options = {0};
+  options.title = tr("Search the network");
+  options.has_focus = search_reopened;
+  options.focus_id = search_focus_id;
+  options.instant = search_reopened;   /* rebuilt in place when a PC appears */
+  options.hints = hints;
+  options.hint_count = 3;
+  gui_set_next_options(&options);
+  search_reopened = true;
   return display_menu(menu, idx, NULL, &ui_search_device_callback, &ui_search_device_back, NULL, &menu);
 }
 
 void ui_search_device() {
   stop_search_thread_if_running(); // Always stop any previous search
   start_search_thread(); // Always search when entering
+  search_reopened = false;
 
   while (ui_search_device_loop() == 2);
 

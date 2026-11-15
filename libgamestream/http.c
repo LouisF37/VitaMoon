@@ -48,17 +48,37 @@ static size_t _write_curl(void *contents, size_t size, size_t nmemb, void *userp
   return realsize;
 }
 
+/* Longest wait for the PC to accept a connection (TCP and TLS handshake). A PC
+ * that is off or asleep never answers; without this limit a request to it blocks
+ * for as long as the network stack keeps trying. Requests themselves have no time
+ * limit: pairing waits for the code to be typed on the PC. */
+#define CONNECT_TIMEOUT_S 8L
+
+static bool reuse_connections = false;
+
+/* Keep the connections to the PC open between requests (off by default: the
+ * original port closes them after every request). */
+void http_set_reuse(bool reuse) {
+  reuse_connections = reuse;
+}
+
 int http_init(const char* keyDirectory, int logLevel) {
+  pthread_mutex_lock(&curl_lock);
+  /* called once per connection to a PC: release the handle of the previous one */
+  if (curl)
+    curl_easy_cleanup(curl);
   curl = curl_easy_init();
   debug = logLevel >= 2;
-  if (!curl)
+  if (!curl) {
+    pthread_mutex_unlock(&curl_lock);
     return GS_FAILED;
+  }
 
   char certificateFilePath[4096];
-  sprintf(certificateFilePath, "%s/%s", keyDirectory, CERTIFICATE_FILE_NAME);
+  snprintf(certificateFilePath, sizeof(certificateFilePath), "%s/%s", keyDirectory, CERTIFICATE_FILE_NAME);
 
   char keyFilePath[4096];
-  sprintf(&keyFilePath[0], "%s/%s", keyDirectory, KEY_FILE_NAME);
+  snprintf(keyFilePath, sizeof(keyFilePath), "%s/%s", keyDirectory, KEY_FILE_NAME);
 
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYHOST, 0L);
   curl_easy_setopt(curl, CURLOPT_SSLENGINE_DEFAULT, 1L);
@@ -70,7 +90,10 @@ int http_init(const char* keyDirectory, int logLevel) {
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _write_curl);
   curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
   curl_easy_setopt(curl, CURLOPT_SSL_SESSIONID_CACHE, 0L);
+  curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+  curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, CONNECT_TIMEOUT_S);
 
+  pthread_mutex_unlock(&curl_lock);
   return GS_OK;
 }
 
@@ -84,11 +107,13 @@ int http_request(char* url, PHTTP_DATA data) {
 }
 
 static int http_request_unlocked(char* url, PHTTP_DATA data) {
+  if (!curl) {
+    gs_error = "No connection to the PC";
+    return GS_FAILED;
+  }
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, data);
   curl_easy_setopt(curl, CURLOPT_URL, url);
-//#ifdef __FreeBSD__
-  curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, 1);
-//#endif
+  curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, reuse_connections ? 0L : 1L);
 
   if (debug)
     printf("Request %s\n", url);
@@ -117,7 +142,11 @@ static int http_request_unlocked(char* url, PHTTP_DATA data) {
 }
 
 void http_cleanup() {
-  curl_easy_cleanup(curl);
+  pthread_mutex_lock(&curl_lock);
+  if (curl)
+    curl_easy_cleanup(curl);
+  curl = NULL;
+  pthread_mutex_unlock(&curl_lock);
 }
 
 PHTTP_DATA http_create_data() {

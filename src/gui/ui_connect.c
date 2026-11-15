@@ -18,7 +18,7 @@
 #include "../debug.h"
 
 #include "client.h"
-#include "errors.h"
+#include "http.h"
 #include "../platform.h"
 
 #include "../power/vita.h"
@@ -65,17 +65,52 @@ int get_app_name(PAPP_LIST list, int id, char *name) {
   return 0;
 }
 
+/* Explains why a PC could not be reached (ret is the gs_init result). */
+static void report_host_error(int ret, const char *address) {
+  switch (ret) {
+    case GS_OUT_OF_MEMORY:
+      display_error(tr("Not enough memory"));
+      break;
+    case GS_INVALID:
+      display_error(tr("Unexpected answer from %s:\n%s"), address, gs_error ? gs_error : "");
+      break;
+    case GS_UNSUPPORTED_VERSION:
+      display_error(tr("This Sunshine or GameStream version is not supported:\n%s"), gs_error ? gs_error : "");
+      break;
+    case GS_ERROR:
+      display_error(tr("The PC answered with an error:\n%s"), gs_error ? gs_error : "");
+      break;
+    default:
+      display_error(tr("No answer from %s.\nIs the PC on, with Sunshine running?"), address);
+      break;
+  }
+}
+
+/* Reads the status of a PC (one plain and one secure request) and keeps it in
+ * `server`. Returns GS_OK when the PC can be used. */
+static int host_open(const char *name, char *address, uint16_t port) {
+  char key_dir[4096 + 260];
+  snprintf(key_dir, sizeof(key_dir), "%s/%s", config.key_dir, name);
+  http_set_reuse(config.http_keepalive);
+  int ret = gs_init(&server, address, port, key_dir, config.save_debug_log ? 3 : 0, true);
+  if (ret == GS_UNSUPPORTED_VERSION && config.unsupported_version)
+    ret = GS_OK;
+  vita_debug_log("[CONNECT] %s (%s:%d): status %d", name, address, port, ret);
+  return ret;
+}
+
 void ui_connect_stream(int appId) {
   // TODO support force controller id
   vita_debug_log("Running gs_start_app...");
   int ret = gs_start_app(&server, &config.stream, appId, config.sops, config.localaudio, 1);
   if (ret < 0) {
     if (ret == GS_NOT_SUPPORTED_4K)
-      display_error(tr("Server doesn't support 4K\n"));
+      display_error(tr("The PC cannot stream in 4K."));
     else if (ret == GS_NOT_SUPPORTED_MODE)
-      display_error(tr("Server doesn't support %dx%d (%d fps)\n"), config.stream.width, config.stream.height, config.stream.fps);
+      display_error(tr("The PC cannot stream at %d x %d, %d fps.\nChoose another resolution in Settings."),
+                    config.stream.width, config.stream.height, config.stream.fps);
     else
-      display_error(tr("Errorcode starting app: %d\n"), ret);
+      display_error(tr("The PC could not start the game (error %d).\n%s"), ret, gs_error ? gs_error : "");
 
     return;
   }
@@ -132,17 +167,13 @@ void ui_connect_stream(int appId) {
   if (ret == 0) {
     server.currentGame = appId;
   } else {
-    
-    const char* connection_failed_stage_name = LiGetStageName(connection_stage);
-
-    display_error(tr("Failed to start stream:\nFailed stage: %s\n(error code %d)"),
-                  connection_failed_stage_name, ret);
-    return;
+    display_error(tr("The stream could not start.\nFailed step: %s (error %d)"),
+                  LiGetStageName(connection_stage), ret);
   }
 }
 
 enum {
-  CONNECT_PAIRUNPAIR = 13,
+  CONNECT_PAIR = 13,
   CONNECT_DISCONNECT,
   CONNECT_QUITAPP
 };
@@ -157,23 +188,21 @@ static int ui_launch_app(int id) {
   int status = connection_get_status();
   vitapower_config(config);
   vitainput_config(config);
+  // The stream draws from its own thread: no menu frame may be left open.
+  ui_end();
 
-  switch (status) {
-    case LI_MINIMIZED:
-      if (server.currentGame == id) {
-        sceKernelDelayThread(500 * 1000);
-        connection_resume();
-        break;
-      }
-      // TODO: stop previous stream
-    case LI_PAIRED:
-      flash_message(tr("Starting stream..."));
-      ui_connect_stream(id);
-      break;
+  if (status == LI_MINIMIZED && server.currentGame == id) {
+    // paused stream of this game: let the button be released, then carry on
+    sceKernelDelayThread(500 * 1000);
+    connection_resume();
+  } else if (status == LI_MINIMIZED || status == LI_PAIRED) {
+    flash_message(tr("Starting stream..."));
+    ui_connect_stream(id);
   }
 
+  // The stream runs on its own threads: wait here until it is paused or ends.
   while (connection_is_connected()) {
-    sceKernelDelayThread(500 * 1000);
+    sceKernelDelayThread(100 * 1000);
   }
 
   if (connection_get_status() == LI_DISCONNECTED) {
@@ -194,10 +223,41 @@ static int ui_quit_app(void) {
     server.currentGame = 0;
     return QUIT_RELOAD;
   }
-  display_error(tr("Could not quit the game: %d"), ret);
+  display_error(tr("Could not quit the game (error %d).\n%s"), ret, gs_error ? gs_error : "");
   return 0;
 }
 
+/* Shows a four-digit code and waits until it has been typed on the PC (Sunshine
+ * holds the request until then). Sunshine's web page listens on the port after
+ * the one Moonlight connects to (47990 by default). */
+static int pair_with_code(const char *host_name) {
+  char pin[5] = {0};
+  for (int i = 0; i < 4; i++)
+    pin[i] = (char)('0' + (unsigned)rand() % 10u);
+  char url[320];
+  snprintf(url, sizeof(url), "https://%s:%d", server.serverInfo.address, server.httpPort + 1);
+  flash_pairing_code(host_name, pin, url);
+  vita_debug_log("[PAIR] waiting for the code to be typed on the PC");
+  int ret = gs_pair(&server, pin);
+  vita_debug_log("[PAIR] gs_pair returned %d", ret);
+  if (ret != GS_OK)
+    display_error(tr("Pairing failed (error %d).\n%s\nCheck the code typed on the PC, then try again."),
+                  ret, gs_error ? gs_error : "");
+  return ret;
+}
+
+/* After a successful pairing: remember it, with the PC's MAC for Wake-on-LAN. */
+static void remember_pairing(device_info_t *dev) {
+  dev->paired = true;
+  char mac[18] = {0};
+  if (gs_get_server_mac(&server, mac, sizeof(mac)) == GS_OK && mac[0]) {
+    snprintf(dev->mac, sizeof(dev->mac), "%s", mac);
+    vita_debug_log("[PAIR] MAC saved for %s: %s", dev->name, dev->mac);
+  } else {
+    vita_debug_log("[PAIR] the PC did not report a MAC");
+  }
+  save_device_info(dev);
+}
 
 int ui_connect_loop(int id, void *context, const input_data *input) {
   int status = connection_get_status();
@@ -215,61 +275,18 @@ int ui_connect_loop(int id, void *context, const input_data *input) {
     return 0;
   }
 
-  int ret;
-
   switch (id) {
-    case CONNECT_PAIRUNPAIR:
-      if (server.paired) {
-        flash_message(tr("Unpairing..."));
-        ret = gs_unpair(&server);
-        if (ret == GS_OK) {
-          if (connection_terminate()) {
-            display_error(tr("Reconnect failed: %d"), -1);
-            return 0;
-          }
-          return QUIT_RELOAD;
-        }
-        display_error(tr("Unpairing failed: %d"), ret);
+    case CONNECT_PAIR: {
+      // The PC no longer knows this Vita (pairing removed on its side): pair again
+      if (pair_with_code(connected_host_name) != GS_OK)
         return 0;
-      }
-
-      char pin[5];
-      sprintf(pin, "%d%d%d%d",
-              (uint32_t)rand() % 10, (uint32_t)rand() % 10, (uint32_t)rand() % 10, (uint32_t)rand() % 10);
-      flash_message(tr("Please enter the following PIN\non the target PC:\n\n%s"), pin);
-      vita_debug_log("[UI] gs_pair: calling gs_pair at %u", (unsigned)time(NULL));
-      ret = gs_pair(&server, &pin[0]);
-      vita_debug_log("[UI] gs_pair: returned ret=%d at %u", ret, (unsigned)time(NULL));
-      if (ret == 0) {
-        connection_paired();
-        // After pairing, save server MAC into known device if present
-        device_info_t *dev = find_device_by_address(server.serverInfo.address);
-        if (dev) {
-          dev->paired = true;
-          char mac[18] = {0};
-          if (gs_get_server_mac(&server, mac, sizeof(mac)) == GS_OK && mac[0]) {
-            strncpy(dev->mac, mac, 17);
-            dev->mac[17] = '\0';
-            vita_debug_log("[PAIR] MAC read and saved to device.ini: %s for device %s", dev->mac, dev->name);
-          } else {
-            vita_debug_log("[PAIR] No MAC in serverinfo for %s", server.serverInfo.address);
-          }
-          save_device_info(dev);
-          vita_debug_log("[PAIR] After save_device_info(dev) - time: %u", (unsigned)time(NULL));
-          // Notify user pairing succeeded: show a short message so the PIN dialog
-          // (which was drawn earlier) is replaced by a success message.
-          flash_message(tr("Paired: %s"), dev->name);
-        } else {
-          vita_debug_log("[PAIR] No device found for IP %s while saving the MAC", server.serverInfo.address);
-        }
-        if (connection_terminate()) {
-          display_error(tr("Reconnect failed: %d"), -2);
-          return 0;
-        }
-        return QUIT_RELOAD;
-      }
-      display_error(tr("Pairing failed: %d\n Error: %s"), ret, gs_error);
-      return 0;
+      connection_paired();
+      device_info_t *dev = find_device_by_address(server.serverInfo.address);
+      if (dev)
+        remember_pairing(dev);
+      display_notice(1500, tr("%s is paired with this Vita."), connected_host_name);
+      return QUIT_RELOAD;
+    }
 
     case CONNECT_DISCONNECT:
       goto disconnect;
@@ -289,47 +306,13 @@ disconnect:
   return 1;
 }
 
-int ui_connect(char *name, char *address, uint16_t port) {
-  int ret;
-  snprintf(connected_host_name, sizeof(connected_host_name), "%s", name ? name : "");
-  if (!connection_is_ready()) {
-    flash_message(tr("Connecting to:\n %s:%d..."), address, port);
-
-    char key_dir[4096];
-    snprintf(key_dir, sizeof(key_dir), "%s/%s", config.key_dir, name);
-
-    ret = gs_init(&server, address, port, key_dir, 0, true);
-    if (ret == GS_OUT_OF_MEMORY) {
-      display_error(tr("Not enough memory"));
-      return 0;
-    } else if (ret == GS_INVALID) {
-      display_error(tr("Invalid data received from server: %s\n"), address, gs_error);
-      return 0;
-    } else if (ret == GS_UNSUPPORTED_VERSION) {
-      if (!config.unsupported_version) {
-        display_error(tr("Unsupported version: %s\n"), gs_error);
-        return 0;
-      }
-    } else if (ret == GS_ERROR) {
-      display_error(tr("Gamestream error: %s\n"), gs_error);
-      return 0;
-    } else if (ret != GS_OK) {
-      display_error(tr("Can't connect to server\n%s"), address);
-      return 0;
-    }
-
-    connection_reset();
-  }
-  return 1;
-}
-
 int ui_connected_menu() {
   int ret;
   int app_count = 0;
   if (server.paired) {
     ret = gs_applist(&server, &server_applist);
     if (ret != GS_OK) {
-      display_error(tr("Can't get applist!\n%d\n%s"), ret, gs_error);
+      display_error(tr("Could not get the list of games (error %d).\n%s"), ret, gs_error ? gs_error : "");
       return 0;
     }
 
@@ -391,32 +374,27 @@ int ui_connected_menu() {
     idx++; \
   } while(0)
 
-  //header
-  //MENU
-  MENU_MESSAGE(tr("Connected to the server:"), 0xffffffff);
+  // One line about the PC, under the page title (its name)
   char server_info[256];
   unsigned short port = server.httpPort ? server.httpPort : server.httpsPort;
-  snprintf(server_info, sizeof(server_info),
-           tr("IP: %s  PORT: %d, GPU %s, GFE %s"),
-           server.serverInfo.address,
-           port,
-           server.gpuType,
-           server.serverInfo.serverInfoGfeVersion);
-
+  snprintf(server_info, sizeof(server_info), "%s : %d", server.serverInfo.address, port);
   MENU_MESSAGE(server_info, 0xffffffff);
-  MENU_MESSAGE("", 0);
+  snprintf(menu[idx - 1].subname, sizeof(menu[idx - 1].subname), "%s", server.gpuType ? server.gpuType : "");
+
+  // Filled even when a branch below returns early, so the loop never reads stale positions
+  pos[0] = pos[1] = 0;
+  char current_status[256];
 
   if (!server.paired) {
     // pairing
     MENU_CATEGORY(tr("Not paired"));
-    MENU_ENTRY(CONNECT_PAIRUNPAIR, tr("Pair"));
+    MENU_ENTRY(CONNECT_PAIR, tr("Pair"));
 
     MENU_ENTRY(CONNECT_DISCONNECT, tr("Disconnect"));
   } else {
     // current stream
     if (server.currentGame != 0) {
       char current_appname[256];
-      char current_status[256];
 
       if (!get_app_name(server_applist, server.currentGame, current_appname)) {
         strcpy(current_appname, tr("unknown"));
@@ -431,8 +409,6 @@ int ui_connected_menu() {
     // pairing
     MENU_CATEGORY(tr("Paired"));
     connection_paired();
-    // FIXME: unpair not work
-    // MENU_ENTRY(CONNECT_PAIRUNPAIR, "Unpair");
 
     MENU_ENTRY(CONNECT_DISCONNECT, tr("Disconnect"));
 
@@ -449,11 +425,10 @@ int ui_connected_menu() {
       }
 
       pos[1] = idx;
-    } else {
-      pos[0] = -1;
     }
   }
 
+  gui_set_next_title(connected_host_name[0] ? connected_host_name : tr("Computer"));
   int menu_ret = display_menu(menu, idx, NULL, &ui_connect_loop, NULL, NULL, &menu);
   // Back from the classic menu opened from the library: return to the library.
   if (from_library && menu_ret == 1 && connection_get_status() != LI_DISCONNECTED)
@@ -461,163 +436,120 @@ int ui_connected_menu() {
   return menu_ret;
 }
 
+/* Runs the connected screens (library, classic menu) until the user leaves.
+ * A session without a running or paused stream is then forgotten, so the home
+ * screen lists the PCs again instead of only offering to resume. */
+static void connected_screens(void) {
+  while (ui_connected_menu() == QUIT_RELOAD);
+  connection_close_idle();
+}
+
+/* Adds a PC (found by the search or typed by hand) and pairs with it.
+ * Returns the saved entry, or NULL. */
 device_info_t* ui_connect_and_pairing(device_info_t *info) {
-  flash_message(tr("Test connecting to:\n %s..."), info->internal);
-  vita_debug_log("[CONNECT] Intentando conectar: name=%s, ip=%s, port=%d", info->name, info->internal, info->port);
-  char key_dir[4096];
-  snprintf(key_dir, sizeof(key_dir), "%s/%s", config.key_dir, info->name);
-  sceIoMkdir(key_dir, 0777);
+  if (!info->port)
+    info->port = 47989;
+  flash_message(tr("Connecting to %s..."), info->internal);
+  vita_debug_log("[CONNECT] adding name=%s, ip=%s, port=%d", info->name, info->internal, info->port);
 
-  int ret = gs_init(&server, info->internal, info->port, key_dir, 0, true);
+  int ret = host_open(info->name, info->internal, info->port);
+  if (ret != GS_OK) {
+    report_host_error(ret, info->internal);
+    return NULL;
+  }
 
-  if (ret == GS_OUT_OF_MEMORY) {
-    display_error(tr("Not enough memory"));
-    return NULL;
-  } else if (ret == GS_INVALID) {
-    display_error(tr("Invalid data received from server: %s\n"), info->internal, gs_error);
-    return NULL;
-  } else if (ret == GS_UNSUPPORTED_VERSION) {
-    if (!config.unsupported_version) {
-      display_error(tr("Unsupported version: %s\n"), gs_error);
+  // Save the PC now (its folder also holds the pairing keys), then work on the
+  // saved entry: `info` may be a temporary of the caller.
+  device_info_t *saved = append_device(info);
+  if (saved == NULL) {
+    if (!update_device(info)) {
+      display_error(tr("Could not save this PC."));
       return NULL;
     }
-  } else if (ret == GS_ERROR) {
-    display_error(tr("Gamestream error: %s\n"), gs_error);
-    return NULL;
-  } else if (ret != GS_OK) {
-    display_error(tr("Can't connect to server\n%s"), info->internal);
-    return NULL;
+    saved = find_device(info->name);
+    if (saved == NULL)
+      return NULL;
   }
-
-  connection_reset();
-
-  device_info_t *p = append_device(info);
-  if (p == NULL) {
-    ret = update_device(info);
-    if (ret == false) {
-      display_error(tr("Could not update device info"));
-    }
-
-  } else {
-    info = p;
-  }
-
-  // connectable address
-  save_device_info(info);
-  vita_debug_log("[PAIR] After save_device_info(info) - time: %u", (unsigned)time(NULL));
-  // Notify user pairing succeeded
-  flash_message(tr("Paired: %s"), info->name);
-
-  if (server.paired) {
-    // no more need, move next action
-    goto paired;
-  }
-
-  char pin[5];
-  sprintf(pin, "%d%d%d%d",
-          (int)rand() % 10, (int)rand() % 10, (int)rand() % 10, (int)rand() % 10);
-  flash_message(tr("Please enter the following PIN\non the target PC:\n\n%s"), pin);
-
-  ret = gs_pair(&server, pin);
-  if (ret != GS_OK) {
-    display_error(tr("Pairing failed: %d"), ret);
-    connection_terminate();
-    return NULL;
-  }
-
-paired:
-  connection_paired();
-
-  info->paired = true;
-
-  // Prefer the MAC already read from serverinfo (XML) when available
-  char mac[18] = {0};
-  if (gs_get_server_mac(&server, mac, sizeof(mac)) == GS_OK && mac[0]) {
-    strncpy(info->mac, mac, 17);
-    info->mac[17] = '\0';
-    vita_debug_log("[PAIR] MAC obtenida tras pairing (serverinfo): %s", info->mac);
-  } else {
-    vita_debug_log("[PAIR] No MAC in serverinfo; nothing saved automatically");
-  }
+  info = saved;
+  server.serverInfo.address = info->internal;
   save_device_info(info);
 
-  if (connection_terminate()) {
-    display_error(tr("Reconnect failed: %d"), -2);
-    return info;
-  }
+  if (!server.paired && pair_with_code(info->name) != GS_OK)
+    return NULL;
 
+  remember_pairing(info);
+  display_notice(1500, tr("%s is paired with this Vita."), info->name);
   return info;
 }
 
 void ui_connect_resume() {
-  while (ui_connected_menu() == QUIT_RELOAD);
+  connected_screens();
 }
 
 void ui_connect_manual() {
   device_info_t info = {0};
-  if (ime_dialog_string(info.name, tr("Enter Name:"), "") != 0) {
+  if (ime_dialog_string(info.internal, tr("Address of the PC (for example 192.168.1.20)"), "") != 0 || !info.internal[0]) {
     return;
   }
-  if (ime_dialog_string(info.internal, tr("Enter IP or Address:"), "") != 0) {
+  // Suggest a name that is not taken: an existing name means "same PC, new address"
+  char suggestion[32] = "PC";
+  for (int n = 2; find_device(suggestion) && n < 100; n++)
+    snprintf(suggestion, sizeof(suggestion), "PC %d", n);
+  if (ime_dialog_string(info.name, tr("Name for this PC"), suggestion) != 0) {
     return;
   }
+  // The name is also a folder name: fall back on the suggestion
+  if (!info.name[0] || strpbrk(info.name, "/\\:*?\"<>|"))
+    snprintf(info.name, sizeof(info.name), "%s", suggestion);
   info.port = 47989;
   ui_connect_and_pairing(&info);
 }
 
-bool check_connection(const char *name, char *addr, uint16_t port) {
-  // someone already connected
-  if (connection_is_ready()) {
-    return false;
-  }
-
-  flash_message(tr("Check connecting to:\n %s:%d..."), addr, port);
-
-  int log_level = 0;
-  if (config.save_debug_log) {
-    log_level = 3;
-  }
-
-  char key_dir[4096];
-  snprintf(key_dir, sizeof(key_dir), "%s/%s", config.key_dir, name);
-
-  if (gs_init(&server, addr, port, key_dir, log_level, true) != GS_OK) {
-    return false;
-  }
-
-  vita_debug_log("Connection check succeded.");
-
-  connection_terminate();
-  return true;
-}
-
 void ui_connect_paired_device(device_info_t *info) {
+  // A stream is running or paused: go back to it
+  if (connection_is_ready()) {
+    connected_screens();
+    return;
+  }
   if (!info->paired) {
-    display_error(tr("Unpaired device\n%s"), info->name);
+    display_error(tr("%s is not paired with this Vita.\nAdd it again from the home screen."), info->name);
     return;
   }
 
-  char *addr = NULL;
-  if (info->prefer_external && check_connection(info->name, info->external, info->port)) {
-    addr = info->external;
-  } else if (check_connection(info->name, info->internal, info->port)) {
-    addr = info->internal;
-  } else if (check_connection(info->name, info->external, info->port)) {
-    addr = info->external;
+  flash_message(tr("Connecting to %s..."), info->name);
+
+  // Home address first, unless the Internet address worked last time. One status
+  // request per address; the first PC that answers is used as it is (the
+  // original code asked twice: once to test the address, once to connect).
+  char *order[2] = { info->internal, info->external };
+  if (info->prefer_external) {
+    order[0] = info->external;
+    order[1] = info->internal;
   }
-  info->prefer_external = addr == info->external;
-  save_device_info(info);
+  char *addr = NULL;
+  int ret = GS_FAILED;
+  for (int i = 0; i < 2 && addr == NULL; i++) {
+    if (!order[i][0] || (i == 1 && strcmp(order[0], order[1]) == 0))
+      continue;
+    ret = host_open(info->name, order[i], info->port);
+    if (ret == GS_OK)
+      addr = order[i];
+  }
 
   if (addr == NULL) {
-    display_error(tr("Can't connect to server\n%s"), info->name);
+    report_host_error(ret, info->name);
     return;
   }
 
-  if (!ui_connect(info->name, addr, info->port)) {
-    return;
+  bool external = addr == info->external && strcmp(info->internal, info->external) != 0;
+  if (external != info->prefer_external) {
+    info->prefer_external = external;
+    save_device_info(info);
   }
 
-  while (ui_connected_menu() == QUIT_RELOAD);
+  snprintf(connected_host_name, sizeof(connected_host_name), "%.127s", info->name);
+  connection_reset();
+  connected_screens();
 }
 
 bool ui_connect_connected() {
@@ -626,4 +558,9 @@ bool ui_connect_connected() {
 
 void ui_connect_address(char *addr) {
   strcpy(addr, server.serverInfo.address);
+}
+
+/* Name of the PC of the current session (its address if the name is unknown). */
+const char *ui_connect_host_label(void) {
+  return connected_host_name[0] ? connected_host_name : server.serverInfo.address;
 }

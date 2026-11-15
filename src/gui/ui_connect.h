@@ -2,6 +2,7 @@
 #include "../device.h"
 
 void ui_connect_address(char *addr);
+const char *ui_connect_host_label(void);
 device_info_t* ui_connect_and_pairing(device_info_t *info);
 bool ui_connect_connected();
 

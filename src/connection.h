@@ -51,6 +51,7 @@ int connection_paired();
 int connection_minimize();
 int connection_resume();
 int connection_terminate();
+void connection_close_idle();
 
 bool connection_is_ready();
 bool connection_is_connected();

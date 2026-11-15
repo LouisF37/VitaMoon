@@ -27,14 +27,6 @@ bool touchabsolute_is_enabled() {
     return absolute_mouse_enabled;
 }
 
-// Converts touch panel coordinates to absolute mouse coordinates
-static void touch_to_absolute(int tx, int ty, int *mx, int *my) {
-    // The front touch panel reports 1920x1088, the screen is 960x544
-    *mx = tx * 960 / 1920;
-    *my = ty * 544 / 1088;
-}
-
-
 // --- DS4 Touchpad Mode ---
 void touchabsolute_handle_ds4(const TouchData* touch, SceRtcTick* current) {
     static uint8_t prev_finger_active[10] = {0};

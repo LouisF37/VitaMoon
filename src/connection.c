@@ -155,6 +155,13 @@ int connection_terminate() {
   return 0;
 }
 
+/* Forgets the session with the PC when no stream is running or paused: only the
+ * status is reset, nothing is open in these states. */
+void connection_close_idle() {
+  if (connection_status == LI_READY || connection_status == LI_PAIRED)
+    connection_status = LI_DISCONNECTED;
+}
+
 void connection_stage_starting(int stage) {
   connection_stage = stage;
   const char* connection_stage_name = LiGetStageName(stage);

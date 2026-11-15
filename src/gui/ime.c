@@ -12,6 +12,9 @@
 
 #include <vita2d.h>
 
+#include "guilib.h"
+#include "theme.h"
+
 #define SCE_IME_DIALOG_MAX_TITLE_LENGTH	(128)
 //#define SCE_IME_DIALOG_MAX_TEXT_LENGTH	(512)
 
@@ -97,20 +100,25 @@ void oslOskGetText(char *text){
 }
 
 
+#define IME_RESULT_SIZE 256   /* smallest buffer handed to the dialog by its callers */
+
 int ime_dialog_type(SceImeType type, char *text, const char *title, const char *def) {
   sceCommonDialogSetConfigParam(&(SceCommonDialogConfigParam){});
 
-  char userText[512];
+  char userText[512] = "";
   if (def) {
-    strcpy(userText, def);
+    snprintf(userText, sizeof(userText), "%s", def);
   }
 
   int ret = 0;
+  // Present the caller's frame: the dialog draws its own frames from here on.
+  ui_end();
   initImeDialog(type, title, userText, 128);
 
   while (1) {
     vita2d_start_drawing();
     vita2d_clear_screen();
+    theme_draw_background();
 
     SceCommonDialogStatus status = sceImeDialogGetStatus();
     if (status == IME_DIALOG_RESULT_FINISHED) {
@@ -121,12 +129,22 @@ int ime_dialog_type(SceImeType type, char *text, const char *title, const char *
       if (result.button == SCE_IME_DIALOG_BUTTON_CLOSE) {
         status = IME_DIALOG_RESULT_CANCELED;
         ret = -1;
-        break;
       } else {
         oslOskGetText(userText);
+        /* Every caller provides at least IME_RESULT_SIZE bytes; 128 characters can
+         * take more than that in UTF-8, so cut on a character boundary. */
+        size_t len = strlen(userText);
+        if (len > IME_RESULT_SIZE - 1) {
+          len = IME_RESULT_SIZE - 1;
+          while (len > 0 && ((unsigned char)userText[len] & 0xC0) == 0x80)
+            len--;
+        }
+        memcpy(text, userText, len);
+        text[len] = '\0';
       }
-
-      strcpy(text, userText);
+      // close the frame opened above before leaving
+      vita2d_end_drawing();
+      vita2d_swap_buffers();
       break;
     }
 

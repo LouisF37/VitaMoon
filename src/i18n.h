@@ -12,11 +12,20 @@
  */
 #pragma once
 
+#include <stdbool.h>
+
 enum { LANG_EN = 0, LANG_FR = 1, LANG_ES = 2, LANG_COUNT };
 
 void i18n_set_language(int lang);
 int i18n_language(void);
 const char *i18n_language_name(int lang);
 
+/* Marks an English string stored in a table and translated later with tr(). */
+#define N_(text) text
+
 /* Translation of an English interface string (may be a printf format). */
 char *tr(const char *english);
+
+/* Whether a count takes the plural in the current language (French keeps
+ * the singular for 0, English and Spanish do not). */
+bool i18n_plural(unsigned int count);

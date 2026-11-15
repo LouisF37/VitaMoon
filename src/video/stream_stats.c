@@ -13,6 +13,7 @@
 #include "../debug.h"
 #include "../gui/guilib.h"
 #include "../gui/theme.h"
+#include "../power/vita.h"
 
 #include <Limelight.h>
 
@@ -21,6 +22,7 @@
 #include <psp2/io/stat.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h>
+#include <psp2/net/netctl.h>
 #include <psp2/power.h>
 #include <psp2/rtc.h>
 #include <vita2d.h>
@@ -295,6 +297,7 @@ static const char *k_legend =
   "  budget_avg_us   time kept for drawing before the vertical blank (smooth display)\n"
   "  pull_try, pull_got  decoder catch-up: extra reads tried / that returned a picture\n"
   "  aud_target_us   audio cushion wanted by the adaptive buffer (low-latency audio)\n"
+  "  wifi_pct        Wi-Fi signal strength reported by the Vita, in percent (-1 = unknown)\n"
   "  *_avg = average over the second, *_max = maximum over the second\n";
 
 /* Creates <data>/stats/session-<date>.csv (integers only, ';' separated so that
@@ -340,6 +343,15 @@ static void open_session_files(void) {
              refresh, scePowerGetArmClockFrequency(), scePowerGetGpuClockFrequency(),
              scePowerGetBusClockFrequency(), scePowerGetGpuXbarClockFrequency());
     write_fd(info, line);
+    SceNetCtlInfo net;
+    int signal = sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_RSSI_PERCENTAGE, &net) >= 0 ? (int)net.rssi_percentage : -1;
+    int channel = sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_CHANNEL, &net) >= 0 ? (int)net.channel : -1;
+    snprintf(line, sizeof(line),
+             "this build: decoder_catchup=%d auto_bitrate=%d keep_link_open=%d smooth_edges=%d (4x multisampling in use: %d)\n"
+             "Wi-Fi: signal %d %%, channel %d, power-save registry value %d (-1 = not readable; 1 is assumed to mean on)\n\n",
+             config.decoder_catchup, config.auto_bitrate, config.http_keepalive, config.ui_msaa,
+             gui_msaa_active(), signal, channel, vitapower_wifi_power_save());
+    write_fd(info, line);
     write_fd(info, k_legend);
     sceIoClose(info);
   }
@@ -357,7 +369,7 @@ static void open_session_files(void) {
                  "swap_avg_us;swap_max_us;r2p_avg_us;r2p_max_us;rtt_ms;rtt_var_ms;poor;"
                  "pend_vid;pend_aud;aud_pkts;aud_err;aud_out_avg_us;aud_out_max_us;cpu_mhz;gpu_mhz;"
                  "aud_buf_avg_us;aud_buf_max_us;aud_underrun;aud_skip_us;replaced;idle;disp_q_avg_x100;disp_q_max;"
-                 "late;budget_avg_us;pull_try;pull_got;aud_target_us\n");
+                 "late;budget_avg_us;pull_try;pull_got;aud_target_us;wifi_pct\n");
 }
 
 /* Takes (and resets) every counter for the window that just ended, writes the
@@ -407,6 +419,8 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   int pend_aud = LiGetPendingAudioFrames();
   int cpu = scePowerGetArmClockFrequency();
   int gpu = scePowerGetGpuClockFrequency();
+  SceNetCtlInfo net;
+  int wifi_pct = sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_RSSI_PERCENTAGE, &net) >= 0 ? (int)net.rssi_percentage : -1;
 
   /* One CSV line: integers only, so no decimal-separator issue in Excel. */
   char line[768];
@@ -417,7 +431,7 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
            "%u;%u;%u;%u;%u;%u;%u;"
            "%d;%d;%u;%u;%u;%u;%d;%d;"
            "%u;%u;%u;%u;%u;%u;%u;%u;"
-           "%u;%u;%u;%u;%u\n",
+           "%u;%u;%u;%u;%u;%d\n",
            (unsigned)(t_us / 1000), win_ms, vblanks,
            recv, shown, lost, dropped, idr, dec_err, dec_noout, ooo, kbps,
            rx.avg, rx.max, queue.avg, queue.max, host.avg, host.max,
@@ -425,7 +439,7 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
            swap.avg, swap.max, r2p.avg, r2p.max, rtt, rtt_var, poor,
            pend_vid, pend_aud, aud_pkts, aud_err, aud_out.avg, aud_out.max, cpu, gpu,
            aud_buf.avg, aud_buf.max, aud_underrun, aud_skip_us, replaced, idle, qd.avg_x100, qd.max,
-           late, budget.avg, pull_try, pull_got, aud_target.avg);
+           late, budget.avg, pull_try, pull_got, aud_target.avg, wifi_pct);
   write_fd(s_fd, line);
 
   sess_ms += win_ms;
@@ -578,10 +592,10 @@ bool stream_stats_read_last(int app_id, stream_last_session *out) {
 }
 
 void stream_stats_draw_overlay(void) {
-  vita2d_font *f = theme_font();
   if (!s_overlay_valid) {
-    theme_rounded_rect(8, 8, 220, 26, 8, TH_PANEL);
-    vita2d_font_draw_text(f, 18, 26, TH_TEXT2, 14, tr("stats: first second..."));
+    const char *wait = tr("stats: first second...");
+    theme_rounded_rect(8, 8, theme_text_width(TS_SMALL, wait) + 22, 26, 8, TH_PANEL);
+    theme_text(19, 26, TH_TEXT2, TS_SMALL, wait);
     return;
   }
   /* The text changes once per second: measure it once, not on every frame. */
@@ -589,12 +603,12 @@ void stream_stats_draw_overlay(void) {
   if (idx != s_overlay_measured) {
     s_overlay_width = 0;
     for (int i = 0; i < OVERLAY_LINES; i++) {
-      int lw = theme_text_width(f, 14, s_overlay[idx][i]);
+      int lw = theme_text_width(TS_SMALL, s_overlay[idx][i]);
       if (lw > s_overlay_width) s_overlay_width = lw;
     }
     s_overlay_measured = idx;
   }
   theme_rounded_rect(8, 8, s_overlay_width + 22, OVERLAY_LINES * 19 + 12, 10, TH_PANEL);
   for (int i = 0; i < OVERLAY_LINES; i++)
-    vita2d_font_draw_text(f, 19, 26 + i * 19, i == 0 ? TH_TEXT : TH_TEXT2, 14, s_overlay[idx][i]);
+    theme_text(19, 26 + i * 19, i == 0 ? TH_TEXT : TH_TEXT2, TS_SMALL, s_overlay[idx][i]);
 }

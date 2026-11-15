@@ -20,6 +20,7 @@
 
 #include <psp2/kernel/processmgr.h>
 #include <psp2/power.h>
+#include <psp2/registrymgr.h>
 #include "../config.h"
 
 enum {
@@ -103,4 +104,11 @@ void vitapower_start() {
 void vitapower_stop() {
   active_power_thread = false;
   restore_clocks();
+}
+
+int vitapower_wifi_power_save(void) {
+  int value = -1;
+  if (sceRegMgrGetKeyInt("/CONFIG/NET", "wifi_power_save", &value) < 0)
+    return -1;
+  return value;
 }
