@@ -1,11 +1,11 @@
-"""Draws the LiveArea bubble icon and gate image of Lune (an original crescent
+"""Draws the LiveArea bubble icon and gate image of Lune (an original full
 moon on the night-blue of the interface), into sce_sys/.
 
     python3 tools/art/make_icons.py
 
 Needs Pillow. Drawn at 8x and scaled down for clean edges. The Vita only reads
 8-bit indexed PNGs here, and icon0.png must have no alpha channel: both are
-saved with a 256-colour palette (the gate keeps its transparency in it)."""
+opaque and saved with a 256-colour palette."""
 import os
 from PIL import Image, ImageDraw, ImageFilter
 
@@ -14,87 +14,79 @@ SS = 8  # supersampling factor
 
 SKY_TOP = (14, 52, 102)     # matches the interface background
 SKY_BOTTOM = (3, 12, 30)
-MOON = (236, 241, 250)
+MOON = (246, 248, 252)
+MOON_SHADE = (196, 207, 226)
+MARIA = (150, 166, 196)
 GLOW = (109, 180, 255)      # TH_ACCENT
 
 
-def gradient(size, top, bottom):
+def radial(size, center, radius, inner, outer):
+    """Radial gradient from inner (at center) to outer (at radius and beyond)."""
     w, h = size
-    img = Image.new('RGB', size)
+    small = (max(1, w // 8), max(1, h // 8))  # drawn small and scaled up: smooth and fast
+    img = Image.new('RGB', small)
     px = img.load()
-    for y in range(h):
-        t = y / (h - 1)
-        c = tuple(round(top[i] + (bottom[i] - top[i]) * t) for i in range(3))
-        for x in range(w):
-            px[x, y] = c
-    return img
+    cx, cy, r = center[0] / 8, center[1] / 8, radius / 8
+    for y in range(small[1]):
+        for x in range(small[0]):
+            t = min(1.0, ((x - cx) ** 2 + (y - cy) ** 2) ** 0.5 / r)
+            px[x, y] = tuple(round(inner[i] + (outer[i] - inner[i]) * t) for i in range(3))
+    return img.resize(size, Image.BICUBIC)
 
 
-def crescent_mask(size, cx, cy, r, cut_dx, cut_dy, cut_r):
-    """Disc of radius r minus a disc shifted by (cut_dx, cut_dy)."""
+def disc(size, cx, cy, r):
     mask = Image.new('L', size, 0)
-    d = ImageDraw.Draw(mask)
-    d.ellipse((cx - r, cy - r, cx + r, cy + r), fill=255)
-    d.ellipse((cx + cut_dx - cut_r, cy + cut_dy - cut_r,
-               cx + cut_dx + cut_r, cy + cut_dy + cut_r), fill=0)
+    ImageDraw.Draw(mask).ellipse((cx - r, cy - r, cx + r, cy + r), fill=255)
     return mask
 
 
-def star(draw, x, y, r, alpha):
-    """Small four-pointed star."""
-    w = r * 0.28
-    fill = (255, 255, 255, alpha)
-    draw.polygon([(x, y - r), (x + w, y - w), (x + r, y), (x + w, y + w),
-                  (x, y + r), (x - w, y + w), (x - r, y), (x - w, y - w)], fill=fill)
-
-
 def moon_art(size):
-    """Night sky with the crescent, as RGBA, at size (already supersampled)."""
+    """Night sky with a full moon, as RGBA, at size (already supersampled)."""
     w, h = size
     s = min(w, h)
-    img = gradient(size, SKY_TOP, SKY_BOTTOM).convert('RGBA')
     cx, cy, r = w * 0.5, h * 0.5, s * 0.30
-    mask = crescent_mask(size, cx, cy, r, r * 0.42, -r * 0.30, r * 0.86)
-    # soft glow around the crescent
-    glow = Image.new('RGBA', size, GLOW + (0,))
-    glow.putalpha(mask.filter(ImageFilter.GaussianBlur(s * 0.06)).point(lambda v: v * 0.55))
-    img = Image.alpha_composite(img, glow)
-    moon = Image.new('RGBA', size, MOON + (255,))
-    moon.putalpha(mask)
-    img = Image.alpha_composite(img, moon)
-    d = ImageDraw.Draw(img)
-    star(d, cx + r * 0.95, cy - r * 0.62, s * 0.040, 235)
-    star(d, cx + r * 0.62, cy + r * 0.30, s * 0.022, 170)
-    return img
+    img = radial(size, (cx, cy * 0.85), s * 0.75, SKY_TOP, SKY_BOTTOM).convert('RGBA')
+    moon_mask = disc(size, cx, cy, r)
+
+    # soft halo around the moon
+    halo = Image.new('RGBA', size, GLOW + (0,))
+    halo.putalpha(disc(size, cx, cy, r * 1.08).filter(ImageFilter.GaussianBlur(s * 0.07))
+                  .point(lambda v: v * 0.45))
+    img = Image.alpha_composite(img, halo)
+
+    # the disc, lit from the top left
+    face = radial(size, (cx - r * 0.35, cy - r * 0.40), r * 1.6, MOON, MOON_SHADE).convert('RGBA')
+    face.putalpha(moon_mask)
+    img = Image.alpha_composite(img, face)
+
+    # a few flat, low-contrast maria, kept inside the disc
+    maria = Image.new('L', size, 0)
+    d = ImageDraw.Draw(maria)
+    for dx, dy, rx, ry in ((-0.32, -0.20, 0.26, 0.20), (-0.08, -0.36, 0.16, 0.12),
+                           (0.24, 0.02, 0.20, 0.24), (-0.18, 0.34, 0.12, 0.09)):
+        x, y = cx + dx * r, cy + dy * r
+        d.ellipse((x - rx * r, y - ry * r, x + rx * r, y + ry * r), fill=255)
+    maria = maria.filter(ImageFilter.GaussianBlur(s * 0.014))
+    maria = Image.composite(maria, Image.new('L', size, 0), moon_mask)
+    tint = Image.new('RGBA', size, MARIA + (0,))
+    tint.putalpha(maria.point(lambda v: v * 0.42))
+    return Image.alpha_composite(img, tint)
 
 
-def save(img, size, path, mode):
-    img = img.resize(size, Image.LANCZOS)
-    if mode == 'RGB':
-        img = img.convert('RGB').quantize(256, method=Image.Quantize.MEDIANCUT,
-                                          dither=Image.Dither.FLOYDSTEINBERG)
-    else:
-        img = img.quantize(256, method=Image.Quantize.FASTOCTREE,
-                           dither=Image.Dither.FLOYDSTEINBERG)
+def save(img, size, path):
+    """Scaled down, then reduced to a 256-colour palette with dithering."""
+    img = img.resize(size, Image.LANCZOS).convert('RGB')
+    img = img.quantize(256, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.FLOYDSTEINBERG)
     img.save(path, optimize=True)
     print(path, img.size, img.mode)
 
 
 def main():
     # Bubble icon: 128x128, square (the shell draws it in a circle).
-    icon = moon_art((128 * SS, 128 * SS))
-    save(icon, (128, 128), os.path.join(ROOT, 'sce_sys', 'icon0.png'), 'RGB')
-
-    # Gate (start button) image: 280x158, the round badge on a transparent background.
-    gw, gh = 280 * SS, 158 * SS
-    badge_d = 140 * SS
-    badge = moon_art((badge_d, badge_d))
-    circle = Image.new('L', (badge_d, badge_d), 0)
-    ImageDraw.Draw(circle).ellipse((0, 0, badge_d - 1, badge_d - 1), fill=255)
-    badge.putalpha(circle)
-    gate = Image.new('RGBA', (gw, gh), (0, 0, 0, 0))
-    gate.alpha_composite(badge, ((gw - badge_d) // 2, (gh - badge_d) // 2))
-    save(gate, (280, 158), os.path.join(ROOT, 'sce_sys', 'livearea', 'contents', 'startup.png'), 'RGBA')
+    save(moon_art((128 * SS, 128 * SS)), (128, 128), os.path.join(ROOT, 'sce_sys', 'icon0.png'))
+    # Gate (start button) image: 280x158, the same sky with the moon in the middle.
+    save(moon_art((280 * SS, 158 * SS)), (280, 158),
+         os.path.join(ROOT, 'sce_sys', 'livearea', 'contents', 'startup.png'))
 
 
 if __name__ == '__main__':
