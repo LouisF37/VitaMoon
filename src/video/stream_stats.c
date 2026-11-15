@@ -328,7 +328,7 @@ static const char *k_legend =
   "  pull_try, pull_got  decoder catch-up: extra reads tried / that returned a picture\n"
   "  aud_target_us   audio cushion wanted by the adaptive buffer (low-latency audio)\n"
   "  wifi_pct        Wi-Fi signal strength reported by the Vita, in percent (-1 = unknown)\n"
-  "  pace_delay_us   delay added to the PC's capture times (paced display)\n"
+  "  pace_delay_us   margin of the paced display (see src/video/pacing.h)\n"
   "  fec_saved       video packets rebuilt by error correction\n"
   "  fec_failed      video frames given up: too many packets missing\n"
   "  pkt_ooo         video packets that arrived out of order\n"

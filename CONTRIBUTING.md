@@ -1,32 +1,38 @@
-# Contribution Guide
+# Contributing
 
-## Got a Question or Problem?
-Please take a look at the [wiki](https://github.com/irtimmer/moonlight-embedded/wiki) to see if answers your questions about the usage of Moonlight Embedded.
+Bug reports, measurements and pull requests are welcome.
 
-If you still have questions about Moonlight Embedded, please use one of the different fora discussing Moonlight Embedded.
+## Reporting a problem
 
-[XDA](http://forum.xda-developers.com/showthread.php?t=2505510) Moonlight in General
-[Raspberry Pi Forum](http://www.raspberrypi.org/forums/viewtopic.php?f=78&t=65878) Moonlight Embedded for Raspberry Pi
-[SolidRun Community](http://www.solid-run.com/community/viewtopic.php?f=13&t=1489&p=11173) Moonlight Embedded for Cubox-i and Hummingboard
-[ODROID Forum](http://forum.odroid.com/viewtopic.php?f=91&t=15456) Moonlight Embedded on ODROID
+Open an [issue](https://github.com/LouisF37/vita-moonlight/issues) with:
 
-## Found an Issue?
-If you think you found a bug in Moonlight Embedded you can submit a issue. But please ensure first you have checked the following or otherwise we will mark the issue as invalid:
-- [ ] It's a bug in Moonlight Embedded and not in NVidia Geforce Experience or Steam as we otherwise can't fix them
-- [ ] It's not a misconfiguration of your own setup. Like firewall misconfiguration.
-- [ ] Their is no other bug report with the same issue. Check also the closed issues in case your bug is already solved in master.
+- the build shown at the bottom left of the home screen (`v1.0.0-beta.1  branch-commit`);
+- the PC side: Sunshine version, GPU and encoder, resolution and frame rate of the stream;
+- the `.csv` and `.txt` files of the session from `ux0:data/moonlight/stats/`;
+- for a crash, the dump `ux0:data/psp2core-*.psp2dmp` (or its decoding, `tools/dev/crash-dump.sh`).
 
-Also provide as much information as possible about your setup and how to produce the issue so their are higher chances we can reproduce the issue and fix it. Even better you can submit a Pull Request
-with a fix.
+Measurements comparing settings on the same game and spot are the most useful contribution: the
+`.txt` percentiles make two sessions easy to compare.
 
-## Feature request
-There are not much developers working on Moonlight Embedded. So it currently doesn't make much sense to use the issue tracker to submit feature request. Please try to implement it yourself and submit a pull request or discuss it on one of the fora to see if someone else is able to implement it.
+## Code
 
-## Submitting a Pull Request
-Have you created a cool new feature or fixed a few bugs you can submit a pull request. But before your request is merged you have to check the following.
-- [ ] Your branch is based on a recent commit and can be merge cleanly
-- [ ] Your code uses the same code style as the rest of the code
-- [ ] Your history is cleanup and you provide one or multiple commits
-- [ ] Your commits only changes the necessery lines and not accidently changes whitespace or add or remove empty lines.
+- C (gnu99), two-space indentation, as the surrounding code.
+- Code, comments, identifiers and log messages in English. Interface strings in English in the
+  source (`N_("...")`, `tr("...")`), with their French and Spanish texts in `tools/i18n/table2.py`
+  (`python3 tools/i18n/gen.py`, then `python3 tools/i18n/check.py missing`).
+- Comments say why, and name the source of an idea or a measurement (fork, commit, document).
+- A performance change states what it was measured against, or that it is not measured yet; add it
+  to [docs/design/performance.md](docs/design/performance.md).
+- Threads that call moonlight-common-c or the HTTP client are pthreads; streaming threads go
+  through `thread_place()` (`src/thread_policy.c`).
+- Logic that does not need the Vita belongs in a module the PC tests can build (like
+  `src/video/pacing.c`), with a test in `tools/tests`.
 
-If these guide lines are not met we maybe won't merge your pull request or take some to cleanup your pull request before merging. Depending on how bad we wan't your code.
+Before a pull request: the VPK builds, `tools/tests/run.sh` passes, and for interface changes
+`tools/ui-preview/run.sh` reports no text that does not fit, in the three languages.
+
+## Commits
+
+One logical change per commit, with a message that says what changed and why. Changes to
+moonlight-common-c go into `third_party/patches/moonlight-common-c/` as a numbered patch, applied to
+the copy in `third_party/moonlight-common-c`.

@@ -1,14 +1,16 @@
-# Moonlight Vita : bêta « phase 2 »
+# Moonlight pour PS Vita : guide d'utilisation et de test
 
-Version de test de ce fork de vita-moonlight, branche `phase2`.
-Téléchargement (toujours la dernière compilation) :
+Version 1.0.0 bêta 1 « New Moon ». Téléchargement (toujours la dernière compilation de la branche
+`phase2`) :
 https://github.com/LouisF37/vita-moonlight/releases/download/build-phase2/moonlight-phase2.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v0.13.2  phase2-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.1  phase2-xxxxxxx`.
 
-**État des vérifications.** Le code compile pour la Vita et tous les écrans ont été rendus hors console
-(outil `tools/ui-preview`) en anglais, français et espagnol. Rien n'a encore tourné sur une vraie Vita :
-la fluidité, la latence et le son restent à mesurer avec le plan de test ci-dessous.
+**État des vérifications.** Le code compile pour la Vita, les tests sur PC passent (affichage
+cadencé simulé, fichier de réglages, réécriture du SPS), tous les écrans ont été rendus hors console
+(outil `tools/ui-preview`) en anglais, français et espagnol, et le code a été audité (voir
+[le point d'étape](checkpoints/2026-11-15.md)). Rien n'a encore tourné sur une vraie Vita : la
+fluidité, la latence et le son restent à mesurer avec le plan de test ci-dessous.
 
 **Bibliothèque réseau.** moonlight-common-c est intégré au dépôt (`third_party/moonlight-common-c`, version
 amont e2722dc) avec trois correctifs listés dans `third_party/patches/moonlight-common-c/` : attente des
@@ -62,8 +64,11 @@ Options reprises de deux forks orientés performance, avec les mesures publiées
 - `Attendre les paquets en retard` (Non, 10, 20, 30 ms) : le Wi-Fi livre des paquets dans le désordre ;
   sans attente, une image complète est jetée et l'image se fige. Avec 20 ms : de 23-37 à 1-3 gels par
   minute avec un signal à environ 60 % (juanjsebgarcia/vita-moonlight).
-- `Cadencé` : affichage au rythme des horodatages du PC (dubleyu/vita-moonlight-relay, délai fixe de
-  12 ms). Ici le délai part de 12 ms et s'adapte entre 8 et 33 ms selon les retards constatés.
+- `Cadencé` : affichage au rythme des horodatages du PC (idée de dubleyu/vita-moonlight-relay, délai
+  fixe de 12 ms). Ici l'ancrage s'ajuste toutes les 2 secondes sur l'image la plus lente : plus tard
+  si des images arrivent en retard, plus tôt si elles attendent inutilement, avec une marge de 4 à
+  33 ms (12 ms au départ). Testé sur PC par simulation (gigue, dérive d'horloge, pauses), pas encore
+  sur Vita. Un peu plus de latence que `Fluide`, en échange d'une cadence régulière.
 - `Taille des paquets vidéo` : 1024 (valeur de Moonlight) par défaut, 1200 ou 1392 au choix. Mesuré par
   juanjsebgarcia : 1392 ne reçoit pas plus vite et perd plus de paquets (59 contre 43 par minute).
 - Rubrique Avancé, `Répartir le travail sur les cœurs` : réception réseau sur le cœur 1, décodage vidéo et
@@ -93,6 +98,9 @@ Rubrique Avancé, deux autres options de test :
 
 ## Plan de test
 
+Le plan complet, avec les essais de robustesse (pauses répétées, coupure du Wi-Fi, mise en veille),
+est dans [le point d'étape](checkpoints/2026-11-15.md). L'essentiel :
+
 Même jeu, même endroit, 3 à 5 minutes par session, statistiques affichées (Général → Statistiques
 pendant le stream) :
 1. Profil **Fluide**.
@@ -114,7 +122,7 @@ Colonnes à regarder en premier : `shown` (images affichées par seconde), `lost
 (premier paquet reçu → image visible), `late`, `aud_underrun`, `wifi_pct`. Nouvelles colonnes :
 `reorder_held` / `reorder_saved` (paquets attendus / images sauvées par l'attente), `fec_saved` /
 `fec_failed` (images réparées / irréparables par la correction d'erreurs), `pkt_ooo` (paquets arrivés
-dans le désordre), `pace_delay_us` (délai du mode Cadencé).
+dans le désordre), `pace_delay_us` (marge du mode Cadencé).
 
 À la fin du `.txt`, des centiles sur toute la session (p50, p95, p99) : délai premier paquet → image
 visible, intervalle entre deux images affichées, durée du décodage matériel, et la part des intervalles

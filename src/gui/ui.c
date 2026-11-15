@@ -511,9 +511,9 @@ int ui_main_menu() {
   } while(0)
 
 #ifdef BUILD_ID
-  snprintf(home_version, sizeof(home_version), "v%d.%d.%d  %s", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, BUILD_ID);
+  snprintf(home_version, sizeof(home_version), "%s  %s", VERSION_TEXT, BUILD_ID);
 #else
-  snprintf(home_version, sizeof(home_version), "v%d.%d.%d", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH);
+  snprintf(home_version, sizeof(home_version), "%s", VERSION_TEXT);
 #endif
 
   static char resume_msg[512];

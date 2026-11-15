@@ -11,3 +11,5 @@ __pycache__/
 
 # Python packages downloaded by tools
 *.whl
+# Address of the Vita for tools/dev
+tools/dev/vita_ip.txt

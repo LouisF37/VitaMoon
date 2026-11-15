@@ -13,16 +13,23 @@ add_compile_options(-g -Wall -Wextra -Wno-unused-parameter -Wno-pointer-sign -Wn
 project(moonlight)
 
 include("$ENV{VITASDK}/share/vita.cmake" REQUIRED)
-# NOTE: To update the version shown in the UI and VPK, edit the following lines:
-#   set(VERSION_MAJOR "0")
-#   set(VERSION_MINOR "11")
-#   set(VERSION_PATCH "2")
-#
+# Identity and version: the only place to edit them (docs/RELEASING.md).
+# TITLE_ID is the original Moonlight's: this build replaces it on the Vita and
+# keeps its pairings and settings (ux0:data/moonlight).
 set(TITLE_ID "XYZZ00002")
 set(TITLE "Moonlight")
-set(VERSION_MAJOR "0")
-set(VERSION_MINOR "13")
-set(VERSION_PATCH "2")
+set(LIVEAREA_TITLE "MOONLIGHT")
+set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
+set(VERSION_MAJOR "1")
+set(VERSION_MINOR "0")
+set(VERSION_PATCH "0")
+set(VERSION_LABEL "beta.1")       # empty for a final release
+set(VERSION_NAME "New Moon")      # milestone name, shown in the docs
+if(VERSION_LABEL)
+	set(VERSION_TEXT "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_LABEL}")
+else()
+	set(VERSION_TEXT "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}")
+endif()
 
 execute_process(COMMAND
 	python -c "print('%02d.%02d' % (${VERSION_MAJOR}, ${VERSION_MINOR}))"
@@ -33,6 +40,7 @@ string(REPLACE "\n" "" APP_VER "${APP_VER}")
 add_definitions(-DVERSION_MAJOR=${VERSION_MAJOR})
 add_definitions(-DVERSION_MINOR=${VERSION_MINOR})
 add_definitions(-DVERSION_PATCH=${VERSION_PATCH})
+add_definitions(-DVERSION_TEXT=\"${VERSION_TEXT}\")
 
 # Build identifier (branch + short commit) shown in the main menu, so a tester
 # can always tell which build is installed on the Vita.
@@ -188,11 +196,10 @@ add_custom_target(param.sfo ALL
 	COMMAND vita-mksfoex -s TITLE_ID=${TITLE_ID} -s APP_VER=${APP_VER} "${TITLE}" param.sfo
 )
 
-# Actualizar versión en template.xml automáticamente antes de empaquetar el VPK (solo la línea visual)
-add_custom_target(update_template_version ALL
-	COMMAND sed -i '/<str size=\"18.*>v[0-9]*\.[0-9]*\.[0-9]*<\\/str>/s/v[0-9]*\.[0-9]*\.[0-9]*/v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}/' sce_sys/livearea/contents/template.xml
-	WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-)
+# LiveArea text with the title and version, written into the build folder
+# (the source tree is not modified by a build).
+configure_file(${CMAKE_SOURCE_DIR}/sce_sys/livearea/contents/template.xml.in
+               ${CMAKE_BINARY_DIR}/livearea/template.xml @ONLY)
 
 add_custom_target(${PROJECT_NAME}.vpk ALL
 	COMMAND vita-make-fself -a 0x2800000000000001 -at 0x0E -c ${PROJECT_NAME}.velf eboot.bin
@@ -200,7 +207,7 @@ add_custom_target(${PROJECT_NAME}.vpk ALL
 			--add ../sce_sys/icon0.png=sce_sys/icon0.png
 			--add ../sce_sys/livearea/contents/bg.png=sce_sys/livearea/contents/bg.png
 			--add ../sce_sys/livearea/contents/startup.png=sce_sys/livearea/contents/startup.png
-			--add ../sce_sys/livearea/contents/template.xml=sce_sys/livearea/contents/template.xml
+			--add ${CMAKE_BINARY_DIR}/livearea/template.xml=sce_sys/livearea/contents/template.xml
 			--add ../assets/nerdfont.ttf=assets/nerdfont.ttf
 			--add ../assets/Roboto-Regular.ttf=assets/Roboto-Regular.ttf
 			--add ../assets/Roboto-Light.ttf=assets/Roboto-Light.ttf
@@ -209,7 +216,7 @@ add_custom_target(${PROJECT_NAME}.vpk ALL
 )
 
 add_dependencies(${PROJECT_NAME}.velf ${PROJECT_NAME}.elf)
-add_dependencies(${PROJECT_NAME}.vpk ${PROJECT_NAME}.velf param.sfo update_template_version)
+add_dependencies(${PROJECT_NAME}.vpk ${PROJECT_NAME}.velf param.sfo)
 
 add_subdirectory(third_party)
 

@@ -1,164 +1,156 @@
-# Vita Moonlight
+<div align="center">
+  <img src="sce_sys/icon0.png" alt="Moonlight for PS Vita" width="128"/>
 
-Vita Moonlight is a PlayStation Vita port of Moonlight, with major improvements for usability, pairing, device management, and now advanced touch, multitouch, and DS4 touchpad emulation.
+  # Moonlight for PS Vita
 
-## Highlights (0.13.2)
+  **Stream your PC games to a PlayStation Vita, built for a smooth picture over Wi-Fi**
 
-- **Touchscreen Modes Unified:** Select between three touchscreen modes from the settings menu:
-  - **DS4 Touchpad:** Emulates a DualShock 4-style multitouch touchpad, compatible with gestures and Steam Input advanced controls.
-  - **Absolute Mouse:** Use the Vita screen as a true absolute mouse (with improved gesture support).
-  - **Tablet (Sunshine):** Native multitouch for Sunshine streaming, with true multi-finger gestures.
-- **DS4 Touchpad Sensitivity:** DS4 mode is now more sensitive and precise for a smoother experience.
-- **PS Button Capture:** Optional PS button capture implemented — double press opens the menu, single press forwarded to Sunshine as PS/Xbox button mapping (requires SceShell permission in the VPK).
-- **Touch Zones Independent of Mode:** Touch zone support allows using front-screen touch zones independent of the selected touch input mode; when a zone is active, touch input in that area is ignored.
-- **Wake-on-LAN (WOL) Integration:** Power on your remote PC directly from the Vita, with robust MAC address handling and cross-platform compatibility.
-- **Host MAC Management:** MAC addresses are now saved/loaded correctly, with all ARP/legacy logic removed.
-- **WOL Packet Debugging:** Includes a Python script (`tools/wol_sniffer.py`) to verify WOL packets on your network.
-- **UI Improvements:**
-  - Host Management menu: improved navigation (O/cancel returns), clearer visual feedback, and unified status display.
-  - Special button overlays no longer interfere with absolute touch input.
-- **Combo Fixes:** L1+L2 and R1+R2 combos now work correctly, even with touchscreen or backtouch enabled.
-- **Robustness:** Many bugfixes, code cleanups, and internal refactors for stability and maintainability.
-- **L1/R1 and L2/R2 Swap:** Swap the functions of the L1/R1 and L2/R2 buttons from the settings menu for greater comfort and customization.
-- **Gamepad Type Selection:** Choose Xbox or PlayStation controller layout directly from the settings menu.
-
-## Documentation
-
-More information can find [moonlight-docs][1], [moonlight-embedded][2], and our [wiki][3].
-If you need more help, join the #vita-help channel in [discord][4].
-
-[1]: https://github.com/moonlight-stream/moonlight-docs/wiki
-[2]: https://github.com/irtimmer/moonlight-embedded/wiki
-[3]: https://github.com/xyzz/vita-moonlight/wiki
-[4]: https://discord.gg/atkmxxT
-
-## Upcoming Features
-
-- **Artemis/Apollo compatibility:** Planned support for Artemis/Apollo (a modified Sunshine host), to allow streaming from more sources and custom servers.
-
-Stay tuned for more improvements!
-
-## How to open the Pause Menu
-
-> **To open the pause menu at any time (even in any touch mode), press:**
-> 
-> **START + L + R**
->
-> This shortcut works regardless of the selected touch mode (Absolute Mouse or Touchscreen). Use it to access the in-game pause/options menu quickly.
+  [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
+  [![Build](https://img.shields.io/github/actions/workflow/status/LouisF37/vita-moonlight/cmake-psvita.yml?branch=phase2)](https://github.com/LouisF37/vita-moonlight/actions)
+  [![Version](https://img.shields.io/badge/version-1.0.0--beta.1%20%22New%20Moon%22-orange)](CHANGELOG.md)
+</div>
 
 ---
 
-## How to open the Floating Keyboard
+A [Moonlight](https://moonlight-stream.org) client for the PS Vita and PS TV: it plays the games of a
+PC running [Sunshine](https://github.com/LizardByte/Sunshine) (or NVIDIA GameStream) on the Vita, on
+your home network.
 
-> **To open the elevated floating keyboard at any time, press:**
->
-> **START + LEFT**
->
-> This shortcut will always open the virtual keyboard in elevated mode, never covering the main screen. Works in all touch modes.
+It started from [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight) 0.13.2 and reworks the
+streaming path (decoding off the network thread, three display modes, adaptive audio, waiting for
+late Wi-Fi packets), the interface, and the tools to measure what the Vita actually does. What was
+taken from other forks, and what was measured by whom, is listed in
+[docs/design/performance.md](docs/design/performance.md).
 
----
-
-
- 
-## What's New in 0.13.2
-
-- **PS button capture:** When enabled, double-pressing the PS button will open the menu; a single press is passed through as a PS/Xbox button press to Sunshine.
-  - Note: Implementing PS button capture required removing the `-s` (safe) flag from `vita-make-fself` and adding the `SceShell` permission (0x2800000000000001) to the VPK.
-- **Touch Zones Independent of Mode:** Added a setting to enable/disable touch zones independently of the touch input mode.
-  - Allows using front screen touch zones regardless of touch input mode. When a touch zone is pressed, the touch input in that area is ignored; unused touch zones work like normal touch areas.
-
-### Bug fixes (0.13.2)
-
-- Fixed front touch zone L2/R2 special keys not working.
-
-### Refactor & maintenance (0.13.2)
-
-- Updated subproject commits for `enet`, `inih`, and `moonlight-common-c`.
-- Split `vitainput_process` into multiple smaller functions for readability and maintainability.
-
----
+> **Status: beta.** Everything builds, the menus are checked on a PC in three languages and the
+> stream logic is covered by PC tests, but this version has not yet been measured on a Vita. See
+> [the checkpoint report](docs/checkpoints/2026-11-15.md).
 
 ## Screenshots
 
-<p align="center">
-  <img src="docs/keyboard.jpg" alt="Floating keyboard in Steam app" width="400"/>
-  <br><b>Floating keyboard in a Steam app using Moonlight</b>
-</p>
+<div align="center">
+  <img src="docs/screenshots/home_1_host_online.png" alt="Home: computers and their state" width="48%"/>
+  <img src="docs/screenshots/library_1_stats.png" alt="Library: games with the last session's figures" width="48%"/>
+  <img src="docs/screenshots/settings_profile_smooth.png" alt="Settings: performance profiles" width="48%"/>
+  <img src="docs/screenshots/pairing_code.png" alt="Pairing: code to type in Sunshine" width="48%"/>
+</div>
 
-<p align="center">
-  <img src="docs/ip1.png" alt="Host waiting for IP update (yellow)" width="400"/>
-  <br><b>Host waiting for IP update (yellow)</b>
-</p>
+<sub>Rendered on a PC by `tools/ui-preview` with sample data (names, addresses and figures are not real
+measurements).</sub>
 
-<p align="center">
-  <img src="docs/ip2.png" alt="Host online (green)" width="400"/>
-  <br><b>Host online (green)</b>
-</p>
+## Features
 
-<p align="center">
-  <img src="docs/ip3.png" alt="Host offline/disconnected (red)" width="400"/>
-  <br><b>Host offline/disconnected (red)</b>
-</p>
+- **Three display modes**, chosen through profiles: *Smooth* (one frame per screen refresh, drawn just
+  in time), *Paced* (frames at the cadence the PC captured them, absorbing Wi-Fi jitter) and
+  *Lowest latency* (newest frame at once); *Original* keeps the original code path for comparison.
+- **Built for the Vita's Wi-Fi**: waits briefly for late or reordered packets instead of freezing the
+  picture, decodes video and audio off the network thread, spreads the work over the three CPU cores,
+  and warns when Wi-Fi power saving or Bluetooth is on.
+- **Low-latency audio** with an adaptive buffer that grows only as much as the link needs.
+- **Fast colour decoding**: the GPU converts the decoder's YUV output (about 2 ms less per frame,
+  measured by juanjsebgarcia).
+- **Statistics**: an overlay during play, and per session a CSV (one line per second) plus a summary
+  with percentiles, to compare settings on your own setup.
+- **Interface**: computers with their state, a game library with cover art, two-pane settings with
+  help for every option, pairing with a code to type in Sunshine, English, French and Spanish.
+- **Controls**: Xbox or PlayStation layout, rear touch, front touch as DS4 touchpad, mouse or tablet,
+  motion controls, on-screen keyboard, button mapping files, PS button forwarding.
+- Wake-on-LAN, restart of the stream from the pause menu when a setting needs it.
 
-<p align="center">
-  <img src="docs/ip4.png" alt="IP change confirmation dialog" width="400"/>
-  <br><b>IP change confirmation dialog (shows old/new IP)</b>
-</p>
+## Requirements
 
-<p align="center">
-  <img src="docs/ip5.png" alt="Search device function" width="400"/>
-  <br><b>Search device function showing a found local device</b>
-</p>
+- A PS Vita or PS TV that can install homebrew `.vpk` files (VitaShell).
+- A PC running [Sunshine](https://github.com/LizardByte/Sunshine), on the same network as the Vita.
+- For the best picture: a strong 2.4 GHz signal near the Vita, Wi-Fi power saving off on the Vita
+  (*Settings > Power Save Settings*) and Bluetooth off if no Bluetooth device is used.
 
----
+## Install
 
+1. Download `moonlight-phase2.vpk` from
+   [the latest build](https://github.com/LouisF37/vita-moonlight/releases/tag/build-phase2).
+2. Copy it to the Vita and install it with VitaShell.
 
-## Build Requirements
+This build uses the original Moonlight's title ID (`XYZZ00002`): it replaces an installed Moonlight and
+keeps its pairings and settings (`ux0:data/moonlight`).
 
-- **VitaSDK** installed and configured on your system ([guide here](https://vitasdk.org/)).
-- **Submodules updated:**
-  ```sh
-  git submodule update --init
-  ```
+## First-time setup
 
----
+1. Start Sunshine on the PC.
+2. On the Vita, choose **Search the network** (or **Enter an address**) and select the PC.
+3. The Vita shows a 4-digit code and the address of Sunshine's web page
+   (`https://<PC address>:47990`, **PIN** tab): type the code there. The Vita is listed in Sunshine
+   under its own nickname.
+4. Pick a game in the library and press ✕.
 
-## Quick Build
+## Controls
 
-1. Install dependencies with [vdpm](https://github.com/vitasdk/vdpm) if you haven't already.
-2. Make sure VitaSDK is installed and in your $PATH.
-3. Run:
-   ```sh
-   ./makepsv
-   ```
-   This will generate a VPK file ready to install on your PS Vita.
+| Input | Action |
+|-------|--------|
+| **START + L + R** | Pause the stream and go back to the menus (✕ on the game resumes it) |
+| **START + Left** | On-screen keyboard |
+| **PS** (twice) | Back to the LiveArea; a single press is sent to the PC as the guide button (option) |
+| Front touch | Mouse, DS4 touchpad or tablet (*Settings > Touch*), corner zones as extra buttons |
+| Rear touch | Four zones acting as the extra shoulder and stick buttons (*Settings > Controls*, *Touch*) |
 
----
+## Settings in short
 
-## Manual Build (optional)
+*Settings > Performance > Profile* sets the options that change the stream the most:
 
-If you prefer to build manually:
+| Profile | Display | Low-latency audio, decoder catch-up, fast colour decoding, core spreading | Wait for late packets |
+|---|---|---|---|
+| Smooth (default) | one frame per refresh, just in time | on | 20 ms |
+| Paced | at the PC's capture cadence, plus a small margin | on | 20 ms |
+| Lowest latency | newest frame at once | on | 20 ms |
+| Original | the original code path | off | off |
+
+The French user and test guide, with every option and the test plan, is in
+[docs/GUIDE-FR.md](docs/GUIDE-FR.md).
+
+## Getting help
+
+- Each stream writes `ux0:data/moonlight/stats/session-<date>.csv` and `.txt`: the files to attach to
+  a bug report, with the build shown at the bottom left of the home screen.
+- *Settings > General > Save a debug log* writes `ux0:data/moonlight/moonlight.log`.
+- A crash leaves `ux0:data/psp2core-*.psp2dmp`; `tools/dev/crash-dump.sh` decodes it.
+- Bugs and ideas: [Issues](https://github.com/LouisF37/vita-moonlight/issues).
+
+## How it works
+
+- [docs/design/architecture.md](docs/design/architecture.md): modules, threads and cores.
+- [docs/design/streaming.md](docs/design/streaming.md): video, display modes, audio, network.
+- [docs/design/performance.md](docs/design/performance.md): every performance change, its source and
+  whether it was measured.
+- [docs/design/forks.md](docs/design/forks.md): the other Vita Moonlight forks and what was taken.
+
+## Building
 
 ```sh
-# If you do git pull, make sure to update submodules first
- git submodule update --init
- mkdir build && cd build
- cmake ..
- make
+export VITASDK=/usr/local/vitasdk        # with the packages listed in docs/BUILDING.md
+cmake -S . -B build && cmake --build build -j
 ```
 
----
+The VPK is `build/moonlight.vpk`. Every push is built by GitHub Actions. Details, PC tests and the
+interface preview: [docs/BUILDING.md](docs/BUILDING.md) and [docs/TESTING.md](docs/TESTING.md).
 
-## Note about colors in vita2d
+## Credits
 
-> **Important:** The vita2d library interprets colors in BGRA format (not RGBA). For example:
-> - 0xFF00FFFF will appear **yellow** (not cyan)
-> - 0xFFFFFF00 will appear **blue** (not yellow)
-> - 0xFF00FF00 will appear **green** (correct)
-> - 0xFFFF0000 will appear **red** (correct)
->
-> If the color does not look as expected, swap the byte order (use BGR instead of RGB).
+- [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight) and its contributors (the Vita port of
+  [Moonlight Embedded](https://github.com/moonlight-stream/moonlight-embedded) by Iwan Timmer), with
+  AorsiniYT's touch, pairing and host management work.
+- [moonlight-common-c](https://github.com/moonlight-stream/moonlight-common-c) (streaming protocol) and
+  [nanors](https://github.com/sleepybishop/nanors) (error correction).
+- Performance work and measurements from
+  [dubleyu/vita-moonlight-relay](https://github.com/dubleyu/vita-moonlight-relay) and
+  [juanjsebgarcia/vita-moonlight](https://github.com/juanjsebgarcia/vita-moonlight); ideas from
+  [VitaRPS5](https://github.com/mauricio-gg/vitaki-vitarps5),
+  [alex4580/vita-moonlight](https://github.com/alex4580/vita-moonlight) and
+  [NowaLone/vita-moonlight](https://github.com/NowaLone/vita-moonlight). Details in
+  [docs/design/forks.md](docs/design/forks.md).
+- Roboto font (Apache 2.0, `assets/LICENSE.Roboto`), Nerd Fonts icons.
 
+Developed by [LouisF37](https://github.com/LouisF37) with the help of
+[Claude Code](https://claude.com/claude-code).
 
-Thanks to all contributors and the Moonlight community!
+## License
 
+[GPL-3.0](LICENSE), like Moonlight Embedded and vita-moonlight.
