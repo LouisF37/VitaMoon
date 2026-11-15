@@ -27,3 +27,9 @@ int vitapower_wifi_power_save(void);
 
 void vitapower_start();
 void vitapower_stop();
+
+/* Around work that precedes a stream (reaching the PC, pairing, list of games,
+ * stream start): clocks boosted meanwhile, when "Maximum CPU and GPU speed" is
+ * on. Calls nest. */
+void vitapower_busy_begin(void);
+void vitapower_busy_end(void);

@@ -49,15 +49,16 @@ static size_t _write_curl(void *contents, size_t size, size_t nmemb, void *userp
 }
 
 /* Longest wait for the PC to accept a connection (TCP and TLS handshake). A PC
- * that is off or asleep never answers; without this limit a request to it blocks
- * for as long as the network stack keeps trying. Requests themselves have no time
- * limit: pairing waits for the code to be typed on the PC. */
-#define CONNECT_TIMEOUT_S 8L
+ * that is off or asleep never answers; without this limit a request to it
+ * blocked the menu for curl's default of up to 300 s. On a home network the
+ * connection takes milliseconds; 3 s as in juanjsebgarcia/vita-moonlight. */
+#define CONNECT_TIMEOUT_S 3L
 
 static bool reuse_connections = false;
 
-/* Keep the connections to the PC open between requests (off by default: the
- * original port closes them after every request). */
+/* Keep the connections to the PC open between requests, and resume TLS
+ * sessions instead of a full handshake each time (off by default: the original
+ * port closes them after every request). */
 void http_set_reuse(bool reuse) {
   reuse_connections = reuse;
 }
@@ -89,7 +90,7 @@ int http_init(const char* keyDirectory, int logLevel) {
   curl_easy_setopt(curl, CURLOPT_SSL_VERIFYPEER, 0L);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, _write_curl);
   curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
-  curl_easy_setopt(curl, CURLOPT_SSL_SESSIONID_CACHE, 0L);
+  curl_easy_setopt(curl, CURLOPT_SSL_SESSIONID_CACHE, reuse_connections ? 1L : 0L);
   curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
   curl_easy_setopt(curl, CURLOPT_CONNECTTIMEOUT, CONNECT_TIMEOUT_S);
 
@@ -97,22 +98,27 @@ int http_init(const char* keyDirectory, int logLevel) {
   return GS_OK;
 }
 
-static int http_request_unlocked(char* url, PHTTP_DATA data);
+static int http_request_unlocked(char* url, PHTTP_DATA data, long timeout_s);
 
 int http_request(char* url, PHTTP_DATA data) {
+  return http_request_timeout(url, data, HTTP_REQUEST_TIMEOUT);
+}
+
+int http_request_timeout(char* url, PHTTP_DATA data, long timeout_s) {
   pthread_mutex_lock(&curl_lock);
-  int ret = http_request_unlocked(url, data);
+  int ret = http_request_unlocked(url, data, timeout_s);
   pthread_mutex_unlock(&curl_lock);
   return ret;
 }
 
-static int http_request_unlocked(char* url, PHTTP_DATA data) {
+static int http_request_unlocked(char* url, PHTTP_DATA data, long timeout_s) {
   if (!curl) {
     gs_error = "No connection to the PC";
     return GS_FAILED;
   }
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, data);
   curl_easy_setopt(curl, CURLOPT_URL, url);
+  curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_s);
   curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, reuse_connections ? 0L : 1L);
 
   if (debug)

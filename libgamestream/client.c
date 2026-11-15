@@ -469,7 +469,8 @@ int gs_pair(PSERVER_DATA server, char* pin) {
   PHTTP_DATA data = http_create_data();
   if (data == NULL)
     return GS_OUT_OF_MEMORY;
-  else if ((ret = http_request(url, data)) != GS_OK)
+  // The PC answers once the code has been typed there: no time limit.
+  else if ((ret = http_request_timeout(url, data, 0)) != GS_OK)
     goto cleanup;
 
   if ((ret = xml_status(data->memory, data->size) != GS_OK))
@@ -816,7 +817,8 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION *config, int appId, b
            server->serverInfo.address, server->httpsPort, server->currentGame ? "resume" : "launch", unique_id, uuid_str, appId, config->width, config->height, fps, sops, rikey_hex, rikeyid, localaudio, surround_info, gamepad_mask, gamepad_mask,
            (config->supportedVideoFormats & VIDEO_FORMAT_MASK_10BIT) ? "&hdrMode=1&clientHdrCapVersion=0&clientHdrCapSupportedFlagsInUint32=0&clientHdrCapMetaDataId=NV_STATIC_METADATA_TYPE_1&clientHdrCapDisplayData=0x0x0x0x0x0x0x0x0x0x0" : "",
            LiGetLaunchUrlQueryParameters());
-  if ((ret = http_request(url, data)) == GS_OK)
+  // The PC starts the game before it answers, which can take a while (120 s as moonlight-qt).
+  if ((ret = http_request_timeout(url, data, 120)) == GS_OK)
     server->currentGame = appId;
   else
     goto cleanup;
@@ -861,7 +863,7 @@ int gs_quit_app(PSERVER_DATA server) {
   uuid_generate_random(uuid);
   uuid_unparse(uuid, uuid_str);
   snprintf(url, sizeof(url), "https://%s:%u/cancel?uniqueid=%s&uuid=%s", server->serverInfo.address, server->httpsPort, unique_id, uuid_str);
-  if ((ret = http_request(url, data)) != GS_OK)
+  if ((ret = http_request_timeout(url, data, 30)) != GS_OK)
     goto cleanup;
 
   if ((ret = xml_status(data->memory, data->size) != GS_OK))

@@ -37,31 +37,28 @@ add_library(libuuid STATIC
 )
 target_include_directories(libuuid PUBLIC libuuid/src)
 
+# moonlight-common-c is kept in this repository (upstream commit e2722dc plus the
+# patches listed in third_party/patches/moonlight-common-c). Its forward error
+# correction is nanors, which uses NEON on the Vita (__ARM_NEON is on by default).
+file(GLOB MOONLIGHT_COMMON_SOURCES CONFIGURE_DEPENDS moonlight-common-c/src/*.c)
+
 add_library(moonlight-common-c STATIC
-    moonlight-common-c/src/AudioStream.c
-    moonlight-common-c/src/ByteBuffer.c
-    moonlight-common-c/src/Connection.c
-    moonlight-common-c/src/ConnectionTester.c
-    moonlight-common-c/src/ControlStream.c
-    moonlight-common-c/src/FakeCallbacks.c
-    moonlight-common-c/src/InputStream.c
-    moonlight-common-c/src/LinkedBlockingQueue.c
-    moonlight-common-c/src/Misc.c
-    moonlight-common-c/src/Platform.c
-    moonlight-common-c/src/PlatformCrypto.c
-    moonlight-common-c/src/PlatformSockets.c
-    moonlight-common-c/src/RecorderCallbacks.c
-    moonlight-common-c/src/RtpAudioQueue.c
-    moonlight-common-c/src/RtpVideoQueue.c
-    moonlight-common-c/src/RtspConnection.c
-    moonlight-common-c/src/RtspParser.c
-    moonlight-common-c/src/SdpGenerator.c
-    moonlight-common-c/src/SimpleStun.c
-    moonlight-common-c/src/VideoDepacketizer.c
-    moonlight-common-c/src/VideoStream.c
-    moonlight-common-c/reedsolomon/rs.c
+    ${MOONLIGHT_COMMON_SOURCES}
+    moonlight-common-c/nanors/rs.c
+    moonlight-common-c/nanors/deps/obl/oblas_common.c
+    moonlight-common-c/nanors/deps/obl/oblas_lite.c
 )
-target_include_directories(moonlight-common-c PUBLIC moonlight-common-c/src moonlight-common-c/reedsolomon)
+target_include_directories(moonlight-common-c
+    PUBLIC moonlight-common-c/src
+    PRIVATE
+        moonlight-common-c/nanors
+        moonlight-common-c/nanors/deps
+        moonlight-common-c/nanors/deps/obl
+)
+target_compile_definitions(moonlight-common-c PRIVATE HAS_SOCKLEN_T NDEBUG)
+# C11: nanors allocates with aligned_alloc(), which gnu99 headers do not declare
+target_compile_options(moonlight-common-c PRIVATE -std=gnu11)
+target_link_libraries(moonlight-common-c PRIVATE enet)
 
 add_library(mdnsniff STATIC
     mdnsniff/udp_sniffer_vita.c

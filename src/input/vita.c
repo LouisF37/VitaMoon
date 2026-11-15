@@ -36,6 +36,9 @@
 #include "psp2/kernel/threadmgr/thread.h"
 #include "psp2common/types.h"
 #include "vita.h"
+#include "../thread_policy.h"
+
+#include <pthread.h>
 #include "mapping.h"
 #include "swap_shoulder_buttons.h"
 #include "../keyboardsystem.h"
@@ -869,24 +872,36 @@ inline void vitainput_process(void) {
   }
 }
 
-static uint8_t active_input_thread = 0;
+static volatile uint8_t active_input_thread = 0;
 
 /* Input thread: reads the pad and the touch panels every 2 ms and sends what
  * changed. It runs above the default priority (96, as in VitaRPS5) so a press
- * is not delayed by background work, and below the media threads (64). */
+ * is not delayed by background work, and below the media threads (64).
+ * A pthread: it sends through moonlight-common-c, whose locks are pthread ones
+ * (dubleyu/vita-moonlight-relay saw crashes in sem_timedwait with a kernel
+ * thread here). */
 #define INPUT_THREAD_PRIORITY 96
 
-int vitainput_thread(SceSize args, void *argp) {
+static void *vitainput_thread(void *argp) {
+  sceKernelChangeThreadPriority(sceKernelGetThreadId(), INPUT_THREAD_PRIORITY);
+  bool placed = false;
   while (1) {
     if (active_input_thread) {
+      if (!placed) {
+        // The configuration is loaded after this thread starts: place it once
+        // a stream is running.
+        thread_place(0, CORE_UI);
+        placed = true;
+      }
       vitainput_process();
       sceKernelDelayThread(2000); // 2 ms
     } else {
+      placed = false;
       sceKernelDelayThread(20000); // idle: nothing to send
     }
   }
 
-  return 0;
+  return NULL;
 }
 
 bool vitainput_init() {
@@ -894,13 +909,16 @@ bool vitainput_init() {
   sceTouchSetSamplingState(SCE_TOUCH_PORT_FRONT, SCE_TOUCH_SAMPLING_STATE_START);
   sceTouchSetSamplingState(SCE_TOUCH_PORT_BACK, SCE_TOUCH_SAMPLING_STATE_START);
 
-  SceUID thid = sceKernelCreateThread("vitainput_thread", vitainput_thread, INPUT_THREAD_PRIORITY, 0x40000, 0, 0, NULL);
-  if (thid >= 0) {
-    sceKernelStartThread(thid, 0, NULL);
-    return true;
-  }
-
-  return false;
+  pthread_t thread;
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  pthread_attr_setstacksize(&attr, 0x40000);
+  int err = pthread_create(&thread, &attr, vitainput_thread, NULL);
+  pthread_attr_destroy(&attr);
+  if (err != 0)
+    return false;
+  pthread_detach(thread);
+  return true;
 }
 
 void vitainput_config(CONFIGURATION config) {

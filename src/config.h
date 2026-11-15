@@ -27,7 +27,13 @@
 #define MAX_INPUTS 6
 
 /* Display modes, see src/video/vita.c */
-enum { DISPLAY_MODE_DIRECT = 0, DISPLAY_MODE_LOW_LATENCY = 1, DISPLAY_MODE_SMOOTH = 2 };
+enum { DISPLAY_MODE_DIRECT = 0, DISPLAY_MODE_LOW_LATENCY = 1, DISPLAY_MODE_SMOOTH = 2,
+       DISPLAY_MODE_PACED = 3 };
+
+/* Video packet sizes offered in the settings. 1024 is Moonlight's own value. */
+#define PACKET_SIZE_DEFAULT 1024
+#define PACKET_SIZE_MIN 512
+#define PACKET_SIZE_MAX 1392
 
 struct input_config {
   char* path;
@@ -81,6 +87,9 @@ typedef struct _CONFIGURATION {
   bool auto_bitrate;        // bitrate follows resolution and frame rate
   bool http_keepalive;      // keep the menu connections to the PC open between requests
   bool ui_msaa;             // 4x multisampling (read once, when the graphics start)
+  bool decode_yuv;          // the decoder outputs YUV and the GPU converts it (faster)
+  int video_reorder_wait_ms; // wait for late video packets before giving a frame up (0 = off)
+  bool thread_pinning;      // place the streaming threads on fixed CPU cores
   bool enable_motion_controls; //Metalface
   bool enable_psbutton_capture;
   bool enable_double_tap_sprint; //**

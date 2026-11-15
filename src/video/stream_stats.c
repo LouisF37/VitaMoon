@@ -14,6 +14,7 @@
 #include "../gui/guilib.h"
 #include "../gui/theme.h"
 #include "../power/vita.h"
+#include "../thread_policy.h"
 
 #include <Limelight.h>
 
@@ -27,6 +28,7 @@
 #include <psp2/rtc.h>
 #include <vita2d.h>
 
+#include <pthread.h>
 #include <stdio.h>
 #include <string.h>
 #include "../i18n.h"
@@ -114,7 +116,11 @@ static struct {
   uint32_t pull_try;     /* decoder catch-up attempts */
   uint32_t pull_got;     /* ... that returned a picture */
   acc_t aud_target_us;   /* audio cushion wanted (low-latency mode) */
+  acc_t pace_delay_us;   /* PACED: delay added to the PC's capture times */
 } c;
+
+/* moonlight-common-c's video packet counters at the previous second (stats thread) */
+static RTP_VIDEO_STATS rtp_prev;
 
 /* Video-thread-only state */
 static int last_frame_number = -1;
@@ -123,7 +129,8 @@ static int rx_ring_fn[RX_RING];
 
 /* Session state */
 static volatile bool s_running = false;
-static SceUID s_thread = -1;
+static pthread_t s_thread;
+static bool s_thread_created = false;
 static SceUID s_fd = -1;
 static int s_width, s_height, s_fps;
 
@@ -209,6 +216,10 @@ void stream_stats_on_display_late(void) {
 
 void stream_stats_on_latch_budget(uint32_t budget_us) {
   acc_add(&c.budget_us, budget_us);
+}
+
+void stream_stats_on_pace(uint32_t delay_us) {
+  acc_add(&c.pace_delay_us, delay_us);
 }
 
 void stream_stats_on_frame_replaced(void) {
@@ -298,6 +309,12 @@ static const char *k_legend =
   "  pull_try, pull_got  decoder catch-up: extra reads tried / that returned a picture\n"
   "  aud_target_us   audio cushion wanted by the adaptive buffer (low-latency audio)\n"
   "  wifi_pct        Wi-Fi signal strength reported by the Vita, in percent (-1 = unknown)\n"
+  "  pace_delay_us   delay added to the PC's capture times (paced display)\n"
+  "  fec_saved       video packets rebuilt by error correction\n"
+  "  fec_failed      video frames given up: too many packets missing\n"
+  "  pkt_ooo         video packets that arrived out of order\n"
+  "  reorder_held    packets of the next frame held back, waiting for late ones\n"
+  "  reorder_saved   frames completed by late packets thanks to that wait\n"
   "  *_avg = average over the second, *_max = maximum over the second\n";
 
 /* Creates <data>/stats/session-<date>.csv (integers only, ';' separated so that
@@ -333,7 +350,7 @@ static void open_session_files(void) {
     write_fd(info, line);
     snprintf(line, sizeof(line),
              "settings: vblank_wait=%d frame_pacer=%d ref_frame_invalidation=%d center_region_only=%d\n"
-             "phase 2: boost_clocks=%d match_refresh_rate=%d (sent to host: %d) low_latency_audio=%d display_mode=%d (0 direct, 1 low latency, 2 smooth)\n"
+             "phase 2: boost_clocks=%d match_refresh_rate=%d (sent to host: %d) low_latency_audio=%d display_mode=%d (0 direct, 1 low latency, 2 smooth, 3 paced)\n"
              "Vita screen: %.4f Hz (rate reported by the system)\n"
              "clocks: cpu %d MHz, gpu %d MHz, bus %d MHz, xbar %d MHz\n\n",
              config.enable_vita_vblank_wait, config.enable_frame_pacer,
@@ -348,9 +365,11 @@ static void open_session_files(void) {
     int channel = sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_CHANNEL, &net) >= 0 ? (int)net.channel : -1;
     snprintf(line, sizeof(line),
              "this build: decoder_catchup=%d auto_bitrate=%d keep_link_open=%d smooth_edges=%d (4x multisampling in use: %d)\n"
+             "performance: yuv_decode=%d reorder_wait_ms=%d thread_pinning=%d\n"
              "Wi-Fi: signal %d %%, channel %d, power-save registry value %d (-1 = not readable; 1 is assumed to mean on)\n\n",
              config.decoder_catchup, config.auto_bitrate, config.http_keepalive, config.ui_msaa,
-             gui_msaa_active(), signal, channel, vitapower_wifi_power_save());
+             gui_msaa_active(), config.decode_yuv, config.video_reorder_wait_ms, config.thread_pinning,
+             signal, channel, vitapower_wifi_power_save());
     write_fd(info, line);
     write_fd(info, k_legend);
     sceIoClose(info);
@@ -369,7 +388,9 @@ static void open_session_files(void) {
                  "swap_avg_us;swap_max_us;r2p_avg_us;r2p_max_us;rtt_ms;rtt_var_ms;poor;"
                  "pend_vid;pend_aud;aud_pkts;aud_err;aud_out_avg_us;aud_out_max_us;cpu_mhz;gpu_mhz;"
                  "aud_buf_avg_us;aud_buf_max_us;aud_underrun;aud_skip_us;replaced;idle;disp_q_avg_x100;disp_q_max;"
-                 "late;budget_avg_us;pull_try;pull_got;aud_target_us;wifi_pct\n");
+                 "late;budget_avg_us;pull_try;pull_got;aud_target_us;wifi_pct;"
+                 "pace_delay_us;fec_saved;fec_failed;pkt_ooo;reorder_held;reorder_saved\n");
+  memset(&rtp_prev, 0, sizeof(rtp_prev));
 }
 
 /* Takes (and resets) every counter for the window that just ended, writes the
@@ -419,6 +440,16 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   int pend_aud = LiGetPendingAudioFrames();
   int cpu = scePowerGetArmClockFrequency();
   int gpu = scePowerGetGpuClockFrequency();
+  acc_snap_t pace = acc_take(&c.pace_delay_us);
+  /* Plain counters written by the video receive thread: a second's delta is
+   * enough even if a read lands between two increments. */
+  RTP_VIDEO_STATS rtp = *LiGetRTPVideoStats();
+  uint32_t fec_saved = rtp.packetCountFecRecovered - rtp_prev.packetCountFecRecovered;
+  uint32_t fec_failed = rtp.packetCountFecFailed - rtp_prev.packetCountFecFailed;
+  uint32_t pkt_ooo = rtp.packetCountOOS - rtp_prev.packetCountOOS;
+  uint32_t reorder_held = rtp.packetCountHeldForReorder - rtp_prev.packetCountHeldForReorder;
+  uint32_t reorder_saved = rtp.frameCountReorderRescued - rtp_prev.frameCountReorderRescued;
+  rtp_prev = rtp;
   SceNetCtlInfo net;
   int wifi_pct = sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_RSSI_PERCENTAGE, &net) >= 0 ? (int)net.rssi_percentage : -1;
 
@@ -431,7 +462,8 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
            "%u;%u;%u;%u;%u;%u;%u;"
            "%d;%d;%u;%u;%u;%u;%d;%d;"
            "%u;%u;%u;%u;%u;%u;%u;%u;"
-           "%u;%u;%u;%u;%u;%d\n",
+           "%u;%u;%u;%u;%u;%d;"
+           "%u;%u;%u;%u;%u;%u\n",
            (unsigned)(t_us / 1000), win_ms, vblanks,
            recv, shown, lost, dropped, idr, dec_err, dec_noout, ooo, kbps,
            rx.avg, rx.max, queue.avg, queue.max, host.avg, host.max,
@@ -439,7 +471,8 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
            swap.avg, swap.max, r2p.avg, r2p.max, rtt, rtt_var, poor,
            pend_vid, pend_aud, aud_pkts, aud_err, aud_out.avg, aud_out.max, cpu, gpu,
            aud_buf.avg, aud_buf.max, aud_underrun, aud_skip_us, replaced, idle, qd.avg_x100, qd.max,
-           late, budget.avg, pull_try, pull_got, aud_target.avg, wifi_pct);
+           late, budget.avg, pull_try, pull_got, aud_target.avg, wifi_pct,
+           pace.avg, fec_saved, fec_failed, pkt_ooo, reorder_held, reorder_saved);
   write_fd(s_fd, line);
 
   sess_ms += win_ms;
@@ -459,8 +492,8 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
            r2p.avg / 1000.0f, r2p.max / 1000.0f, dec.avg / 1000.0f,
            (render.avg + swap.avg) / 1000.0f, hold.avg_x100 / 100.0f);
   snprintf(s_overlay[next][2], OVERLAY_LINE_LEN,
-           "network %.1f Mbps   ping %u ms (+-%u)   frame rx %.1f ms   PC %.1f ms   key frames %u",
-           kbps / 1000.0f, rtt, rtt_var, rx.avg / 1000.0f, host.avg / 1000.0f, idr);
+           "network %.1f Mbps   ping %u ms (+-%u)   PC %.1f ms   key frames %u   late pkts %u (saved %u)",
+           kbps / 1000.0f, rtt, rtt_var, host.avg / 1000.0f, idr, pkt_ooo, reorder_saved);
   snprintf(s_overlay[next][3], OVERLAY_LINE_LEN,
            "audio %.1f ms (target %.1f)  gaps %u   draw budget %.1f ms   errors %u   cpu %d MHz",
            aud_buf.avg / 1000.0f, aud_target.avg / 1000.0f, aud_underrun,
@@ -470,8 +503,11 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
 }
 
 /* Wakes up every second (in 100 ms steps so the session can stop quickly) and
- * counts the screen refreshes (vblanks) elapsed since the previous window. */
-static int stats_thread_main(SceSize args, void *argp) {
+ * counts the screen refreshes (vblanks) elapsed since the previous window.
+ * A pthread, since it calls into moonlight-common-c, whose locks are pthread
+ * ones (dubleyu/vita-moonlight-relay saw crashes when kernel threads did). */
+static void *stats_thread_main(void *argp) {
+  thread_place(0, CORE_UI);
   uint64_t t_start = sceKernelGetProcessTimeWide();
   uint64_t t_prev = t_start;
   int vc_prev = sceDisplayGetVcount();
@@ -494,7 +530,7 @@ static int stats_thread_main(SceSize args, void *argp) {
     t_prev = now;
     vc_prev = vc;
   }
-  return 0;
+  return NULL;
 }
 
 /* ---- session ---- */
@@ -521,25 +557,26 @@ void stream_stats_session_start(int width, int height, int fps) {
   open_session_files();
 
   s_running = true;
-  s_thread = sceKernelCreateThread("stream_stats", stats_thread_main, 0x10000100, 0x10000, 0, 0, NULL);
-  if (s_thread < 0) {
-    vita_debug_log("stream_stats: cannot create thread (0x%08x)\n", s_thread);
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  pthread_attr_setstacksize(&attr, 0x10000);
+  int err = pthread_create(&s_thread, &attr, stats_thread_main, NULL);
+  pthread_attr_destroy(&attr);
+  if (err != 0) {
+    vita_debug_log("stream_stats: cannot create thread (%d)\n", err);
     s_running = false;
     return;
   }
-  sceKernelStartThread(s_thread, 0, NULL);
+  s_thread_created = true;
 }
 
 void stream_stats_session_end(void) {
   bool was_running = s_running;
   s_running = false;
-  if (was_running && s_thread >= 0) {
-    SceUInt timeout = 2000000;
-    int thread_ret = 0;
-    sceKernelWaitThreadEnd(s_thread, &thread_ret, &timeout);
-    sceKernelDeleteThread(s_thread);
+  if (s_thread_created) {
+    pthread_join(s_thread, NULL);   /* the thread checks s_running every 100 ms */
+    s_thread_created = false;
   }
-  s_thread = -1;
   if (s_fd >= 0) {
     sceIoClose(s_fd);
     s_fd = -1;

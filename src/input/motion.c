@@ -8,6 +8,10 @@
 #include "vita.h"
 
 #include "psp2/power.h"
+#include "../thread_policy.h"
+
+#include <pthread.h>
+#include <psp2/kernel/threadmgr.h>
 
 
 
@@ -23,25 +27,29 @@ motion_data_state motion_state = {
     .report_rate_accel = 1,
 };
 
+/* The motion threads send through moonlight-common-c, whose locks are pthread
+ * ones: they are pthreads (dubleyu/vita-moonlight-relay saw crashes in
+ * sem_timedwait when kernel threads called in). */
+static bool start_motion_thread(void *(*entry)(void *)) {
+    pthread_t thread;
+    pthread_attr_t attr;
+    pthread_attr_init(&attr);
+    pthread_attr_setstacksize(&attr, 0x40000);
+    int err = pthread_create(&thread, &attr, entry, NULL);
+    pthread_attr_destroy(&attr);
+    if (err != 0)
+        return false;
+    pthread_detach(thread);
+    return true;
+}
+
 bool vita_motion_init() {
 
     sceMotionStartSampling();
     sceMotionReset();
 
-    SceUID thid = sceKernelCreateThread("vitainput_motion_gyro_thread", vitainput_motion_gyro_thread, 0, 0x40000, 0, 0, NULL);
-    if (thid >= 0) {
-        sceKernelStartThread(thid, 0, NULL);
-    } else {
-      return false;
-    }
-
-    thid = sceKernelCreateThread("vitainput_motion_accel_thread", vitainput_motion_accel_thread, 0, 0x40000, 0, 0, NULL);
-    if (thid >= 0) {
-        sceKernelStartThread(thid, 0, NULL);
-        return true;
-    }
-
-    return false;
+    return start_motion_thread(vitainput_motion_gyro_thread) &&
+           start_motion_thread(vitainput_motion_accel_thread);
 }
 
 /* Delay between two reports for a rate asked by the host. Bounded so that an
@@ -54,9 +62,16 @@ static SceUInt motion_period_us(uint32_t rate_hz) {
   return period < 2000 ? 2000 : period;
 }
 
-int vitainput_motion_gyro_thread(SceSize args, void *argp) {
+void *vitainput_motion_gyro_thread(void *argp) {
+  bool placed = false;
   while (1) {
     if (motion_state.motion_type_gyro_enabled == true && active_motion_threads == true) {
+      if (!placed) {
+        // The configuration is loaded after this thread starts: place it once
+        // a stream is running.
+        thread_place(0, CORE_UI);
+        placed = true;
+      }
       motion_process_gyro();
 
       //TODO: Reporting battery events more than one time per second seems unwise
@@ -74,26 +89,33 @@ int vitainput_motion_gyro_thread(SceSize args, void *argp) {
       LiSendControllerBatteryEvent(0, battery_state, battery_percent); */
 
     } else {
+      placed = false;
       sceKernelDelayThread(1000000);
     }
     sceKernelDelayThread(motion_period_us(motion_state.report_rate_gyro));
   }
   
-  return 0;
+  return NULL;
 }
 
-int vitainput_motion_accel_thread(SceSize args, void *argp) {
+void *vitainput_motion_accel_thread(void *argp) {
+  bool placed = false;
   while (1) {
     if (motion_state.motion_type_accel_enabled == true && active_motion_threads == true) {
+      if (!placed) {
+        thread_place(0, CORE_UI);
+        placed = true;
+      }
       motion_process_accel();
     } else {
+      placed = false;
       sceKernelDelayThread(1000000);
     }
 
     sceKernelDelayThread(motion_period_us(motion_state.report_rate_accel));
   }
 
-  return 0;
+  return NULL;
 }
 
 void motion_process_gyro() {

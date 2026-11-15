@@ -21,7 +21,9 @@
 #include <psp2/kernel/processmgr.h>
 #include <psp2/power.h>
 #include <psp2/registrymgr.h>
+#include <pthread.h>
 #include "../config.h"
+#include "../debug.h"
 
 enum {
   ENABLE_ALL = 0,
@@ -66,11 +68,24 @@ void vitapower_config(CONFIGURATION config) {
   }
 }
 
-// Clock boost while streaming: decode, render and network threads all run
-// faster at the maximum frequencies (same values as VitaRPS5 / PSVshell max).
-// The previous frequencies are restored when the stream stops.
+/*
+ * Clock boost: decode, render and network threads all run faster at the
+ * maximum frequencies (same values as VitaRPS5 / PSVshell max, and
+ * dubleyu/vita-moonlight-relay). The boost covers the stream, and also the
+ * work that precedes it - reaching the PC, pairing, the list of games, the
+ * stream start - whose encrypted exchanges are slow at the stock frequencies:
+ * players reported Sunshine connection tests, pairing and stream starts timing
+ * out (RTSP error 104) until they overclocked (xyzz/vita-moonlight #257, #269,
+ * #284, #286; boost while connecting from juanjsebgarcia/vita-moonlight).
+ * The system is also told that the application uses the wireless network
+ * (scePowerSetUsingWireless), as dubleyu/vita-moonlight-relay does while
+ * streaming. Everything is put back as it was when neither is running.
+ */
+static pthread_mutex_t clock_lock = PTHREAD_MUTEX_INITIALIZER;
 static bool clocks_boosted = false;
-static int saved_arm, saved_gpu, saved_bus, saved_xbar;
+static bool streaming = false;
+static int busy_depth = 0;
+static int saved_arm, saved_gpu, saved_bus, saved_xbar, saved_wireless;
 
 static void boost_clocks() {
   if (clocks_boosted || !config.boost_clocks)
@@ -79,10 +94,14 @@ static void boost_clocks() {
   saved_gpu = scePowerGetGpuClockFrequency();
   saved_bus = scePowerGetBusClockFrequency();
   saved_xbar = scePowerGetGpuXbarClockFrequency();
+  saved_wireless = scePowerGetUsingWireless();
   scePowerSetArmClockFrequency(444);
   scePowerSetGpuClockFrequency(222);
   scePowerSetBusClockFrequency(222);
   scePowerSetGpuXbarClockFrequency(166);
+  int ret = scePowerSetUsingWireless(SCE_TRUE);
+  if (ret < 0)
+    vita_debug_log("scePowerSetUsingWireless: 0x%x\n", ret);
   clocks_boosted = true;
 }
 
@@ -93,17 +112,47 @@ static void restore_clocks() {
   scePowerSetGpuClockFrequency(saved_gpu);
   scePowerSetBusClockFrequency(saved_bus);
   scePowerSetGpuXbarClockFrequency(saved_xbar);
+  if (saved_wireless >= 0)
+    scePowerSetUsingWireless(saved_wireless ? SCE_TRUE : SCE_FALSE);
   clocks_boosted = false;
+}
+
+static void update_clocks_locked(void) {
+  if (streaming || busy_depth > 0)
+    boost_clocks();
+  else
+    restore_clocks();
+}
+
+void vitapower_busy_begin(void) {
+  pthread_mutex_lock(&clock_lock);
+  busy_depth++;
+  update_clocks_locked();
+  pthread_mutex_unlock(&clock_lock);
+}
+
+void vitapower_busy_end(void) {
+  pthread_mutex_lock(&clock_lock);
+  if (busy_depth > 0)
+    busy_depth--;
+  update_clocks_locked();
+  pthread_mutex_unlock(&clock_lock);
 }
 
 void vitapower_start() {
   active_power_thread = true;
-  boost_clocks();
+  pthread_mutex_lock(&clock_lock);
+  streaming = true;
+  update_clocks_locked();
+  pthread_mutex_unlock(&clock_lock);
 }
 
 void vitapower_stop() {
   active_power_thread = false;
-  restore_clocks();
+  pthread_mutex_lock(&clock_lock);
+  streaming = false;
+  update_clocks_locked();
+  pthread_mutex_unlock(&clock_lock);
 }
 
 int vitapower_wifi_power_save(void) {

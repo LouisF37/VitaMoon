@@ -40,6 +40,7 @@ void stream_stats_on_display_idle(void);             /* SMOOTH: a refresh with n
 void stream_stats_on_display_queue(uint32_t ready);  /* frames waiting when the display picked one */
 void stream_stats_on_display_late(void);             /* SMOOTH: a flip missed its vertical blank */
 void stream_stats_on_latch_budget(uint32_t budget_us); /* SMOOTH: time kept for drawing */
+void stream_stats_on_pace(uint32_t delay_us);          /* PACED: current delay, every 2 s */
 
 /* Connection callbacks */
 void stream_stats_on_conn_status(bool poor);

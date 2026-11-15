@@ -1,0 +1,114 @@
+# Vita: thread start hook, 512-packet video receive buffer, log of the granted buffer,
+# video FEC recovered/failed and out-of-order packet counters (LiGetRTPVideoStats).
+# Origin: vita-moonlight phase2 (affinity hook and buffer size after dubleyu/moonlight-common-c, vita-relay)
+
+diff --git a/src/Limelight.h b/src/Limelight.h
+index 450997e..42dc6f1 100644
+--- a/src/Limelight.h
++++ b/src/Limelight.h
+@@ -911,6 +911,12 @@ typedef struct _RTP_VIDEO_STATS {
+ 
+ const RTP_VIDEO_STATS* LiGetRTPVideoStats(void);
+ 
++#if defined(__vita__)
++// Called on each thread that moonlight-common-c starts, from that thread, with
++// its name ("VideoRecv", "VideoDec", "AudioRecv", ...). Optional for clients.
++void LiVitaThreadStarted(const char* name) __attribute__((weak));
++#endif
++
+ // How long to hold the next frame's packets while the current frame is still
+ // incomplete, in case its late packets are on their way (packets can arrive
+ // out of order on Wi-Fi). 0 restores giving up on the frame immediately. The
+diff --git a/src/Platform.c b/src/Platform.c
+index 458fd98..308a102 100644
+--- a/src/Platform.c
++++ b/src/Platform.c
+@@ -81,6 +81,14 @@ void* ThreadProc(void* context) {
+     struct thread_context* ctx = (struct thread_context*)context;
+ #endif
+ 
++#if defined(__vita__)
++    // Lets the Vita client place this thread (CPU affinity, priority) by its
++    // name. Optional: weak, so a client that doesn't define it is unaffected.
++    if (LiVitaThreadStarted != NULL) {
++        LiVitaThreadStarted(ctx->name);
++    }
++#endif
++
+ #if defined(LC_WINDOWS) && !defined(NXDK)
+     setThreadNameWin32(ctx->name);
+ #elif defined(__linux__) || defined(__FreeBSD__)
+diff --git a/src/RtpVideoQueue.c b/src/RtpVideoQueue.c
+index 2b3591a..783d1bd 100644
+--- a/src/RtpVideoQueue.c
++++ b/src/RtpVideoQueue.c
+@@ -178,6 +178,7 @@ static bool queuePacket(PRTP_VIDEO_QUEUE queue, PRTPV_QUEUE_ENTRY newEntry, PRTP
+     // FEC recovery packets are synthesized by us, so don't use them to determine OOS data
+     if (!isFecRecovery) {
+         if (outOfSequence) {
++            queue->stats.packetCountOOS++;
+             // This packet was received after a higher sequence number packet, so note that we
+             // received an out of order packet to disable our speculative RFI recovery logic.
+             queue->lastOosFramePresentationTimestamp = newEntry->presentationTimeUs;
+@@ -353,6 +354,9 @@ static int reconstructFrame(PRTP_VIDEO_QUEUE queue) {
+     LC_ASSERT(ret == 0);
+ 
+     if (queue->bufferDataPackets != queue->receivedDataPackets) {
++        if (ret == 0) {
++            queue->stats.packetCountFecRecovered += queue->bufferDataPackets - queue->receivedDataPackets;
++        }
+ #ifdef FEC_VERBOSE
+         Limelog("Recovered %d video data shards from frame %d\n",
+                 queue->bufferDataPackets - queue->receivedDataPackets,
+@@ -685,6 +689,7 @@ static int addConvertedPacket(PRTP_VIDEO_QUEUE queue, PRTP_PACKET packet, int le
+         if (queue->pendingFecBlockList.count != 0) {
+             // Report the final status of the FEC queue before dropping this frame
+             reportFinalFrameFecStatus(queue);
++            queue->stats.packetCountFecFailed++;
+ 
+             if (queue->multiFecLastBlockNumber != 0) {
+                 Limelog("Unrecoverable frame %d (block %d of %d): %d+%d=%d received < %d needed\n",
+@@ -731,6 +736,7 @@ static int addConvertedPacket(PRTP_VIDEO_QUEUE queue, PRTP_PACKET packet, int le
+         if (fecCurrentBlockNumber != expectedFecBlockNumber) {
+             // Report the final status of the FEC queue before dropping this frame
+             reportFinalFrameFecStatus(queue);
++            queue->stats.packetCountFecFailed++;
+ 
+             Limelog("Unrecoverable frame %d: lost FEC blocks %d to %d\n",
+                     nvPacket->frameIndex,
+diff --git a/src/VideoStream.c b/src/VideoStream.c
+index 402b056..72270f5 100644
+--- a/src/VideoStream.c
++++ b/src/VideoStream.c
+@@ -32,7 +32,14 @@ static bool receivedFullFrame;
+ // much kernel memory with larger packet sizes. It also
+ // can smooth over transient pauses in network traffic
+ // and subsequent packet/frame bursts that follow.
++#if defined(__vita__)
++// The Vita grants at most 512 KB whatever is asked (measured: 2 MB asked, 512 KB
++// granted), and a smaller backlog limits how much stale video a pause can
++// leave in the socket.
++#define RTP_RECV_PACKETS_BUFFERED 512
++#else
+ #define RTP_RECV_PACKETS_BUFFERED 2048
++#endif
+ 
+ // Initialize the video stream
+ void initializeVideoStream(void) {
+@@ -331,6 +338,16 @@ int startVideoStream(void* rendererContext, int drFlags) {
+     rtpSocket = bindUdpSocket(RemoteAddr.ss_family, &LocalAddr, AddrLen,
+                               RTP_RECV_PACKETS_BUFFERED * (StreamConfig.packetSize + MAX_RTP_HEADER_SIZE),
+                               SOCK_QOS_TYPE_VIDEO);
++#if defined(__vita__)
++    if (rtpSocket != INVALID_SOCKET) {
++        int granted = 0;
++        SOCKADDR_LEN grantedLength = sizeof(granted);
++        if (getsockopt(rtpSocket, SOL_SOCKET, SO_RCVBUF, (char*)&granted, &grantedLength) == 0) {
++            Limelog("Video receive buffer: asked %d bytes, granted %d\n",
++                    RTP_RECV_PACKETS_BUFFERED * (StreamConfig.packetSize + MAX_RTP_HEADER_SIZE), granted);
++        }
++    }
++#endif
+     if (rtpSocket == INVALID_SOCKET) {
+         VideoCallbacks.cleanup();
+         return LastSocketError();

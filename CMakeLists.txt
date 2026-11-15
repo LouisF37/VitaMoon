@@ -7,7 +7,7 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
 	message(FATAL_ERROR "Please define VITASDK to point to your SDK path!")
   endif()
 endif()
-add_compile_options(-g3 -Wall -Wextra -Wno-unused-parameter -Wno-pointer-sign -Wno-sign-compare -Wno-switch)
+add_compile_options(-g -Wall -Wextra -Wno-unused-parameter -Wno-pointer-sign -Wno-sign-compare -Wno-switch)
 
 
 project(moonlight)
@@ -59,7 +59,13 @@ endif()
 # gnu99 rather than c99: the code relies on POSIX/GNU declarations such as strdup.
 # -fpermissive keeps GCC >= 14 from turning legacy warnings (implicit declarations,
 # int/pointer conversions) into hard errors in this code base and its submodules.
-set(CMAKE_C_FLAGS "-Wl,-q -g -std=gnu99 -fpermissive -D__vita__")
+#
+# This line replaces CMAKE_C_FLAGS outright and no build type is selected, so the
+# optimisation level has to be given here: the original build compiled the app,
+# moonlight-common-c (FEC included), ENet and the rest at -O0. VITA_OPT_LEVEL can
+# be set to -O0 for a debugging build. Debug info (-g) stays, for crash dumps.
+set(VITA_OPT_LEVEL "-O2" CACHE STRING "Optimisation flag for all C sources (-O0 to debug)")
+set(CMAKE_C_FLAGS "-Wl,-q -g ${VITA_OPT_LEVEL} -std=gnu99 -fpermissive -D__vita__")
 
 
 
@@ -67,7 +73,6 @@ include_directories(
 	include/
 	src/
 	third_party/moonlight-common-c/src/
-	third_party/moonlight-common-c/reedsolomon/
 	libgamestream/
 	third_party/libuuid/src/
 	third_party/h264bitstream/
@@ -96,6 +101,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/input/vita.c
 	src/input/shortcuts.c
 	src/power/vita.c
+	src/thread_policy.c
 	src/input/motion.c
 	src/graphics.c
 	src/font.c
@@ -117,53 +123,9 @@ add_executable(${PROJECT_NAME}.elf
 	libgamestream/sps.c
 	libgamestream/xml.c
 
-	third_party/libuuid/src/clear.c
-	third_party/libuuid/src/compare.c
-	third_party/libuuid/src/copy.c
-	third_party/libuuid/src/gen_uuid.c
-	third_party/libuuid/src/isnull.c
-	third_party/libuuid/src/pack.c
-	third_party/libuuid/src/parse.c
-	third_party/libuuid/src/unpack.c
-	third_party/libuuid/src/unparse.c
-
-	third_party/h264bitstream/h264_nal.c
-	third_party/h264bitstream/h264_sei.c
-	third_party/h264bitstream/h264_stream.c
-
-	third_party/moonlight-common-c/src/AudioStream.c
-	third_party/moonlight-common-c/src/ByteBuffer.c
-	third_party/moonlight-common-c/src/Connection.c
-	third_party/moonlight-common-c/src/ConnectionTester.c
-	third_party/moonlight-common-c/src/ControlStream.c
-	third_party/moonlight-common-c/src/FakeCallbacks.c
-	third_party/moonlight-common-c/src/InputStream.c
-	third_party/moonlight-common-c/src/LinkedBlockingQueue.c
-	third_party/moonlight-common-c/src/Misc.c
-	third_party/moonlight-common-c/src/Platform.c
-	third_party/moonlight-common-c/src/PlatformCrypto.c
-	third_party/moonlight-common-c/src/PlatformSockets.c
-	third_party/moonlight-common-c/src/RecorderCallbacks.c
-	third_party/moonlight-common-c/src/RtpAudioQueue.c
-	third_party/moonlight-common-c/src/RtpVideoQueue.c
-	third_party/moonlight-common-c/src/RtspConnection.c
-	third_party/moonlight-common-c/src/RtspParser.c
-	third_party/moonlight-common-c/src/SdpGenerator.c
-	third_party/moonlight-common-c/src/SimpleStun.c
-	third_party/moonlight-common-c/src/VideoDepacketizer.c
-	third_party/moonlight-common-c/src/VideoStream.c
-	third_party/moonlight-common-c/reedsolomon/rs.c
-
-	third_party/enet/callbacks.c
-	third_party/enet/compress.c
-	third_party/enet/host.c
-	third_party/enet/list.c
-	third_party/enet/packet.c
-	third_party/enet/peer.c
-	third_party/enet/protocol.c
-	third_party/enet/unix.c
-
-	third_party/inih/ini.c
+	# moonlight-common-c, ENet, h264bitstream, inih and libuuid are built once,
+	# as the static libraries of third_party/CMakeLists.txt linked below (they
+	# used to be compiled a second time here, and these copies won).
 
 	src/keyboardsystem.c
 	src/input/keyboardkeys.c

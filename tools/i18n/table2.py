@@ -318,4 +318,25 @@ T2 = {
     ("Zones de l'écran avant qui déclenchent un raccourci pendant le stream.",
      "Zonas de la pantalla frontal que activan un atajo durante el stream."),
 "Choose": ("Choisir", "Elegir"),
+# --- performance options from the dubleyu and juanjsebgarcia forks ---
+"Paced": ("Cadencé", "Acompasado"),
+"Smooth: one frame per refresh. Paced: frames at the PC's pace, a little later. Low latency: newest at once.":
+    ("Fluide" + NB + ": une image par rafraîchissement. Cadencé" + NB + ": au rythme du PC, un peu plus tard. Faible latence" + NB + ": la plus récente aussitôt.",
+     "Fluido: una imagen por refresco. Acompasado: al ritmo del PC, algo más tarde. Baja latencia: la más reciente al instante."),
+"Fast colour decoding": ("Décodage rapide des couleurs", "Decodificación rápida del color"),
+"The graphics chip converts the colours instead of the decoder: about 2 ms less per frame.":
+    ("La puce graphique convertit les couleurs à la place du décodeur" + NB + ": environ 2 ms de moins par image.",
+     "El chip gráfico convierte los colores en lugar del decodificador: unos 2 ms menos por imagen."),
+"Wait for late packets": ("Attendre les paquets en retard", "Esperar paquetes retrasados"),
+"Wi-Fi delivers some packets out of order. Waiting for them avoids a frozen picture.":
+    ("Le Wi-Fi livre certains paquets dans le désordre. Les attendre évite une image figée.",
+     "El Wi-Fi entrega algunos paquetes desordenados. Esperarlos evita una imagen congelada."),
+"No wait": ("Pas d'attente", "Sin espera"),
+"1024, Moonlight's value, lost the fewest packets on a Vita. Larger: fewer packets per frame.":
+    ("1024, la valeur de Moonlight, a perdu le moins de paquets sur une Vita. Plus grand" + NB + ": moins de paquets par image.",
+     "1024, el valor de Moonlight, perdió menos paquetes en una Vita. Mayor: menos paquetes por imagen."),
+"Spread work over the cores": ("Répartir le travail sur les cœurs", "Repartir el trabajo entre los núcleos"),
+"Network, decoding and display each on their own core. Off: the system places them.":
+    ("Réseau, décodage et affichage chacun sur son cœur. Désactivé" + NB + ": le système les place.",
+     "Red, decodificación y visualización, cada uno en su núcleo. Desactivado: el sistema los coloca."),
 }

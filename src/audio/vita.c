@@ -28,6 +28,9 @@
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h>
 #include "../video/stream_stats.h"
+#include "../thread_policy.h"
+
+#include <Limelight.h>
 
 enum {
   VITA_AUDIO_INIT_OK        = 0,
@@ -38,9 +41,16 @@ enum {
 /*
  * Two output modes (setting "Low-latency audio"):
  *
- * Classic (original): 5 ms packets are accumulated up to 20 ms, then handed to a
- * 20 ms audio port from the network receive thread, which blocks there until
- * the previous 20 ms have played.
+ * Decoding runs on moonlight-common-c's AudioDec thread (the renderer declares
+ * CAPABILITY_SLOW_OPUS_DECODER): the AudioRecv thread only reads the network,
+ * as in dubleyu/vita-moonlight-relay and juanjsebgarcia/vita-moonlight.
+ *
+ * Classic (original): packets are accumulated up to 20 ms, then handed to a
+ * 20 ms audio port, which blocks until the previous 20 ms have played. Two
+ * blocks are used in turn, so a block is never rewritten while it may still be
+ * playing. After a network stall, packets that queued up beyond 60 ms are
+ * decoded (to keep the decoder's state) but not played, so the sound does not
+ * stay behind the picture (dubleyu/vita-moonlight-relay).
  *
  * Low latency: decoded packets go into a ring buffer; a dedicated thread feeds a
  * 5.33 ms port (256 frames; the port size must be a multiple of 64 frames) and
@@ -76,14 +86,17 @@ enum {
 #define LL_OUT_BUFFERS 4        /* output blocks used in rotation */
 #define LL_MAX_PACKET 960       /* largest Opus packet accepted: 20 ms */
 
+#define CLASSIC_CATCHUP_MS 60   /* audio queued beyond this is skipped (classic mode) */
+
 static int decode_offset;
 static int port = -1;
 static int samples_per_frame = FRAME_SIZE;
+static int classic_block = 0;     /* which of the two classic output blocks is filled */
 
 static int active_audio_thread = true;
 static OpusMSDecoder* decoder = NULL;
 
-static short buffer[BUFFER_SIZE];
+static short buffer[2][BUFFER_SIZE];
 
 /* Low-latency mode state. Single producer (receive thread writes ll_head),
  * single consumer (output thread writes ll_tail): no lock needed. */
@@ -110,6 +123,7 @@ static inline void ring_read(uint32_t pos, short *left, short *right) {
 }
 
 static int ll_output_thread(SceSize args, void *argp) {
+  thread_place(0, CORE_MEDIA);
   bool playing = false;
   uint32_t target = LL_TARGET_START;  /* cushion wanted in the ring, in frames */
   uint32_t win_min = 0xFFFFFFFF;      /* smallest cushion seen in the current window */
@@ -251,6 +265,15 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
   // Both modes assume stereo (2 interleaved channels), as the original code did.
   ll_mode = config.low_latency_audio && opusConfig->channelCount == 2;
   decode_offset = 0;
+  classic_block = 0;
+  // Classic mode fills 20 ms blocks with whole packets: the packet length must
+  // divide 960 frames (5, 10 and 20 ms packets do).
+  if (!ll_mode && (VITA_SAMPLES % samples_per_frame) != 0) {
+    vita_debug_log("audio: %d-frame packets do not fit 20 ms blocks\n", samples_per_frame);
+    opus_multistream_decoder_destroy(decoder);
+    decoder = NULL;
+    return VITA_AUDIO_ERROR_BAD_OPUS;
+  }
   port = sceAudioOutOpenPort(SCE_AUDIO_OUT_PORT_TYPE_MAIN, ll_mode ? LL_GRAIN : VITA_SAMPLES,
                              48000, SCE_AUDIO_OUT_MODE_STEREO);
 
@@ -263,7 +286,7 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
     ll_head = 0;
     ll_tail = 0;
     ll_running = true;
-    ll_thread = sceKernelCreateThread("vita_audio_out", ll_output_thread, 64, 0x8000, 0, 0, NULL);
+    ll_thread = sceKernelCreateThread("vita_audio_out", ll_output_thread, STREAM_THREAD_PRIORITY, 0x8000, 0, 0, NULL);
     if (ll_thread >= 0) {
       sceKernelStartThread(ll_thread, 0, NULL);
     } else {
@@ -303,35 +326,42 @@ static void ll_queue_packet(char* data, int length) {
   __atomic_store_n(&ll_head, head + (uint32_t)n, __ATOMIC_RELEASE);
 }
 
+/* Runs on moonlight-common-c's AudioDec thread (priority and core set in
+ * thread_policy.c). data == NULL: a lost packet, concealed by Opus. */
 static void vita_renderer_decode_and_play_sample(char* data, int length) {
-  // Runs on the audio receive thread: raise it once to the highest user priority.
-  static SceUID boosted_thread = -1;
-  if (boosted_thread != sceKernelGetThreadId()) {
-    boosted_thread = sceKernelGetThreadId();
-    sceKernelChangeThreadPriority(boosted_thread, 64);
-  }
-
   if (ll_mode) {
     ll_queue_packet(data, length);
     return;
   }
 
-  // Classic mode: each packet carries 5 ms of sound (FRAME_SIZE samples). They are
-  // accumulated up to VITA_SAMPLES (20 ms) before being handed to the audio port,
-  // which blocks until the previous 20 ms have been played.
-  int decodeLen = data ? opus_multistream_decode(decoder, (const unsigned char *)data, length, buffer + 2 * decode_offset, FRAME_SIZE, 0)
-                       : opus_multistream_decode(decoder, NULL, 0, buffer + 2 * decode_offset, FRAME_SIZE, 0);
-  stream_stats_on_audio_packet(data != NULL && decodeLen == FRAME_SIZE);
+  // Classic mode: packets are accumulated up to VITA_SAMPLES (20 ms) before
+  // being handed to the audio port, which blocks until the previous 20 ms have
+  // been played.
+  if (LiGetPendingAudioDuration() > CLASSIC_CATCHUP_MS) {
+    // Behind after a stall: decode to keep the decoder's state, do not play.
+    static short scratch[LL_MAX_PACKET * 2];
+    int n = opus_multistream_decode(decoder, (const unsigned char *)data, data ? length : 0,
+                                    scratch, samples_per_frame, 0);
+    stream_stats_on_audio_packet(data != NULL && n > 0);
+    if (n > 0)
+      stream_stats_on_audio_skip(frames_to_us((uint32_t)n));
+    return;
+  }
+  short *block = buffer[classic_block];
+  int decodeLen = opus_multistream_decode(decoder, (const unsigned char *)data, data ? length : 0,
+                                          block + 2 * decode_offset, samples_per_frame, 0);
+  stream_stats_on_audio_packet(data != NULL && decodeLen == samples_per_frame);
   if (decodeLen > 0) {
-    if (decodeLen != FRAME_SIZE)
+    if (decodeLen != samples_per_frame)
       return;
     decode_offset += decodeLen;
 
     if (decode_offset == VITA_SAMPLES) {
       decode_offset = 0;
+      classic_block ^= 1;   // the next 20 ms go into the other block
       if (active_audio_thread) {
         SceUInt64 t0 = sceKernelGetProcessTimeWide();
-        sceAudioOutOutput(port, buffer);
+        sceAudioOutOutput(port, block);
         stream_stats_on_audio_output((uint32_t)(sceKernelGetProcessTimeWide() - t0));
       }
     }
@@ -344,7 +374,8 @@ AUDIO_RENDERER_CALLBACKS audio_callbacks_vita = {
   .init = vita_renderer_init,
   .cleanup = vita_renderer_cleanup,
   .decodeAndPlaySample = vita_renderer_decode_and_play_sample,
-  .capabilities = CAPABILITY_DIRECT_SUBMIT,
+  // Decode on common-c's AudioDec thread, not on the network receive thread.
+  .capabilities = CAPABILITY_SLOW_OPUS_DECODER,
 };
 
 

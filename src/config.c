@@ -108,6 +108,12 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->auto_bitrate = false;
     } else if (strcmp(name, "auto_bitrate") == 0) {
       config->auto_bitrate = BOOL(value);
+    } else if (strcmp(name, "packet_size") == 0) {
+      // Earlier versions wrote "packetsize" but never read it back, so a value
+      // under that key was never a choice that took effect: it is ignored and
+      // the measured default applies. An out-of-range value falls back to it.
+      int size = INT(value);
+      config->stream.packetSize = size >= PACKET_SIZE_MIN && size <= PACKET_SIZE_MAX ? size : PACKET_SIZE_DEFAULT;
     } else if (strcmp(name, "sops") == 0) {
       config->sops = BOOL(value);
     } else if (strcmp(name, "localaudio") == 0) {
@@ -148,6 +154,13 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->http_keepalive = BOOL(value);
     } else if (strcmp(name, "ui_msaa") == 0) {
       config->ui_msaa = BOOL(value);
+    } else if (strcmp(name, "decode_yuv") == 0) {
+      config->decode_yuv = BOOL(value);
+    } else if (strcmp(name, "video_reorder_wait_ms") == 0) {
+      int wait = INT(value);
+      config->video_reorder_wait_ms = wait < 0 ? 0 : (wait > 50 ? 50 : wait);
+    } else if (strcmp(name, "thread_pinning") == 0) {
+      config->thread_pinning = BOOL(value);
     } else if (strcmp(name, "enable_motion_controls") == 0) {
       config->enable_motion_controls = BOOL(value);
     } else if (strcmp(name, "enable_front_touchzones") == 0) {
@@ -202,7 +215,7 @@ void config_save(const char* filename, PCONFIGURATION config) {
   // no auto_bitrate line (older versions) as a manual choice.
   write_config_int(fd, "bitrate", config->stream.bitrate);
   write_config_bool(fd, "auto_bitrate", config->auto_bitrate);
-  write_config_int(fd, "packetsize", config->stream.packetSize);
+  write_config_int(fd, "packet_size", config->stream.packetSize);
   if (!config->sops)
     write_config_bool(fd, "sops", config->sops);
   if (config->localaudio)
@@ -231,6 +244,9 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_bool(fd, "decoder_catchup", config->decoder_catchup);
   write_config_bool(fd, "http_keepalive", config->http_keepalive);
   write_config_bool(fd, "ui_msaa", config->ui_msaa);
+  write_config_bool(fd, "decode_yuv", config->decode_yuv);
+  write_config_int(fd, "video_reorder_wait_ms", config->video_reorder_wait_ms);
+  write_config_bool(fd, "thread_pinning", config->thread_pinning);
   write_config_bool(fd, "enable_motion_controls", config->enable_motion_controls);
   write_config_bool(fd, "enable_psbutton_capture", config->enable_psbutton_capture);
   write_config_bool(fd, "enable_double_tap_sprint", config->enable_double_tap_sprint);
@@ -306,10 +322,17 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->stream.fps = 60;
   config->stream.bitrate = -1;
   config->auto_bitrate = true;
-  config->stream.packetSize = 1392; // beta default: fewer packets per frame on a home LAN
+  // 1024, Moonlight's value. Measured on a Vita by juanjsebgarcia/vita-moonlight:
+  // 1392-byte packets saved no receive time and lost more (59 vs 43 per minute).
+  config->stream.packetSize = PACKET_SIZE_DEFAULT;
   config->stream.streamingRemotely = 0;
   config->stream.audioConfiguration = AUDIO_CONFIGURATION_STEREO;
   config->stream.supportedVideoFormats = VIDEO_FORMAT_H264;
+  // The YUV path draws the decoder's output through a *_CSC0 texture, which
+  // converts as BT.601 limited range: ask the host for exactly that (these are
+  // also moonlight-common-c's defaults). Change both together.
+  config->stream.colorSpace = COLORSPACE_REC_601;
+  config->stream.colorRange = COLOR_RANGE_LIMITED;
 
   config->platform = "vita";
   config->model = sceKernelGetModelForCDialog();
@@ -344,6 +367,13 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->decoder_catchup = true;
   config->http_keepalive = false;
   config->ui_msaa = true;
+  // Measured on a Vita by juanjsebgarcia/vita-moonlight: hardware decode 4.6 -> 2.4 ms.
+  config->decode_yuv = true;
+  // Same source, ~60 % Wi-Fi signal: 23-37 picture freezes a minute without the
+  // wait, 2-8 with 10 ms, 1-3 with 20 ms, same latency estimate.
+  config->video_reorder_wait_ms = 20;
+  // dubleyu/vita-moonlight-relay spreads the streaming work over the 3 cores.
+  config->thread_pinning = true;
   config->language = 0; // English
   config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;

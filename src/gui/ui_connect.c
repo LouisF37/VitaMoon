@@ -92,7 +92,9 @@ static int host_open(const char *name, char *address, uint16_t port) {
   char key_dir[4096 + 260];
   snprintf(key_dir, sizeof(key_dir), "%s/%s", config.key_dir, name);
   http_set_reuse(config.http_keepalive);
+  vitapower_busy_begin();
   int ret = gs_init(&server, address, port, key_dir, config.save_debug_log ? 3 : 0, true);
+  vitapower_busy_end();
   if (ret == GS_UNSUPPORTED_VERSION && config.unsupported_version)
     ret = GS_OK;
   vita_debug_log("[CONNECT] %s (%s:%d): status %d", name, address, port, ret);
@@ -102,8 +104,11 @@ static int host_open(const char *name, char *address, uint16_t port) {
 void ui_connect_stream(int appId) {
   // TODO support force controller id
   vita_debug_log("Running gs_start_app...");
+  // Clocks up from the launch request to the end of the stream setup (RTSP).
+  vitapower_busy_begin();
   int ret = gs_start_app(&server, &config.stream, appId, config.sops, config.localaudio, 1);
   if (ret < 0) {
+    vitapower_busy_end();
     if (ret == GS_NOT_SUPPORTED_4K)
       display_error(tr("The PC cannot stream in 4K."));
     else if (ret == GS_NOT_SUPPORTED_MODE)
@@ -155,9 +160,13 @@ void ui_connect_stream(int appId) {
 
   stream_stats_set_app(appId);
   vita_debug_log("Running LiStartConnection...");
+  // Wait for late video packets before giving a frame up (juanjsebgarcia's
+  // reorder window, third_party/patches/moonlight-common-c).
+  LiSetVideoReorderWaitUs((uint32_t)(config.video_reorder_wait_ms > 0 ? config.video_reorder_wait_ms : 0) * 1000);
   ret = LiStartConnection(&server.serverInfo, &config.stream, &connection_callbacks,
                           video_callback, platform_get_audio(system),
                           NULL, drFlags, NULL, 0);
+  vitapower_busy_end();
   vita_debug_log("Connection started.");
 
   // Restore the requested resolution
@@ -217,7 +226,9 @@ static int ui_launch_app(int id) {
 /* Quit the app running on the host. */
 static int ui_quit_app(void) {
   flash_message(tr("Quitting game..."));
+  vitapower_busy_begin();
   int ret = gs_quit_app(&server);
+  vitapower_busy_end();
   if (ret == GS_OK) {
     connection_paired();
     server.currentGame = 0;
@@ -238,7 +249,9 @@ static int pair_with_code(const char *host_name) {
   snprintf(url, sizeof(url), "https://%s:%d", server.serverInfo.address, server.httpPort + 1);
   flash_pairing_code(host_name, pin, url);
   vita_debug_log("[PAIR] waiting for the code to be typed on the PC");
+  vitapower_busy_begin();
   int ret = gs_pair(&server, pin);
+  vitapower_busy_end();
   vita_debug_log("[PAIR] gs_pair returned %d", ret);
   if (ret != GS_OK)
     display_error(tr("Pairing failed (error %d).\n%s\nCheck the code typed on the PC, then try again."),
@@ -310,7 +323,9 @@ int ui_connected_menu() {
   int ret;
   int app_count = 0;
   if (server.paired) {
+    vitapower_busy_begin();
     ret = gs_applist(&server, &server_applist);
+    vitapower_busy_end();
     if (ret != GS_OK) {
       display_error(tr("Could not get the list of games (error %d).\n%s"), ret, gs_error ? gs_error : "");
       return 0;

@@ -34,5 +34,10 @@ int http_init(const char* keyDirectory, int logLevel);
 void http_set_reuse(bool reuse);
 void http_cleanup();
 PHTTP_DATA http_create_data();
+/* Seconds a request may take in all, unless it asks for its own limit. */
+#define HTTP_REQUEST_TIMEOUT 10
+/* Gives up after HTTP_REQUEST_TIMEOUT seconds. */
 int http_request(char* url, PHTTP_DATA data);
+/* As http_request, with its own limit in seconds (0 waits for ever). */
+int http_request_timeout(char* url, PHTTP_DATA data, long timeout_s);
 void http_free_data(PHTTP_DATA data);

@@ -483,11 +483,12 @@ typedef enum { ROW_CHOICE, ROW_TOGGLE, ROW_ACTION } row_type;
 enum {
   S_LANGUAGE, S_SHOW_STATS, S_SWAP_XO, S_KEEP_AWAKE, S_DEBUG_LOG,
   S_RESOLUTION, S_FPS, S_BITRATE, S_CROP, S_LOCAL_AUDIO,
-  S_PROFILE, S_DISPLAY_MODE, S_LL_AUDIO, S_CATCHUP, S_BOOST, S_MATCH_REFRESH, S_PACKET_SIZE,
+  S_PROFILE, S_DISPLAY_MODE, S_LL_AUDIO, S_CATCHUP, S_YUV, S_REORDER, S_BOOST, S_MATCH_REFRESH,
+  S_PACKET_SIZE,
   S_CONTROLLER_TYPE, S_SWAP_SHOULDER, S_MAPPING, S_PS_CAPTURE, S_DOUBLE_TAP_SPRINT, S_SPRINT_TIME,
   S_MOTION, S_MOTION_X, S_MOTION_Y, S_KEYBOARD_LAYOUT,
   S_TOUCH_MODE, S_MOUSE_ACCEL, S_SPECIAL_KEYS, S_SPECIAL_KEYS_SETUP, S_DEADZONE,
-  S_REMOTE, S_RFI, S_SOPS, S_FRAME_PACER, S_VBLANK, S_KEEPALIVE, S_MSAA
+  S_REMOTE, S_RFI, S_SOPS, S_FRAME_PACER, S_VBLANK, S_PINNING, S_KEEPALIVE, S_MSAA
 };
 
 typedef struct {
@@ -527,17 +528,21 @@ static const setting_row k_rows[] = {
   {S_PROFILE, CAT_PERFORMANCE, ROW_CHOICE, N_("Profile"),
    N_("Sets the options below at once. Smooth is the default; Original is the app as it was before.")},
   {S_DISPLAY_MODE, CAT_PERFORMANCE, ROW_CHOICE, N_("Display"),
-   N_("Smooth: one frame per screen refresh, drawn just in time. Low latency: newest frame at once. Direct: original code.")},
+   N_("Smooth: one frame per refresh. Paced: frames at the PC's pace, a little later. Low latency: newest at once.")},
   {S_LL_AUDIO, CAT_PERFORMANCE, ROW_TOGGLE, N_("Low-latency sound"),
    N_("5 ms sound blocks and a buffer that adapts to the Wi-Fi link. Off: original 20 ms blocks.")},
   {S_CATCHUP, CAT_PERFORMANCE, ROW_TOGGLE, N_("Decoder catch-up"),
    N_("Takes back the frames the video decoder sometimes keeps: each one is 17 ms of delay.")},
+  {S_YUV, CAT_PERFORMANCE, ROW_TOGGLE, N_("Fast colour decoding"),
+   N_("The graphics chip converts the colours instead of the decoder: about 2 ms less per frame.")},
+  {S_REORDER, CAT_PERFORMANCE, ROW_CHOICE, N_("Wait for late packets"),
+   N_("Wi-Fi delivers some packets out of order. Waiting for them avoids a frozen picture.")},
   {S_BOOST, CAT_PERFORMANCE, ROW_TOGGLE, N_("Maximum CPU and GPU speed"),
    N_("CPU at 444 MHz and GPU at 222 MHz while streaming. Uses a little more battery.")},
   {S_MATCH_REFRESH, CAT_PERFORMANCE, ROW_TOGGLE, N_("Match the Vita screen rate"),
    N_("The PC encodes at the exact rate of the Vita screen, which avoids regular skipped frames.")},
   {S_PACKET_SIZE, CAT_PERFORMANCE, ROW_CHOICE, N_("Video packet size"),
-   N_("1392: fewer packets per frame, best on a home network. 1024: original value.")},
+   N_("1024, Moonlight's value, lost the fewest packets on a Vita. Larger: fewer packets per frame.")},
 
   /* Controls */
   {S_CONTROLLER_TYPE, CAT_CONTROLS, ROW_CHOICE, N_("Controller seen by the PC"),
@@ -584,6 +589,8 @@ static const setting_row k_rows[] = {
    N_("Original frame pacing. Only used by the Direct display.")},
   {S_VBLANK, CAT_ADVANCED, ROW_TOGGLE, N_("Wait for the screen refresh"),
    N_("Direct display only: less tearing, a little more delay.")},
+  {S_PINNING, CAT_ADVANCED, ROW_TOGGLE, N_("Spread work over the cores"),
+   N_("Network, decoding and display each on their own core. Off: the system places them.")},
   {S_KEEPALIVE, CAT_ADVANCED, ROW_TOGGLE, N_("Keep the link to the PC open"),
    N_("Experimental: the menus and covers load faster. Turn off if the PC stops answering.")},
   {S_MSAA, CAT_ADVANCED, ROW_TOGGLE, N_("Smooth edges"),
@@ -595,7 +602,12 @@ static const setting_row k_rows[] = {
 
 static const char *k_controller_names[] = {"Xbox", "PlayStation"};
 
-static const char *k_display_names[] = {N_("Direct (original)"), N_("Low latency"), N_("Smooth")};
+/* By DISPLAY_MODE_* value; offered in the order of k_display_order */
+static const char *k_display_names[] = {N_("Direct (original)"), N_("Low latency"), N_("Smooth"), N_("Paced")};
+static const int k_display_order[] = {DISPLAY_MODE_SMOOTH, DISPLAY_MODE_PACED, DISPLAY_MODE_LOW_LATENCY,
+                                      DISPLAY_MODE_DIRECT};
+static const int k_packet_values[] = {1024, 1200, 1392};
+static const int k_reorder_values[] = {0, 10, 20, 30};
 /* 0 is the original behaviour: the screen works like a laptop trackpad */
 static const char *k_touch_names[] = {N_("Trackpad"), N_("PS touch pad"), N_("Direct pointing"), N_("Pen tablet")};
 static const char *k_keyboard_names[] = {N_("English (US)"), N_("Spanish (Spain)"), N_("Spanish (Latin America)")};
@@ -605,25 +617,35 @@ static const int k_fps_values[] = {24, 30, 40, 50, 60};
 static const int k_bitrate_values[] = {0, 2000, 3000, 4000, 5000, 6000, 8000, 10000, 12000, 15000, 20000};
 static const int k_sprint_values[] = {150, 200, 250, 300, 400, 500};
 
-enum { PROFILE_SMOOTH, PROFILE_LATENCY, PROFILE_ORIGINAL, PROFILE_CUSTOM };
-static const char *k_profile_names[] = {N_("Smooth"), N_("Lowest latency"), N_("Original"), N_("Custom")};
+/* Profiles set the display, sound, decoder catch-up, colour decoding, wait for
+ * late packets and core placement at once. Original turns all of them back to
+ * the app's original behaviour. */
+enum { PROFILE_SMOOTH, PROFILE_PACED, PROFILE_LATENCY, PROFILE_ORIGINAL, PROFILE_CUSTOM };
+#define PROFILE_PRESETS 4
+static const char *k_profile_names[] = {N_("Smooth"), N_("Paced"), N_("Lowest latency"), N_("Original"), N_("Custom")};
+static const int k_profile_display[] = {DISPLAY_MODE_SMOOTH, DISPLAY_MODE_PACED, DISPLAY_MODE_LOW_LATENCY,
+                                        DISPLAY_MODE_DIRECT};
+#define REORDER_DEFAULT_MS 20
 
 static int current_profile(void) {
-  if (config.low_latency_audio && config.decoder_catchup) {
-    if (config.display_mode == DISPLAY_MODE_SMOOTH) return PROFILE_SMOOTH;
-    if (config.display_mode == DISPLAY_MODE_LOW_LATENCY) return PROFILE_LATENCY;
+  for (int p = 0; p < PROFILE_PRESETS; p++) {
+    bool on = p != PROFILE_ORIGINAL;
+    if (config.display_mode == k_profile_display[p] && config.low_latency_audio == on &&
+        config.decoder_catchup == on && config.decode_yuv == on && config.thread_pinning == on &&
+        config.video_reorder_wait_ms == (on ? REORDER_DEFAULT_MS : 0))
+      return p;
   }
-  if (!config.low_latency_audio && !config.decoder_catchup && config.display_mode == DISPLAY_MODE_DIRECT)
-    return PROFILE_ORIGINAL;
   return PROFILE_CUSTOM;
 }
 
 static void apply_profile(int profile) {
-  bool original = profile == PROFILE_ORIGINAL;
-  config.display_mode = original ? DISPLAY_MODE_DIRECT
-                                 : (profile == PROFILE_LATENCY ? DISPLAY_MODE_LOW_LATENCY : DISPLAY_MODE_SMOOTH);
-  config.low_latency_audio = !original;
-  config.decoder_catchup = !original;
+  bool on = profile != PROFILE_ORIGINAL;
+  config.display_mode = k_profile_display[profile];
+  config.low_latency_audio = on;
+  config.decoder_catchup = on;
+  config.decode_yuv = on;
+  config.thread_pinning = on;
+  config.video_reorder_wait_ms = on ? REORDER_DEFAULT_MS : 0;
 }
 
 /* Resolutions the hardware decoder accepts, probed once. */
@@ -713,6 +735,8 @@ static bool row_is_on(int id) {
     case S_VBLANK: return config.enable_vita_vblank_wait;
     case S_KEEPALIVE: return config.http_keepalive;
     case S_MSAA: return config.ui_msaa;
+    case S_YUV: return config.decode_yuv;
+    case S_PINNING: return config.thread_pinning;
     default: return false;
   }
 }
@@ -742,7 +766,14 @@ static void row_value(int id, char *out, size_t n) {
       snprintf(out, n, "%s", tr(k_profile_names[current_profile()]));
       break;
     case S_DISPLAY_MODE:
-      snprintf(out, n, "%s", tr(k_display_names[config.display_mode >= 0 && config.display_mode <= 2 ? config.display_mode : 0]));
+      snprintf(out, n, "%s", tr(k_display_names[config.display_mode >= DISPLAY_MODE_DIRECT &&
+                                                  config.display_mode <= DISPLAY_MODE_PACED ? config.display_mode : 0]));
+      break;
+    case S_REORDER:
+      if (config.video_reorder_wait_ms <= 0)
+        snprintf(out, n, "%s", tr("No wait"));
+      else
+        snprintf(out, n, "%d ms", config.video_reorder_wait_ms);
       break;
     case S_PACKET_SIZE:
       snprintf(out, n, tr("%d bytes"), config.stream.packetSize);
@@ -812,6 +843,8 @@ static bool row_change(int id, int dir) {
     case S_VBLANK: config.enable_vita_vblank_wait = !config.enable_vita_vblank_wait; return true;
     case S_KEEPALIVE: config.http_keepalive = !config.http_keepalive; return true;
     case S_MSAA: config.ui_msaa = !config.ui_msaa; return true;
+    case S_YUV: config.decode_yuv = !config.decode_yuv; return true;
+    case S_PINNING: config.thread_pinning = !config.thread_pinning; return true;
     case S_SWAP_SHOULDER:
       config.swap_shoulder_buttons = !config.swap_shoulder_buttons;
       // Mutually exclusive: the swap turns the mapping file off
@@ -878,19 +911,43 @@ static bool row_change(int id, int dir) {
       if (profile == PROFILE_CUSTOM)
         profile = step > 0 ? PROFILE_SMOOTH : PROFILE_ORIGINAL;
       else
-        profile = (profile + 3 + step) % 3;
+        profile = (profile + PROFILE_PRESETS + step) % PROFILE_PRESETS;
       apply_profile(profile);
       return true;
     }
-    case S_DISPLAY_MODE:
-      // shown from the default (Smooth) down to the original: 2 -> 1 -> 0
-      config.display_mode = (config.display_mode + 3 - step) % 3;
+    case S_DISPLAY_MODE: {
+      // offered from the default (Smooth) down to the original (Direct)
+      const int count = sizeof(k_display_order) / sizeof(int);
+      int pos = 0;
+      while (pos < count && k_display_order[pos] != config.display_mode)
+        pos++;
+      if (pos >= count)
+        pos = 0;
+      config.display_mode = k_display_order[(pos + count + step) % count];
       return true;
-    case S_PACKET_SIZE:
-      // 1024 (original) or 1392 (largest multiple of 16 that fits a 1500-byte
-      // Ethernet/Wi-Fi frame with headers): fewer, larger packets per frame.
-      config.stream.packetSize = config.stream.packetSize == 1392 ? 1024 : 1392;
+    }
+    case S_REORDER: {
+      const int count = sizeof(k_reorder_values) / sizeof(int);
+      int pos = step_in_list(k_reorder_values, count, config.video_reorder_wait_ms, step);
+      if (dir == 0)  // X: next value, round
+        pos = config.video_reorder_wait_ms >= k_reorder_values[count - 1] ? 0
+              : step_in_list(k_reorder_values, count, config.video_reorder_wait_ms, 1);
+      config.video_reorder_wait_ms = k_reorder_values[pos];
       return true;
+    }
+    case S_PACKET_SIZE: {
+      // 1024 is Moonlight's value; 1392 is the largest multiple of 16 that fits
+      // a 1500-byte frame with its headers: fewer, larger packets per frame.
+      const int count = sizeof(k_packet_values) / sizeof(int);
+      int pos;
+      if (dir == 0)
+        pos = config.stream.packetSize >= k_packet_values[count - 1] ? 0
+              : step_in_list(k_packet_values, count, config.stream.packetSize, 1);
+      else
+        pos = step_in_list(k_packet_values, count, config.stream.packetSize, step);
+      config.stream.packetSize = k_packet_values[pos];
+      return true;
+    }
     case S_CONTROLLER_TYPE:
       config.controller_type = config.controller_type == 1 ? 2 : 1;
       return true;

@@ -69,6 +69,9 @@ bool vitavideo_initialized(void) { return false; }
 void vitapower_config(CONFIGURATION c) {}
 static int fake_wifi_power_save = 0;
 int vitapower_wifi_power_save(void) { return fake_wifi_power_save; }
+void vitapower_busy_begin(void) {}
+void vitapower_busy_end(void) {}
+void LiSetVideoReorderWaitUs(uint32_t wait_us) {}
 void vitainput_config(CONFIGURATION c) {}
 void ui_search_device(void) {}
 int ui_check_ip_update(device_info_t *info, const char *new_ip) { return 0; }
@@ -222,6 +225,8 @@ static void scenario_settings_change(void) {
   preview_press(SCE_CTRL_RTRIGGER); preview_press(SCE_CTRL_RTRIGGER);
   preview_press(SCE_CTRL_RIGHT);
   preview_snap("settings_profile_smooth");
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("settings_profile_paced");
   preview_press(SCE_CTRL_RIGHT);
   preview_snap("settings_profile_latency");
   preview_press(SCE_CTRL_RIGHT);
