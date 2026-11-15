@@ -8,3 +8,6 @@ mdns_discovery.py
 psp2core_tmp.psp2dmp
 .vscode/settings.json
 __pycache__/
+
+# Python packages downloaded by tools
+*.whl
