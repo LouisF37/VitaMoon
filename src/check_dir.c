@@ -1,106 +1,79 @@
 #include <psp2/io/stat.h>
 #include <stdio.h>
 #include <string.h>
+#include "app_info.h"
 #include "debug.h"
 #include "config.h"
 #include "check_dir.h"
 
-// Tries to create the folder in several places; returns the one that worked in out_path
-// Errors are written to ux0:data/moonlight.log
-// out_path and out_key_dir must hold at least MOONLIGHT_PATH_MAX bytes
-void check_and_create_moonlight_dir(char* out_path, char* out_key_dir) {
-    #ifdef USE_DIR_UMA0
-    const char* test_paths[] = {
-        "uma0:data/moonlight"
-    };
-    int path_count = 1;
-    #else
-    const char* test_paths[] = {
-        "ux0:data/moonlight",
-        "ux0:moonlight",
-        "uma0:data/moonlight"
-    };
-    int path_count = sizeof(test_paths)/sizeof(test_paths[0]);
-    #endif
-    int success_idx = -1;
-    int mkdir_result = 0;
-    char log_path[MOONLIGHT_PATH_MAX];
-    if (success_idx >= 0) {
-        // Extract the base storage (ux0:data or uma0:data)
-        const char* base = test_paths[success_idx];
-        if (strncmp(base, "uma0:data", 9) == 0) {
-            snprintf(log_path, MOONLIGHT_PATH_MAX, "uma0:data/moonlight.log");
-        } else {
-            snprintf(log_path, MOONLIGHT_PATH_MAX, "ux0:data/moonlight.log");
-        }
-        log_path[MOONLIGHT_PATH_MAX-1] = '\0';
-    } else {
-        snprintf(log_path, MOONLIGHT_PATH_MAX, "ux0:data/moonlight.log");
-        log_path[MOONLIGHT_PATH_MAX-1] = '\0';
-    }
-    int ux0_failed = 0;
-    for (int i = 0; i < path_count; i++) {
-        mkdir_result = sceIoMkdir(test_paths[i], 0777);
-        if (mkdir_result >= 0 || mkdir_result == 0x80010011) { // 0x80010011 = already exists
-            success_idx = i;
-            vita_debug_log("[Moonlight] Folder created/existing: %s", test_paths[i]);
-            break;
-        } else {
-            if (i == 0 && strncmp(test_paths[i], "ux0:data", 8) == 0) {
-                ux0_failed = 1;
-            }
-        }
-    }
-    FILE* test_log = NULL;
-    if (success_idx >= 0) {
-        snprintf(out_key_dir, MOONLIGHT_PATH_MAX, "%s/", test_paths[success_idx]);
-        out_key_dir[MOONLIGHT_PATH_MAX-1] = '\0';
-        snprintf(out_path, MOONLIGHT_PATH_MAX, "%s/moonlight.conf", test_paths[success_idx]);
-        out_path[MOONLIGHT_PATH_MAX-1] = '\0';
-        // If ux0 failed and uma0 worked, write the log to uma0:data/moonlight.log
-        if (strncmp(test_paths[success_idx], "uma0:data", 9) == 0 && ux0_failed) {
-            snprintf(log_path, MOONLIGHT_PATH_MAX, "uma0:data/moonlight.log");
-            log_path[MOONLIGHT_PATH_MAX-1] = '\0';
-            test_log = fopen(log_path, "w");
-            if (test_log) {
-                fprintf(test_log, "[Moonlight] ux0:data/moonlight could not be created. Folder was created in uma0:data/moonlight instead.\n");
-                fclose(test_log);
-            }
-        }
-    } else {
-        snprintf(out_key_dir, MOONLIGHT_PATH_MAX, "ux0:data/");
-        out_key_dir[MOONLIGHT_PATH_MAX-1] = '\0';
-        snprintf(out_path, MOONLIGHT_PATH_MAX, "ux0:data/moonlight.conf");
-        out_path[MOONLIGHT_PATH_MAX-1] = '\0';
-        snprintf(log_path, MOONLIGHT_PATH_MAX, "ux0:data/moonlight.log");
-        log_path[MOONLIGHT_PATH_MAX-1] = '\0';
-        test_log = fopen(log_path, "w");
-        if (test_log) {
-            fprintf(test_log, "[Moonlight] No folder could be created, using ux0:data as fallback.\n");
-            fclose(test_log);
-        }
-    }
-    // Create moonlight.conf if it does not exist
-    FILE* conf_file = fopen(out_path, "a");
-    if (conf_file) fclose(conf_file);
-    // test_log, when opened above, is already closed.
+#define SCE_ERROR_ALREADY_EXISTS 0x80010011
 
-    // Save only key_dir in moonlight.conf
-    FILE* conf_save = fopen(out_path, "r+");
-    if (conf_save) {
-        // Look for an existing key_dir line
-        char line[512];
-        int found = 0;
-        while (fgets(line, sizeof(line), conf_save)) {
-            if (strncmp(line, "key_dir = ", 10) == 0) {
-                found = 1;
-                break;
-            }
-        }
-        if (!found) {
-            fseek(conf_save, 0, SEEK_END);
-            fprintf(conf_save, "key_dir = %s\n", out_key_dir);
-        }
-        fclose(conf_save);
+// Writes a one-line note next to the data folder, for the cases where it could
+// not be created where expected (the debug log is not open yet).
+static void write_note(const char *path, const char *message) {
+  FILE *f = fopen(path, "w");
+  if (f) {
+    fprintf(f, "[" APP_NAME "] %s\n", message);
+    fclose(f);
+  }
+}
+
+// Creates the data folder in the first place that works and returns it in
+// out_key_dir (with a trailing slash) and the settings file in out_path.
+// Both buffers must hold at least MOONLIGHT_PATH_MAX bytes.
+void check_and_create_data_dir(char *out_path, char *out_key_dir) {
+  #ifdef USE_DIR_UMA0
+  static const char *const candidates[] = {
+    "uma0:data/" APP_DATA_DIR,
+  };
+  #else
+  static const char *const candidates[] = {
+    "ux0:data/" APP_DATA_DIR,
+    "ux0:" APP_DATA_DIR,
+    "uma0:data/" APP_DATA_DIR,
+  };
+  #endif
+  const int count = sizeof(candidates) / sizeof(candidates[0]);
+
+  int found = -1;
+  for (int i = 0; i < count; i++) {
+    int ret = sceIoMkdir(candidates[i], 0777);
+    if (ret >= 0 || ret == SCE_ERROR_ALREADY_EXISTS) {
+      found = i;
+      vita_debug_log("[" APP_NAME "] Data folder created or found: %s", candidates[i]);
+      break;
     }
+  }
+
+  if (found >= 0) {
+    snprintf(out_key_dir, MOONLIGHT_PATH_MAX, "%s/", candidates[found]);
+    snprintf(out_path, MOONLIGHT_PATH_MAX, "%s/" APP_DATA_DIR ".conf", candidates[found]);
+    if (found > 0 && strncmp(candidates[found], "uma0:", 5) == 0)
+      write_note("uma0:data/" APP_DATA_DIR ".log",
+                 "ux0:data/" APP_DATA_DIR " could not be created; using uma0:data/" APP_DATA_DIR ".");
+  } else {
+    snprintf(out_key_dir, MOONLIGHT_PATH_MAX, "ux0:data/");
+    snprintf(out_path, MOONLIGHT_PATH_MAX, "ux0:data/" APP_DATA_DIR ".conf");
+    write_note("ux0:data/" APP_DATA_DIR ".log", "No data folder could be created; using ux0:data.");
+  }
+
+  // Create the settings file if needed and record the folder in it.
+  FILE *conf = fopen(out_path, "a");
+  if (conf) fclose(conf);
+  conf = fopen(out_path, "r+");
+  if (conf) {
+    char line[512];
+    int has_key_dir = 0;
+    while (fgets(line, sizeof(line), conf)) {
+      if (strncmp(line, "key_dir = ", 10) == 0) {
+        has_key_dir = 1;
+        break;
+      }
+    }
+    if (!has_key_dir) {
+      fseek(conf, 0, SEEK_END);
+      fprintf(conf, "key_dir = %s\n", out_key_dir);
+    }
+    fclose(conf);
+  }
 }

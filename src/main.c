@@ -23,6 +23,7 @@
 #include "psp2/net/netctl.h"
 #include "video.h"
 #include "config.h"
+#include "app_info.h"
 #include "platform.h"
 
 #include "input/vita.h"
@@ -102,7 +103,7 @@ static void vita_init() {
   srand(time(NULL));
 
   #ifdef __vita__
-  printf("Vita Moonlight %d.%d.%d (%s)\n", VERSION_MAJOR, VERSION_MINOR, VERSION_PATCH, COMPILE_OPTIONS);
+  printf(APP_NAME " " VERSION_TEXT " (%s)\n", COMPILE_OPTIONS);
   #endif
 
   int ret;
@@ -181,10 +182,10 @@ int main(int argc, char* argv[]) {
 
   char out_path[MOONLIGHT_PATH_MAX] = {0};
   char out_key_dir[MOONLIGHT_PATH_MAX] = {0};
-  check_and_create_moonlight_dir(out_path, out_key_dir);
+  check_and_create_data_dir(out_path, out_key_dir);
   config_path = out_path;
   strcpy(config.key_dir, out_key_dir);
-  vita_debug_log("[Moonlight] Data folder: %s", config.key_dir);
+  vita_debug_log("[" APP_NAME "] Data folder: %s", config.key_dir);
   // The config is not saved before every value is initialized
   config_parse(argc, argv, &config);
 
@@ -201,7 +202,7 @@ int main(int argc, char* argv[]) {
   vitainput_config(config);
 
   char log_path[MOONLIGHT_PATH_MAX] = {0};
-  snprintf(log_path, sizeof(log_path), "%s/moonlight.log", config.key_dir);
+  snprintf(log_path, sizeof(log_path), "%s" APP_DATA_DIR ".log", config.key_dir);
   config.log_file = fopen(log_path, "w");
   // After the log opens, so that a failure to read the nickname is recorded.
   set_pairing_device_name();

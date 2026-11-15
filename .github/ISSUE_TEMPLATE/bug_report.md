@@ -15,5 +15,5 @@ labels: bug
 **Settings** (profile, or the options you changed):
 
 **Files** (drag them here):
-- `ux0:data/moonlight/stats/session-<date>.csv` and `.txt` of the session
+- `ux0:data/lune/stats/session-<date>.csv` and `.txt` of the session
 - for a crash: `ux0:data/psp2core-*.psp2dmp`

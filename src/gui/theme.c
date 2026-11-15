@@ -11,6 +11,7 @@
 #include "theme.h"
 #include "guilib.h"
 #include "../config.h"
+#include "../app_info.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -512,9 +513,9 @@ void theme_topbar(const char *section) {
   theme_vgradient(0, 0, WIDTH, 64, RGBA8(2, 5, 14, 120), RGBA8(2, 5, 14, 0));
 
   /* left: wordmark and section */
-  theme_text(TH_MARGIN, TH_TOPBAR_BASE, TH_TEXT, TS_LEAD, "Moonlight");
+  theme_text(TH_MARGIN, TH_TOPBAR_BASE, TH_TEXT, TS_LEAD, APP_NAME);
   if (section && *section) {
-    int x = TH_MARGIN + theme_text_width(TS_LEAD, "Moonlight") + 16;
+    int x = TH_MARGIN + theme_text_width(TS_LEAD, APP_NAME) + 16;
     int w = theme_text_width(TS_SMALL, section);
     theme_rounded_rect(x, 21, w + 24, 26, 13, TH_FILL_FOCUS);
     theme_text(x + 12, 39, TH_TEXT, TS_SMALL, section);

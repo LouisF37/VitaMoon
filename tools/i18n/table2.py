@@ -42,9 +42,9 @@ T2 = {
 "Language, video quality, performance profile, controls and touch screen.":
     ("Langue, qualité vidéo, profil de performance, commandes et écran tactile.",
      "Idioma, calidad de vídeo, perfil de rendimiento, controles y pantalla táctil."),
-"Closes Moonlight and returns to the Vita home screen.":
-    ("Ferme Moonlight et revient à l'écran d'accueil de la Vita.",
-     "Cierra Moonlight y vuelve a la pantalla de inicio de la Vita."),
+"Closes Lune and returns to the Vita home screen.":
+    ("Ferme Lune et revient à l'écran d'accueil de la Vita.",
+     "Cierra Lune y vuelve a la pantalla de inicio de la Vita."),
 "paired": ("appairé", "emparejado"),
 "not paired": ("non appairé", "no emparejado"),
 "Wake the PC (Wake-on-LAN)": ("Réveiller le PC (Wake-on-LAN)", "Encender el PC (Wake-on-LAN)"),
@@ -106,9 +106,9 @@ T2 = {
     ("L'écran ne s'assombrit pas et la Vita ne se met pas en veille pendant un stream.",
      "La pantalla no se atenúa y la Vita no entra en reposo durante un stream."),
 "Save a debug log": ("Enregistrer un journal de débogage", "Guardar un registro de depuración"),
-"Detailed log in the Moonlight folder. It slows the stream down: for troubleshooting only.":
-    ("Journal détaillé dans le dossier Moonlight. Il ralentit le stream" + NB + ": à réserver au dépannage.",
-     "Registro detallado en la carpeta de Moonlight. Ralentiza el stream: solo para diagnosticar."),
+"Detailed log in Lune's folder. It slows the stream down: for troubleshooting only.":
+    ("Journal détaillé dans le dossier de Lune. Il ralentit le stream" + NB + ": à réserver au dépannage.",
+     "Registro detallado en la carpeta de Lune. Ralentiza el stream: solo para diagnosticar."),
 
 # --- settings: Video ---
 "960 x 544 is the Vita screen itself: the sharpest picture and the lightest stream.":
@@ -179,9 +179,9 @@ T2 = {
     ("L et R envoient les gâchettes, le pavé tactile arrière envoie L1 et R1. Désactive le fichier de mappage.",
      "L y R envían los gatillos, el panel táctil trasero envía L1 y R1. Desactiva el archivo de mapeo."),
 "Button mapping file": ("Fichier de mappage des touches", "Archivo de mapeo de botones"),
-"Uses mappings/vita.conf from the Moonlight folder. Turns the swap above off.":
-    ("Utilise mappings/vita.conf du dossier Moonlight. Désactive l'échange ci-dessus.",
-     "Usa mappings/vita.conf de la carpeta de Moonlight. Desactiva el intercambio de arriba."),
+"Uses mappings/vita.conf from Lune's folder. Turns the swap above off.":
+    ("Utilise mappings/vita.conf du dossier de Lune. Désactive l'échange ci-dessus.",
+     "Usa mappings/vita.conf de la carpeta de Lune. Desactiva el intercambio de arriba."),
 "PS button sent to the PC": ("Touche PS envoyée au PC", "Botón PS enviado al PC"),
 "The PS button is sent to the game instead of opening the Vita home screen.":
     ("La touche PS est envoyée au jeu au lieu d'ouvrir l'écran d'accueil de la Vita.",
@@ -308,9 +308,9 @@ T2 = {
      "%s no está emparejado con esta Vita.\\nAñádelo de nuevo desde la pantalla de inicio."),
 "Connecting to %s...": ("Connexion à %s...", "Conectando con %s..."),
 "Smooth edges": ("Lissage des contours", "Suavizado de bordes"),
-"4x anti-aliasing of the menus and the stream. Restart Moonlight to apply a change.":
-    ("Anticrénelage 4x des menus et du stream. Redémarrez Moonlight pour appliquer un changement.",
-     "Antialiasing 4x de los menús y del stream. Reinicia Moonlight para aplicar un cambio."),
+"4x anti-aliasing of the menus and the stream. Restart Lune to apply a change.":
+    ("Anticrénelage 4x des menus et du stream. Redémarrez Lune pour appliquer un changement.",
+     "Antialiasing 4x de los menús y del stream. Reinicia Lune para aplicar un cambio."),
 "Touch the rear pad: a dot shows each touch that counts.":
     ("Touchez le pavé arrière" + NB + ": un point montre chaque appui pris en compte.",
      "Toca el panel trasero: un punto muestra cada toque que cuenta."),

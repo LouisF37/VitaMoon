@@ -15,13 +15,13 @@ vdpm install zlib bzip2 expat openssl curl opus libpng libjpeg-turbo freetype li
 ## Build the VPK
 
 ```sh
-git clone --recurse-submodules https://github.com/LouisF37/vita-moonlight.git
-cd vita-moonlight
+git clone --recurse-submodules https://github.com/LouisF37/lune-vita.git
+cd lune-vita
 cmake -S . -B build
 cmake --build build -j
 ```
 
-The result is `build/moonlight.vpk` (and `build/moonlight.elf` with debug symbols, for crash dumps).
+The result is `build/lune.vpk` (and `build/lune.elf` with debug symbols, for crash dumps).
 
 - `-DVITA_OPT_LEVEL=-O0` builds without optimisation, for debugging (default `-O2`).
 - The home screen shows the version and the build (`branch-commit`), so a tester can tell which
@@ -43,7 +43,7 @@ Set the Vita's address in `VITA_IP` or in `tools/dev/vita_ip.txt` (not committed
 |---|---|
 | `deploy-vpk.sh` | build, send the VPK to VitaShell's FTP (`ux0:/ABM/`), open VitaShell |
 | `deploy-eboot.sh` | build and replace only `eboot.bin` of the installed app, then start it (vitacompanion) |
-| `crash-dump.sh` | fetch the newest `psp2core` dump and decode it against `build/moonlight.elf` |
+| `crash-dump.sh` | fetch the newest `psp2core` dump and decode it against `build/lune.elf` |
 
 ## Translations
 

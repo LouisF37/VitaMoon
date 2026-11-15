@@ -1,20 +1,20 @@
 <div align="center">
-  <img src="sce_sys/icon0.png" alt="Moonlight for PS Vita" width="128"/>
+  <img src="sce_sys/icon0.png" alt="Lune" width="128"/>
 
-  # Moonlight for PS Vita
+  # Lune
 
   **Stream your PC games to a PlayStation Vita, built for a smooth picture over Wi-Fi**
 
   [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-  [![Build](https://img.shields.io/github/actions/workflow/status/LouisF37/vita-moonlight/cmake-psvita.yml?branch=phase2)](https://github.com/LouisF37/vita-moonlight/actions)
-  [![Version](https://img.shields.io/badge/version-1.0.0--beta.1%20%22New%20Moon%22-orange)](CHANGELOG.md)
+  [![Build](https://img.shields.io/github/actions/workflow/status/LouisF37/lune-vita/cmake-psvita.yml?branch=phase2)](https://github.com/LouisF37/lune-vita/actions)
+  [![Version](https://img.shields.io/badge/version-1.0.0--beta.1%20%22Nouvelle%20Lune%22-orange)](CHANGELOG.md)
 </div>
 
 ---
 
-A [Moonlight](https://moonlight-stream.org) client for the PS Vita and PS TV: it plays the games of a
-PC running [Sunshine](https://github.com/LizardByte/Sunshine) (or NVIDIA GameStream) on the Vita, on
-your home network.
+Lune is a [Moonlight](https://moonlight-stream.org) client for the PS Vita and PS TV: it plays the
+games of a PC running [Sunshine](https://github.com/LizardByte/Sunshine) (or NVIDIA GameStream) on the
+Vita, on your home network. *Lune* is French for moon.
 
 It started from [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight) 0.13.2 and reworks the
 streaming path (decoding off the network thread, three display modes, adaptive audio, waiting for
@@ -66,12 +66,14 @@ measurements).</sub>
 
 ## Install
 
-1. Download `moonlight-phase2.vpk` from
-   [the latest build](https://github.com/LouisF37/vita-moonlight/releases/tag/build-phase2).
+1. Download the VPK of the
+   [1.0.0-beta.1 release](https://github.com/LouisF37/lune-vita/releases/tag/v1.0.0-beta.1), or of
+   [the latest development build](https://github.com/LouisF37/lune-vita/releases/tag/build-phase2).
 2. Copy it to the Vita and install it with VitaShell.
 
-This build uses the original Moonlight's title ID (`XYZZ00002`): it replaces an installed Moonlight and
-keeps its pairings and settings (`ux0:data/moonlight`).
+Lune has its own title ID (`LUNE00001`) and data folder (`ux0:data/lune`): it installs next to
+Moonlight without changing it, so both can be compared. A PC paired with Moonlight must be paired
+again with Lune.
 
 ## First-time setup
 
@@ -108,11 +110,11 @@ The French user and test guide, with every option and the test plan, is in
 
 ## Getting help
 
-- Each stream writes `ux0:data/moonlight/stats/session-<date>.csv` and `.txt`: the files to attach to
+- Each stream writes `ux0:data/lune/stats/session-<date>.csv` and `.txt`: the files to attach to
   a bug report, with the build shown at the bottom left of the home screen.
-- *Settings > General > Save a debug log* writes `ux0:data/moonlight/moonlight.log`.
+- *Settings > General > Save a debug log* writes `ux0:data/lune/lune.log`.
 - A crash leaves `ux0:data/psp2core-*.psp2dmp`; `tools/dev/crash-dump.sh` decodes it.
-- Bugs and ideas: [Issues](https://github.com/LouisF37/vita-moonlight/issues).
+- Bugs and ideas: [Issues](https://github.com/LouisF37/lune-vita/issues).
 
 ## How it works
 
@@ -129,7 +131,7 @@ export VITASDK=/usr/local/vitasdk        # with the packages listed in docs/BUIL
 cmake -S . -B build && cmake --build build -j
 ```
 
-The VPK is `build/moonlight.vpk`. Every push is built by GitHub Actions. Details, PC tests and the
+The VPK is `build/lune.vpk`. Every push is built by GitHub Actions. Details, PC tests and the
 interface preview: [docs/BUILDING.md](docs/BUILDING.md) and [docs/TESTING.md](docs/TESTING.md).
 
 ## Credits
@@ -146,7 +148,8 @@ interface preview: [docs/BUILDING.md](docs/BUILDING.md) and [docs/TESTING.md](do
   [alex4580/vita-moonlight](https://github.com/alex4580/vita-moonlight) and
   [NowaLone/vita-moonlight](https://github.com/NowaLone/vita-moonlight). Details in
   [docs/design/forks.md](docs/design/forks.md).
-- Roboto font (Apache 2.0, `assets/LICENSE.Roboto`), Nerd Fonts icons.
+- Roboto font (Apache 2.0, `assets/LICENSE.Roboto`), Nerd Fonts icons. The LiveArea icon is drawn by
+  `tools/art/make_icons.py`.
 
 Developed by [LouisF37](https://github.com/LouisF37) with the help of
 [Claude Code](https://claude.com/claude-code).

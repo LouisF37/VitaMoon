@@ -96,10 +96,10 @@ jobs:
       - name: Upload VPK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: moonlight-vpk
+          name: lune-vpk
           path: build/*.vpk
 
-      # Fixed link: https://github.com/<owner>/<repo>/releases/download/build-<branch>/moonlight-<branch>.vpk
+      # Fixed link: https://github.com/<owner>/<repo>/releases/download/build-<branch>/lune-<branch>.vpk
       - name: Publish rolling pre-release
         if: github.event_name != 'pull_request'
         env:
@@ -108,9 +108,9 @@ jobs:
           SAFE_BRANCH="${BUILD_BRANCH//\//-}"
           TAG="build-$SAFE_BRANCH"
           VPK="$(ls build/*.vpk | head -1)"
-          cp "$VPK" "moonlight-$SAFE_BRANCH.vpk"
+          cp "$VPK" "lune-$SAFE_BRANCH.vpk"
           gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-          gh release create "$TAG" "moonlight-$SAFE_BRANCH.vpk" \
+          gh release create "$TAG" "lune-$SAFE_BRANCH.vpk" \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --target "$GITHUB_SHA" \

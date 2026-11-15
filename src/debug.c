@@ -25,6 +25,7 @@
 #include "../src/gui/mdns_log.h"
 #include "debug.h"
 #include "config.h"
+#include "app_info.h"
 
 pthread_mutex_t print_mutex;
 
@@ -66,7 +67,7 @@ void vita_debug_log(const char *s, ...) {
     fflush(config.log_file);
   } else {
     // If the log could not be opened, print to the screen
-    printf("[Moonlight] Could not open the log file. Message: %s\n", &buffer[25]);
+    printf("[" APP_NAME "] Could not open the log file. Message: %s\n", &buffer[25]);
   }
 
 #ifdef __vita__

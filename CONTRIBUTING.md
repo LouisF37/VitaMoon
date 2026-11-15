@@ -4,11 +4,11 @@ Bug reports, measurements and pull requests are welcome.
 
 ## Reporting a problem
 
-Open an [issue](https://github.com/LouisF37/vita-moonlight/issues) with:
+Open an [issue](https://github.com/LouisF37/lune-vita/issues) with:
 
 - the build shown at the bottom left of the home screen (`v1.0.0-beta.1  branch-commit`);
 - the PC side: Sunshine version, GPU and encoder, resolution and frame rate of the stream;
-- the `.csv` and `.txt` files of the session from `ux0:data/moonlight/stats/`;
+- the `.csv` and `.txt` files of the session from `ux0:data/lune/stats/`;
 - for a crash, the dump `ux0:data/psp2core-*.psp2dmp` (or its decoding, `tools/dev/crash-dump.sh`).
 
 Measurements comparing settings on the same game and spot are the most useful contribution: the

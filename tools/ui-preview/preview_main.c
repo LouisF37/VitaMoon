@@ -345,7 +345,7 @@ int main(int argc, char **argv) {
   preview_set_output(argv[3]);
 
   static char *no_args[] = {"preview", NULL};
-  config_path = "/nonexistent/moonlight.conf";
+  config_path = "/nonexistent/lune.conf";
   config_parse(1, no_args, &config);
   config.key_dir[0] = 0;
   int lang = !strcmp(argv[2], "fr") ? LANG_FR : (!strcmp(argv[2], "es") ? LANG_ES : LANG_EN);

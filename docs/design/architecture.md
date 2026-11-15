@@ -10,7 +10,8 @@ Embedded.
 | Folder | Content |
 |---|---|
 | `src/main.c` | start-up: data folder, settings, pairing name, network, then the menus |
-| `src/config.c` | settings file `moonlight.conf`: defaults, reading, sanitising, writing |
+| `src/app_info.h` | name of the app and of its data folder (package identity: top of `CMakeLists.txt`) |
+| `src/config.c` | settings file `lune.conf`: defaults, reading, sanitising, writing |
 | `src/connection.c` | stream state machine (ready, paired, connected, paused) and moonlight-common-c callbacks |
 | `src/video/vita.c` | video renderer: hardware H.264 decoding, frame slots, display thread, display modes |
 | `src/video/pacing.c` | *Paced* display timing (pure logic, tested on a PC) |
@@ -24,7 +25,7 @@ Embedded.
 | `src/device.c`, `src/check_host.c` | known PCs and their state (online, offline, address changed) |
 | `libgamestream/` | HTTP(S) requests to the PC, pairing, SPS rewrite (`sps.c`), URL encoding |
 | `third_party/` | moonlight-common-c (vendored, patched), ENet, inih, h264bitstream, libuuid, mDNS sniffer |
-| `tools/` | PC tests, interface preview, translations, developer scripts, Sunshine helpers |
+| `tools/` | PC tests, interface preview, translations, developer scripts, Sunshine helpers, LiveArea art |
 
 ## Threads and cores
 
@@ -67,14 +68,15 @@ restart the stream; the game keeps running on the PC.
 
 ## Data on the memory card
 
-The data folder is the first that can be created among `ux0:data/moonlight`, `ux0:moonlight` and
-`uma0:data/moonlight` (`src/check_dir.c`).
+The data folder is the first that can be created among `ux0:data/lune`, `ux0:lune` and
+`uma0:data/lune` (`src/check_dir.c`; the name comes from `src/app_info.h`). It is not shared with
+Moonlight, which keeps `ux0:data/moonlight`.
 
 | Path | Content |
 |---|---|
-| `moonlight.conf` | settings (`src/config.c`); unknown keys are ignored, out-of-range values reset |
+| `lune.conf` | settings (`src/config.c`); unknown keys are ignored, out-of-range values reset |
 | `<PC name>/` | per PC: client certificate and key, unique ID, `device.ini` (addresses, MAC, paired) |
 | `stats/session-<date>.csv`, `.txt` | per stream: one line per second, settings and percentiles |
 | `stats/last_<app>.txt` | figures of the last session of each game, for the library |
 | `boxart/<PC>/<app>.cover` | cover art, resized for the library |
-| `moonlight.log` | debug log, when *Save a debug log* is on |
+| `lune.log` | debug log, when *Save a debug log* is on |

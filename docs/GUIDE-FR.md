@@ -1,10 +1,19 @@
-# Moonlight pour PS Vita : guide d'utilisation et de test
+# Lune : guide d'utilisation et de test
 
-Version 1.0.0 bêta 1 « New Moon ». Téléchargement (toujours la dernière compilation de la branche
-`phase2`) :
-https://github.com/LouisF37/vita-moonlight/releases/download/build-phase2/moonlight-phase2.vpk
+Lune est un client Moonlight pour PS Vita. Version 1.0.0 bêta 1 « Nouvelle Lune ».
+
+Téléchargement :
+- version 1.0.0-beta.1 : https://github.com/LouisF37/lune-vita/releases/tag/v1.0.0-beta.1
+- dernière compilation de la branche `phase2` :
+  https://github.com/LouisF37/lune-vita/releases/download/build-phase2/lune-phase2.vpk
 
 L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.1  phase2-xxxxxxx`.
+
+**Installation à côté de Moonlight.** Lune a son propre identifiant (`LUNE00001`), sa propre bulle et son
+propre dossier (`ux0:data/lune`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc appairer
+le PC une première fois avec Lune (code à 4 chiffres dans Sunshine). Pour comparer avec le Moonlight
+d'origine, réinstaller le VPK officiel de vita-moonlight 0.13.2 sur la bulle Moonlight : une version
+d'essai précédente de ce projet y est peut-être installée.
 
 **État des vérifications.** Le code compile pour la Vita, les tests sur PC passent (affichage
 cadencé simulé, fichier de réglages, réécriture du SPS), tous les écrans ont été rendus hors console
@@ -92,7 +101,7 @@ Rubrique Vidéo : 960 x 544 par défaut (la définition de l'écran de la Vita) 
 Rubrique Avancé, deux autres options de test :
 - `Lissage des contours` (activé) : anticrénelage 4x des menus et du stream. Son coût sur le dessin du
   stream n'est pas mesuré ; pour le mesurer, comparer la colonne `render_avg_us` avec et sans
-  (redémarrer Moonlight après le changement).
+  (redémarrer Lune après le changement).
 - `Garder la liaison avec le PC ouverte` (désactivé) : évite de rouvrir une connexion sécurisée à chaque
   requête des menus (liste des jeux, jaquettes). Expérimental.
 
@@ -112,9 +121,9 @@ pendant le stream) :
    `Taille des paquets vidéo` à 1392 ; `Lire les commandes au rythme de la Vita` désactivé. Le plus
    simple : START + L + R, changer l'option, reprendre et accepter la relance du stream (chaque stream a
    ses propres fichiers de statistiques).
-6. Facultatif : Fluide avec `Lissage des contours` désactivé (après redémarrage de Moonlight).
+6. Facultatif : Fluide avec `Lissage des contours` désactivé (après redémarrage de Lune).
 
-Chaque session crée deux fichiers dans `ux0:data/moonlight/stats/` : un `.csv` (une ligne par seconde)
+Chaque session crée deux fichiers dans `ux0:data/lune/stats/` : un `.csv` (une ligne par seconde)
 et un `.txt` (réglages de la session, signal Wi-Fi, légende des colonnes). Ce sont ces fichiers qu'il
 faut renvoyer, avec une phrase sur le ressenti (saccades, retard des commandes, son).
 
@@ -134,7 +143,7 @@ profil à l'autre : les moyennes cachent les saccades.
 **Vita.** Paramètres → Paramètres d'économie d'énergie : décocher l'utilisation du Wi-Fi en mode économie
 d'énergie. Couper aussi le Bluetooth si aucun appareil Bluetooth ne sert : il partage la bande 2,4 GHz
 avec le Wi-Fi (juanjsebgarcia : pertes d'images d'environ 50 par minute à 0 avec un signal fort et le
-Bluetooth coupé). Moonlight lit ces deux réglages et affiche un avertissement sur l'accueil s'il les
+Bluetooth coupé). Lune lit ces deux réglages et affiche un avertissement sur l'accueil s'il les
 trouve activés (lecture du registre non encore vérifiée sur console).
 
 **Sunshine** (interface web : `https://localhost:47990`).

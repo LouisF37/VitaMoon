@@ -133,7 +133,7 @@ void theme_hints_at(const theme_hint_item *items, int count, float cx, float y);
 int theme_confirm_glyph(void);
 int theme_cancel_glyph(void);
 
-/* Top bar: "Moonlight" + optional section on the left; Wi-Fi, battery and
+/* Top bar: the app name + optional section on the left; Wi-Fi, battery and
  * clock on the right. */
 void theme_topbar(const char *section);
 /* Page title with a back chevron and the divider under it. */

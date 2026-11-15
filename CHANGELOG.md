@@ -5,11 +5,16 @@ milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELE
 
 ## Unreleased
 
-## 1.0.0-beta.1 "New Moon" (2026-11-15)
+## 1.0.0-beta.1 "Nouvelle Lune" (2026-11-15)
 
-First version of this project, from [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight)
-0.13.2. Built and tested on a PC; not yet measured on a Vita
+First version of Lune, from [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight) 0.13.2.
+Built and tested on a PC; not yet measured on a Vita
 ([checkpoint report](docs/checkpoints/2026-11-15.md)).
+
+### Identity
+
+- Named Lune, with its own title ID (`LUNE00001`), data folder (`ux0:data/lune`) and LiveArea icon:
+  it installs next to Moonlight instead of replacing it. PCs must be paired again.
 
 ### Streaming
 
@@ -69,6 +74,8 @@ First version of this project, from [xyzz/vita-moonlight](https://github.com/xyz
 ### Project
 
 - Code, comments and logs in English; documentation in `docs/`, French user guide.
+- Removed code that nothing called: the customisable hotkeys module of 0.13.2 (its menu was never
+  reachable and its shortcuts were never checked during a stream), the old LiveArea template.
 - PC tests (pacing simulations, settings file, SPS rewrite, helpers) with AddressSanitizer and UBSan,
   run by CI; interface preview rendering every screen in three languages.
 - CI builds every branch, runs the tests and publishes a VPK with a fixed link.

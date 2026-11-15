@@ -56,8 +56,7 @@ static unsigned int settings_special_codes[] = {0,
 };
 
 // Display names of the special inputs, aligned with settings_special_codes.
-// Stored in English; translated with tr() at display time. NULL-terminated
-// because ui_hotkey.c walks the array until the sentinel.
+// Stored in English; translated with tr() at display time.
 char *settings_special_names[] = {
   N_("None"),
   // special
@@ -510,7 +509,7 @@ static const setting_row k_rows[] = {
   {S_KEEP_AWAKE, CAT_GENERAL, ROW_TOGGLE, N_("Keep the Vita awake"),
    N_("The screen does not dim and the Vita does not go to sleep during a stream.")},
   {S_DEBUG_LOG, CAT_GENERAL, ROW_TOGGLE, N_("Save a debug log"),
-   N_("Detailed log in the Moonlight folder. It slows the stream down: for troubleshooting only.")},
+   N_("Detailed log in Lune's folder. It slows the stream down: for troubleshooting only.")},
 
   /* Video */
   {S_RESOLUTION, CAT_VIDEO, ROW_CHOICE, N_("Resolution"),
@@ -552,7 +551,7 @@ static const setting_row k_rows[] = {
   {S_SWAP_SHOULDER, CAT_CONTROLS, ROW_TOGGLE, N_("Swap L1/R1 with L2/R2"),
    N_("L and R send the triggers, the rear touch pad sends L1 and R1. Turns the mapping file off.")},
   {S_MAPPING, CAT_CONTROLS, ROW_TOGGLE, N_("Button mapping file"),
-   N_("Uses mappings/vita.conf from the Moonlight folder. Turns the swap above off.")},
+   N_("Uses mappings/vita.conf from Lune's folder. Turns the swap above off.")},
   {S_PS_CAPTURE, CAT_CONTROLS, ROW_TOGGLE, N_("PS button sent to the PC"),
    N_("The PS button is sent to the game instead of opening the Vita home screen.")},
   {S_DOUBLE_TAP_SPRINT, CAT_CONTROLS, ROW_TOGGLE, N_("Double tap to sprint"),
@@ -596,7 +595,7 @@ static const setting_row k_rows[] = {
   {S_KEEPALIVE, CAT_ADVANCED, ROW_TOGGLE, N_("Keep the link to the PC open"),
    N_("Experimental: the menus and covers load faster. Turn off if the PC stops answering.")},
   {S_MSAA, CAT_ADVANCED, ROW_TOGGLE, N_("Smooth edges"),
-   N_("4x anti-aliasing of the menus and the stream. Restart Moonlight to apply a change.")},
+   N_("4x anti-aliasing of the menus and the stream. Restart Lune to apply a change.")},
 };
 #define ROW_COUNT ((int)(sizeof(k_rows) / sizeof(k_rows[0])))
 

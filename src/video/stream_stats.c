@@ -10,6 +10,7 @@
  */
 #include "stream_stats.h"
 #include "histogram.h"
+#include "../app_info.h"
 #include "../config.h"
 #include "../debug.h"
 #include "../gui/guilib.h"
@@ -364,7 +365,7 @@ static void open_session_files(void) {
     sceDisplayGetRefreshRate(&refresh);
     char line[512];
     snprintf(line, sizeof(line),
-             "vita-moonlight stream statistics\n"
+             APP_NAME " stream statistics\n"
              "build: %s\n"
              "date: %04d-%02d-%02d %02d:%02d:%02d\n"
              "stream: %dx%d @ %d fps, requested bitrate %d kbps, packets %d bytes\n",

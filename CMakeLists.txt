@@ -10,21 +10,22 @@ endif()
 add_compile_options(-g -Wall -Wextra -Wno-unused-parameter -Wno-pointer-sign -Wno-sign-compare -Wno-switch)
 
 
-project(moonlight)
+project(lune)
 
 include("$ENV{VITASDK}/share/vita.cmake" REQUIRED)
-# Identity and version: the only place to edit them (docs/RELEASING.md).
-# TITLE_ID is the original Moonlight's: this build replaces it on the Vita and
-# keeps its pairings and settings (ux0:data/moonlight).
-set(TITLE_ID "XYZZ00002")
-set(TITLE "Moonlight")
-set(LIVEAREA_TITLE "MOONLIGHT")
+# Package identity and version: the place to edit them (docs/RELEASING.md).
+# The name and data folder used by the code are in src/app_info.h.
+# LUNE00001 is the app's own title ID: it installs next to Moonlight
+# (XYZZ00002) and keeps its data in ux0:data/lune.
+set(TITLE_ID "LUNE00001")
+set(TITLE "Lune")
+set(LIVEAREA_TITLE "LUNE")
 set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
 set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "0")
-set(VERSION_LABEL "beta.1")       # empty for a final release
-set(VERSION_NAME "New Moon")      # milestone name, shown in the docs
+set(VERSION_LABEL "beta.1")        # empty for a final release
+set(VERSION_NAME "Nouvelle Lune")  # milestone name, shown in the docs
 if(VERSION_LABEL)
 	set(VERSION_TEXT "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_LABEL}")
 else()
@@ -122,8 +123,6 @@ add_executable(${PROJECT_NAME}.elf
 	src/gui/ui_settings.c
 	src/gui/ui_connect.c
 	src/gui/ui_device.c
-	src/gui/ui_hotkey.c
-	src/gui/hotkey.c
 	src/gui/ui_check.c
 
 	libgamestream/client.c
@@ -220,7 +219,7 @@ add_dependencies(${PROJECT_NAME}.vpk ${PROJECT_NAME}.velf param.sfo)
 
 add_subdirectory(third_party)
 
-option(USE_DIR_UMA0 "Forzar uso de uma0:data/moonlight como directorio de claves/config" OFF)
+option(USE_DIR_UMA0 "Keep the data folder in uma0:data/lune instead of ux0:data/lune" OFF)
 if(USE_DIR_UMA0)
   add_definitions(-DUSE_DIR_UMA0)
 endif()

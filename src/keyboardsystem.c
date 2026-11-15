@@ -61,7 +61,7 @@ static int forzar_centro = 0;
 
 static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e) {
     // Extended log, as in ime_test.c
-    vita_debug_log("[IME MOONLIGHT] IME event id=%d, caretIndex=%d, buffer=[%04X %04X %04X %04X]", e->id, e->param.caretIndex, output_text[0], output_text[1], output_text[2], output_text[3]);
+    vita_debug_log("[IME] IME event id=%d, caretIndex=%d, buffer=[%04X %04X %04X %04X]", e->id, e->param.caretIndex, output_text[0], output_text[1], output_text[2], output_text[3]);
     int caret = e->param.caretIndex;
     // --- IGNORE the first delete event after opening the keyboard if ch==0 ---
     if (ime_just_opened && e->id == 1 && caret == 0) {
@@ -73,7 +73,7 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
             }
         }
         if (ch == 0) {
-            vita_debug_log("[IME MOONLIGHT] First delete event after opening the keyboard ignored (ch==0).");
+            vita_debug_log("[IME] First delete event after opening the keyboard ignored (ch==0).");
             ime_just_opened = 0;
             // Reset buffer/caret
             SceWChar16 dummy[4] = {1, 1, 1, 0};
@@ -97,7 +97,7 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
         }
         // BACKSPACE
         if (caret == 0 && (ch == 0x08 || ch == 0x7F || ch == 0)) {
-            vita_debug_log("[IME MOONLIGHT] VK_BACKSPACE (id=1, caretIndex=0, ch=0x%04X '%lc')", ch, ch);
+            vita_debug_log("[IME] VK_BACKSPACE (id=1, caretIndex=0, ch=0x%04X '%lc')", ch, ch);
             LiSendKeyboardEvent(0x08, KEY_ACTION_DOWN, 0);
             LiSendKeyboardEvent(0x08, KEY_ACTION_UP, 0);
             for (int i = 0; i < 4; ++i) output_text[i] = 1;
@@ -108,7 +108,7 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
         if (caret == 1 && ch && ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'))) {
             int vk = 0, needs_shift = 0;
             if (find_vk_for_char(ch, &vk, &needs_shift)) {
-                vita_debug_log("[IME MOONLIGHT] LETTER KEY: '%lc' (U+%04X) -> VK: 0x%02X", ch, ch, vk);
+                vita_debug_log("[IME] LETTER KEY: '%lc' (U+%04X) -> VK: 0x%02X", ch, ch, vk);
                 if (needs_shift) LiSendKeyboardEvent(0x10, KEY_ACTION_DOWN, 0);
                 LiSendKeyboardEvent(vk, KEY_ACTION_DOWN, 0);
                 LiSendKeyboardEvent(vk, KEY_ACTION_UP, 0);
@@ -122,7 +122,7 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
         if (ch && !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'))) {
             int vk = 0, needs_shift = 0;
             if (find_vk_for_char(ch, &vk, &needs_shift)) {
-                vita_debug_log("[IME MOONLIGHT] SPECIAL KEY: '%lc' (U+%04X) -> VK: 0x%02X", ch, ch, vk);
+                vita_debug_log("[IME] SPECIAL KEY: '%lc' (U+%04X) -> VK: 0x%02X", ch, ch, vk);
                 if (needs_shift) LiSendKeyboardEvent(0x10, KEY_ACTION_DOWN, 0);
                 LiSendKeyboardEvent(vk, KEY_ACTION_DOWN, 0);
                 LiSendKeyboardEvent(vk, KEY_ACTION_UP, 0);
@@ -135,7 +135,7 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
     }
     // --- FLECHA IZQUIERDA ---
     if (e->id == 2 && caret == 0) {
-        vita_debug_log("[IME MOONLIGHT] VK_LEFT (id=2, caretIndex=0)");
+        vita_debug_log("[IME] VK_LEFT (id=2, caretIndex=0)");
         LiSendKeyboardEvent(0x25, KEY_ACTION_DOWN, 0);
         LiSendKeyboardEvent(0x25, KEY_ACTION_UP, 0);
         for (int i = 0; i < 4; ++i) output_text[i] = 1;
@@ -144,7 +144,7 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
     }
     // --- FLECHA DERECHA ---
     if (e->id == 2 && caret == 2) {
-        vita_debug_log("[IME MOONLIGHT] VK_RIGHT (id=2, caretIndex=2)");
+        vita_debug_log("[IME] VK_RIGHT (id=2, caretIndex=2)");
         LiSendKeyboardEvent(0x27, KEY_ACTION_DOWN, 0);
         LiSendKeyboardEvent(0x27, KEY_ACTION_UP, 0);
         for (int i = 0; i < 4; ++i) output_text[i] = 1;
@@ -153,7 +153,7 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
     }
     // --- ENTER (Aceptar) ---
     if (e->id == 5) {
-        vita_debug_log("[IME MOONLIGHT] VK_RETURN (id=5, caretIndex=%d)", caret);
+        vita_debug_log("[IME] VK_RETURN (id=5, caretIndex=%d)", caret);
         LiSendKeyboardEvent(0x0D, KEY_ACTION_DOWN, 0);
         LiSendKeyboardEvent(0x0D, KEY_ACTION_UP, 0);
         for (int i = 0; i < 4; ++i) output_text[i] = 1;
@@ -162,7 +162,7 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
     }
     // --- CERRAR IME (Minimizar/cancelar) ---
     if (e->id == 4) {
-        vita_debug_log("[IME MOONLIGHT] Close IME (id=4, caretIndex=%d)", caret);
+        vita_debug_log("[IME] Close IME (id=4, caretIndex=%d)", caret);
         sceImeClose();
         return;
     }
@@ -187,7 +187,7 @@ void keyboardsystem_open_keyboard(void) {
 
     // Sync the global layout with the config before opening the IME
     keyboardsystem_set_layout((KeyboardLayout)config.keyboard_layout);
-    sceClibPrintf("[IME MOONLIGHT] Keyboard opened\n");
+    sceClibPrintf("[IME] Keyboard opened\n");
     // Initialize the IME buffer and caret so the caret can move forever
     ime_working_buffer[0] = 1;
     ime_working_buffer[1] = 1;
@@ -261,7 +261,7 @@ void keyboardsystem_open_keyboard(void) {
         }
         int status = sceImeUpdate();
         if (status < 0) {
-            sceClibPrintf("[IME MOONLIGHT] Keyboard closed\n");
+            sceClibPrintf("[IME] Keyboard closed\n");
             break;
         }
         sceKernelDelayThread(1000); // wait 1 ms
