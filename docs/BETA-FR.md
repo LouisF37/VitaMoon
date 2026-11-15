@@ -30,7 +30,14 @@ la dernière session du jeu sélectionné.
 - ✕ jouer ou reprendre, □ quitter le jeu en cours sur le PC, △ ancien menu, START réglages, ○ retour.
 - Croix directionnelle ou écran tactile pour choisir ; L et R avancent de 5 jeux.
 
-**Pendant le stream.** START + L + R met le stream en pause et revient aux menus.
+**Pendant le stream.** START + L + R met le stream en pause et revient aux menus. La pause relâche sur le PC
+tout ce qui était maintenu (boutons, sticks, clic souris, doigts sur l'écran tactile). Si des réglages qui ne
+s'appliquent qu'au démarrage d'un stream ont été modifiés pendant la pause (définition, débit, affichage,
+options de la rubrique Performance...), la reprise propose de relancer le stream : le jeu continue sur le PC,
+seul le flux est recommencé.
+
+**Appairage.** La Vita s'appaire sous son pseudo (le nom d'utilisateur de la console) au lieu de « roth » : c'est le nom
+affiché dans la liste des appareils de Sunshine. Les appairages existants gardent l'ancien nom.
 
 **Réglages.** Six rubriques à gauche, les options à droite, une explication de l'option sélectionnée en bas.
 - Haut / bas : option. Gauche / droite : changer la valeur. ✕ : basculer, valeur suivante ou ouvrir.
@@ -70,6 +77,10 @@ sur les requêtes au PC.
 Autres options de la rubrique : vitesse maximale du CPU et du GPU (444 / 222 MHz ; désormais aussi pendant
 la connexion au PC, et avec le Wi-Fi en mode performance) et suivi de la fréquence exacte de l'écran.
 
+Rubrique Commandes, `Lire les commandes au rythme de la Vita` (activé) : les boutons sont lus une fois par
+relevé de la manette (une fois par rafraîchissement de l'écran) au lieu de toutes les 2 ms, ce qui allège le
+cœur de l'affichage (juanjsebgarcia ; effet sur la latence non mesuré).
+
 Rubrique Vidéo : 960 x 544 par défaut (la définition de l'écran de la Vita) et débit `Auto`
 (8 Mbps en 960 x 544 à 60 img/s, 10 Mbps en 1280 x 720, réduit à 30 img/s).
 
@@ -90,7 +101,9 @@ pendant le stream) :
 4. Profil **Original** (référence : le comportement d'avant).
 5. Puis, en partant de Fluide, une option changée à la fois : `Attendre les paquets en retard` à Non puis
    30 ms ; `Décodage rapide des couleurs` désactivé ; `Répartir le travail sur les cœurs` désactivé ;
-   `Taille des paquets vidéo` à 1392.
+   `Taille des paquets vidéo` à 1392 ; `Lire les commandes au rythme de la Vita` désactivé. Le plus
+   simple : START + L + R, changer l'option, reprendre et accepter la relance du stream (chaque stream a
+   ses propres fichiers de statistiques).
 6. Facultatif : Fluide avec `Lissage des contours` désactivé (après redémarrage de Moonlight).
 
 Chaque session crée deux fichiers dans `ux0:data/moonlight/stats/` : un `.csv` (une ligne par seconde)
@@ -103,11 +116,18 @@ Colonnes à regarder en premier : `shown` (images affichées par seconde), `lost
 `fec_failed` (images réparées / irréparables par la correction d'erreurs), `pkt_ooo` (paquets arrivés
 dans le désordre), `pace_delay_us` (délai du mode Cadencé).
 
+À la fin du `.txt`, des centiles sur toute la session (p50, p95, p99) : délai premier paquet → image
+visible, intervalle entre deux images affichées, durée du décodage matériel, et la part des intervalles
+de plus de 1,5 image (images affichées en retard ou répétées). Ce sont les chiffres à comparer d'un
+profil à l'autre : les moyennes cachent les saccades.
+
 ## Réglages conseillés
 
 **Vita.** Paramètres → Paramètres d'économie d'énergie : décocher l'utilisation du Wi-Fi en mode économie
-d'énergie. Moonlight lit ce réglage et affiche un avertissement sur l'accueil s'il le trouve activé
-(lecture du registre non encore vérifiée sur console).
+d'énergie. Couper aussi le Bluetooth si aucun appareil Bluetooth ne sert : il partage la bande 2,4 GHz
+avec le Wi-Fi (juanjsebgarcia : pertes d'images d'environ 50 par minute à 0 avec un signal fort et le
+Bluetooth coupé). Moonlight lit ces deux réglages et affiche un avertissement sur l'accueil s'il les
+trouve activés (lecture du registre non encore vérifiée sur console).
 
 **Sunshine** (interface web : `https://localhost:47990`).
 - `minimum_fps_target` = 60 : cadence régulière, même quand l'image bouge peu.
@@ -137,6 +157,7 @@ Fichiers reconnus : `.cue`, `.chd`, `.m3u`, `.pbp`. Une image `.png` ou `.jpg` d
 - Image saccadée, figée ou absente : profil **Original**. Couleurs fausses : désactiver
   `Décodage rapide des couleurs`.
 - Son qui craque : désactiver `Son à faible latence`.
+- Tactile qui semble moins réactif : désactiver `Lire les commandes au rythme de la Vita`.
 - Menus lents ou erreurs de connexion après avoir activé `Garder la liaison avec le PC ouverte` : la désactiver.
 - Le PC n'apparaît pas en ligne alors qu'il est allumé : □ sur le PC, puis « Se connecter » (l'essai
   s'arrête au bout de quelques secondes si le PC ne répond pas).

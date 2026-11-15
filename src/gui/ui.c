@@ -371,6 +371,7 @@ int ui_main_menu_back(void *context) {
 
 static char home_version[96];
 static int home_wifi_power_save = -1;   /* read when the home screen opens */
+static int home_bluetooth = -1;         /* idem */
 
 static void home_detail_row(int y, const char *label, const char *value, unsigned int value_color) {
   theme_text(HOME_PANE_X + 24, y, TH_TEXT3, TS_SMALL, label);
@@ -423,6 +424,11 @@ static void home_draw(void) {
       advice = tr("No answer. Is the PC on, with Sunshine running?");
     } else if (home_wifi_power_save == 1) {
       advice = tr("Wi-Fi power save is on and adds lag: turn it off in the Vita's Settings, Power Save Settings.");
+      warn = true;
+    } else if (home_bluetooth == 1) {
+      // juanjsebgarcia measured frame loss going from about 50 a minute to 0
+      // with a strong signal and Bluetooth off.
+      advice = tr("Bluetooth is on and can disturb the Wi-Fi: if you use no Bluetooth device, turn it off in the Vita's Settings.");
       warn = true;
     } else {
       advice = tr("Ready to play.");
@@ -487,6 +493,7 @@ int ui_main_menu() {
   }
 
   home_wifi_power_save = vitapower_wifi_power_save();
+  home_bluetooth = vitapower_bluetooth();
 
   /* static: an entry is over 1 KB, too much for the stack with many hosts */
   static menu_entry menu[MAX_HOSTS + 12];
@@ -574,19 +581,8 @@ int ui_main_menu() {
 
 int global_loop(int cursor, void *ctx, const input_data *input) {
   if (is_rectangle_touched(&input->touch, 0, 0, 200, 56)) {
-    if (connection_get_status() == LI_MINIMIZED) {
-      vitapower_config(config);
-      vitainput_config(config);
-      // The stream draws from its own thread: no menu frame may be left open.
-      ui_end();
-
-      sceKernelDelayThread(500 * 1000);
-      connection_resume();
-
-      while (connection_is_connected()) {
-        sceKernelDelayThread(100 * 1000);
-      }
-    }
+    if (connection_get_status() == LI_MINIMIZED)
+      ui_connect_resume_paused();
   }
   return 0;
 }

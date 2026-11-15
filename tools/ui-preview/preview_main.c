@@ -69,6 +69,8 @@ bool vitavideo_initialized(void) { return false; }
 void vitapower_config(CONFIGURATION c) {}
 static int fake_wifi_power_save = 0;
 int vitapower_wifi_power_save(void) { return fake_wifi_power_save; }
+static int fake_bluetooth = 0;
+int vitapower_bluetooth(void) { return fake_bluetooth; }
 void vitapower_busy_begin(void) {}
 void vitapower_busy_end(void) {}
 void LiSetVideoReorderWaitUs(uint32_t wait_us) {}
@@ -186,6 +188,16 @@ static void scenario_home_wifi(void) {
   fake_wifi_power_save = 1;
   preview_wait(12);
   preview_snap("home_6_wifi_power_save");
+  preview_wait(2);
+  ui_main_menu();
+}
+
+/* Bluetooth on: the advice line warns about the Wi-Fi. */
+static void scenario_home_bt(void) {
+  fake_hosts();
+  fake_bluetooth = 1;
+  preview_wait(12);
+  preview_snap("home_7_bluetooth");
   preview_wait(2);
   ui_main_menu();
 }
@@ -311,6 +323,15 @@ static void scenario_dialogs(void) {
   display_notice(2000, "%s", tr("Wake-up signal sent. The PC needs a moment to start."));
 }
 
+/* Resume after a setting that needs a new stream was changed during the pause. */
+static void scenario_restart(void) {
+  preview_wait(6);
+  preview_snap("dialog_restart");
+  preview_press(SCE_CTRL_CIRCLE);
+  ui_start();
+  display_confirm(tr("Some settings you changed only apply to a new stream.\nRestart the stream now? The game keeps running on the PC."));
+}
+
 static void scenario_pairing(void) {
   preview_snap("pairing_code");   /* the screen is drawn once: capture that frame */
   flash_pairing_code("MINI-PC", "4821", "https://192.168.1.24:47990");
@@ -339,6 +360,7 @@ int main(int argc, char **argv) {
   if (!strcmp(s, "home")) scenario_home();
   else if (!strcmp(s, "home_empty")) scenario_home_empty();
   else if (!strcmp(s, "home_wifi")) scenario_home_wifi();
+  else if (!strcmp(s, "home_bt")) scenario_home_bt();
   else if (!strcmp(s, "pairing")) scenario_pairing();
   else if (!strcmp(s, "settings_pages")) scenario_settings_pages();
   else if (!strcmp(s, "settings")) scenario_settings();
@@ -346,6 +368,7 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "library")) scenario_library();
   else if (!strcmp(s, "library_running")) scenario_library_running();
   else if (!strcmp(s, "dialogs")) scenario_dialogs();
+  else if (!strcmp(s, "restart")) scenario_restart();
   else {
     fprintf(stderr, "unknown scenario %s\n", s);
     return 2;

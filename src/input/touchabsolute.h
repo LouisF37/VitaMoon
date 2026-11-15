@@ -14,6 +14,9 @@ typedef struct SceRtcTick SceRtcTick;
 
 void touchabsolute_enable(bool enable);
 bool touchabsolute_is_enabled();
+// Forgets the touch state; with release_host_state, first releases on the PC
+// the mouse button and the fingers still down.
+void touchabsolute_reset(bool release_host_state);
 
 // Handlers for the three touchscreen modes
 void touchabsolute_handle_ds4(const TouchData* touch, SceRtcTick* current);

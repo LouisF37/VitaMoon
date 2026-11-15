@@ -164,6 +164,7 @@ target_link_libraries(${PROJECT_NAME}.elf
 	-lSceAppMgr_stub
 	-lSceAudio_stub
 	-lSceIme_stub
+	-lSceAppUtil_stub
 	-lSceMotion_stub
 	-lvita2d
 	-lSceGxm_stub

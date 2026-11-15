@@ -25,6 +25,11 @@ void vitapower_config(CONFIGURATION config);
  * sleeps between packets, which adds delay to a stream. */
 int vitapower_wifi_power_save(void);
 
+/* The Vita system setting Bluetooth (Settings, Bluetooth Devices), read from
+ * the registry as juanjsebgarcia/vita-moonlight does: 1 on, 0 off, -1 if it
+ * cannot be read. Bluetooth shares the 2.4 GHz band with the Wi-Fi. */
+int vitapower_bluetooth(void);
+
 void vitapower_start();
 void vitapower_stop();
 

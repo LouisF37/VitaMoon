@@ -55,7 +55,10 @@
 #include <psp2/ctrl.h>
 #include <psp2/touch.h>
 #include <psp2/rtc.h>
+#include <psp2/apputil.h>
+#include <psp2/system_param.h>
 
+#include "client.h"
 #include "graphics.h"
 #include "device.h"
 #include "gui/ui.h"
@@ -139,6 +142,24 @@ static void vita_init() {
 }
 
 
+/* Pair under the Vita's own nickname (its user name), so the PC's
+ * list of paired devices shows it instead of "roth" (juanjsebgarcia/
+ * vita-moonlight, commits d6e9859 and f1af08a). Pairings made before keep their
+ * old name. On any failure, pairing goes on as "PS Vita". */
+static void set_pairing_device_name(void) {
+  SceAppUtilInitParam init_param = {0};
+  SceAppUtilBootParam boot_param = {0};
+  // An error can mean AppUtil is already initialised: the read below decides.
+  sceAppUtilInit(&init_param, &boot_param);
+  SceChar8 nickname[SCE_SYSTEM_PARAM_USERNAME_MAXSIZE] = {0};
+  int ret = sceAppUtilSystemParamGetString(SCE_SYSTEM_PARAM_ID_USERNAME, nickname, sizeof(nickname));
+  if (ret < 0 || nickname[0] == '\0') {
+    vita_debug_log("Vita nickname not readable (0x%08X): pairing as PS Vita\n", ret);
+    return;
+  }
+  gs_set_device_name((const char *)nickname);
+}
+
 int main(int argc, char* argv[]) {
   psvDebugScreenInit();
   vita_init();
@@ -182,6 +203,8 @@ int main(int argc, char* argv[]) {
   char log_path[MOONLIGHT_PATH_MAX] = {0};
   snprintf(log_path, sizeof(log_path), "%s/moonlight.log", config.key_dir);
   config.log_file = fopen(log_path, "w");
+  // After the log opens, so that a failure to read the nickname is recorded.
+  set_pairing_device_name();
 
   load_all_known_devices();
 

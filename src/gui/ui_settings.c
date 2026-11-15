@@ -485,7 +485,7 @@ enum {
   S_RESOLUTION, S_FPS, S_BITRATE, S_CROP, S_LOCAL_AUDIO,
   S_PROFILE, S_DISPLAY_MODE, S_LL_AUDIO, S_CATCHUP, S_YUV, S_REORDER, S_BOOST, S_MATCH_REFRESH,
   S_PACKET_SIZE,
-  S_CONTROLLER_TYPE, S_SWAP_SHOULDER, S_MAPPING, S_PS_CAPTURE, S_DOUBLE_TAP_SPRINT, S_SPRINT_TIME,
+  S_CONTROLLER_TYPE, S_INPUT_SYNC, S_SWAP_SHOULDER, S_MAPPING, S_PS_CAPTURE, S_DOUBLE_TAP_SPRINT, S_SPRINT_TIME,
   S_MOTION, S_MOTION_X, S_MOTION_Y, S_KEYBOARD_LAYOUT,
   S_TOUCH_MODE, S_MOUSE_ACCEL, S_SPECIAL_KEYS, S_SPECIAL_KEYS_SETUP, S_DEADZONE,
   S_REMOTE, S_RFI, S_SOPS, S_FRAME_PACER, S_VBLANK, S_PINNING, S_KEEPALIVE, S_MSAA
@@ -547,6 +547,8 @@ static const setting_row k_rows[] = {
   /* Controls */
   {S_CONTROLLER_TYPE, CAT_CONTROLS, ROW_CHOICE, N_("Controller seen by the PC"),
    N_("Games show the button symbols of this controller.")},
+  {S_INPUT_SYNC, CAT_CONTROLS, ROW_TOGGLE, N_("Read the controls in step with the Vita"),
+   N_("Reads the buttons once per sample of the Vita instead of every 2 ms. If touch feels slower, turn it off.")},
   {S_SWAP_SHOULDER, CAT_CONTROLS, ROW_TOGGLE, N_("Swap L1/R1 with L2/R2"),
    N_("L and R send the triggers, the rear touch pad sends L1 and R1. Turns the mapping file off.")},
   {S_MAPPING, CAT_CONTROLS, ROW_TOGGLE, N_("Button mapping file"),
@@ -737,6 +739,7 @@ static bool row_is_on(int id) {
     case S_MSAA: return config.ui_msaa;
     case S_YUV: return config.decode_yuv;
     case S_PINNING: return config.thread_pinning;
+    case S_INPUT_SYNC: return config.input_sync;
     default: return false;
   }
 }
@@ -845,6 +848,7 @@ static bool row_change(int id, int dir) {
     case S_MSAA: config.ui_msaa = !config.ui_msaa; return true;
     case S_YUV: config.decode_yuv = !config.decode_yuv; return true;
     case S_PINNING: config.thread_pinning = !config.thread_pinning; return true;
+    case S_INPUT_SYNC: config.input_sync = !config.input_sync; return true;
     case S_SWAP_SHOULDER:
       config.swap_shoulder_buttons = !config.swap_shoulder_buttons;
       // Mutually exclusive: the swap turns the mapping file off

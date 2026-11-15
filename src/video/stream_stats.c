@@ -83,6 +83,75 @@ static acc_snap_t acc_take(acc_t *a) {
   return s;
 }
 
+/* ---- whole-session distributions, for percentiles in the summary ----
+ * Averages hide stutters: the summary of each session also gets the 50th, 95th
+ * and 99th percentiles (end-of-session percentiles, as dubleyu/
+ * vita-moonlight-relay reports). Fixed buckets, one writer thread each. */
+#define HIST_BUCKETS 512
+#define HIST_GAP_US 1000000   /* longer gaps between shown frames: a pause, not counted */
+
+typedef struct {
+  uint32_t step_us;
+  uint32_t count[HIST_BUCKETS + 1];   /* the last bucket holds everything above the range */
+  uint32_t n;
+  uint32_t max;
+} hist_t;
+
+static hist_t h_r2p = {.step_us = 500};        /* first packet -> visible: 0-256 ms */
+static hist_t h_interval = {.step_us = 250};   /* between two shown frames: 0-128 ms */
+static hist_t h_decode = {.step_us = 50};      /* hardware decode: 0-25.6 ms */
+static uint64_t last_visible_us;               /* display thread */
+static uint32_t interval_over;                 /* intervals over 1.5 frame times */
+
+static void hist_add(hist_t *h, uint32_t v) {
+  uint32_t b = v / h->step_us;
+  if (b > HIST_BUCKETS)
+    b = HIST_BUCKETS;
+  __atomic_fetch_add(&h->count[b], 1, __ATOMIC_RELAXED);
+  __atomic_fetch_add(&h->n, 1, __ATOMIC_RELAXED);
+  uint32_t cur = __atomic_load_n(&h->max, __ATOMIC_RELAXED);
+  while (v > cur &&
+         !__atomic_compare_exchange_n(&h->max, &cur, v, true, __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+  }
+}
+
+static void hist_reset(hist_t *h) {
+  memset(h->count, 0, sizeof(h->count));
+  h->n = 0;
+  h->max = 0;
+}
+
+/* Upper bound of the bucket that holds the pct-th percentile, in microseconds;
+ * UINT32_MAX when it lies above the range. */
+static uint32_t hist_percentile(const hist_t *h, uint32_t pct) {
+  if (h->n == 0)
+    return 0;
+  uint64_t rank = ((uint64_t)h->n * pct + 99) / 100;
+  if (rank == 0)
+    rank = 1;
+  uint64_t seen = 0;
+  for (int b = 0; b <= HIST_BUCKETS; b++) {
+    seen += h->count[b];
+    if (seen >= rank)
+      return b == HIST_BUCKETS ? UINT32_MAX : (uint32_t)(b + 1) * h->step_us;
+  }
+  return UINT32_MAX;
+}
+
+static void hist_format(char *out, size_t n, const char *name, const hist_t *h) {
+  char p[3][16];
+  const uint32_t pcts[3] = {50, 95, 99};
+  for (int i = 0; i < 3; i++) {
+    uint32_t v = hist_percentile(h, pcts[i]);
+    if (v == UINT32_MAX)
+      snprintf(p[i], sizeof(p[i]), "> %u", (unsigned)(HIST_BUCKETS * h->step_us / 1000));
+    else
+      snprintf(p[i], sizeof(p[i]), "%u.%02u", (unsigned)(v / 1000), (unsigned)(v % 1000 / 10));
+  }
+  snprintf(out, n, "  %-32s p50 %s ms, p95 %s ms, p99 %s ms, max %u.%02u ms (%u values)\n", name,
+           p[0], p[1], p[2], (unsigned)(h->max / 1000), (unsigned)(h->max % 1000 / 10), (unsigned)h->n);
+}
+
 static struct {
   uint32_t recv;       /* decode units handed to the renderer */
   uint32_t lost;       /* gaps in frame numbers (never reached the renderer) */
@@ -140,6 +209,7 @@ static char s_overlay[2][OVERLAY_LINES][OVERLAY_LINE_LEN];
 static int s_app_id = 0;
 static SceDateTime s_start_time;
 static uint64_t sess_ms, sess_shown, sess_lost, sess_r2p_sum, sess_r2p_n;
+static char s_info_path[640];   /* the session's .txt, completed at the end */
 static volatile int s_overlay_idx = 0;
 static volatile bool s_overlay_valid = false;
 static int s_overlay_measured = -1;   /* display thread: which text s_overlay_width belongs to */
@@ -177,6 +247,7 @@ void stream_stats_on_frame(int frame_number, int frame_type, int length,
 
 void stream_stats_on_decode(uint32_t decode_us, int result, bool has_output, uint32_t hold_frames) {
   acc_add(&c.dec_us, decode_us);
+  hist_add(&h_decode, decode_us);
   if (result < 0) {
     cnt_add(&c.dec_err, 1);
     return;
@@ -200,8 +271,17 @@ void stream_stats_on_present(uint32_t render_us, uint32_t swap_us, uint64_t rece
   cnt_add(&c.shown, 1);
   acc_add(&c.render_us, render_us);
   acc_add(&c.swap_us, swap_us);
-  if (receive_us != 0 && visible_us >= receive_us)
+  if (receive_us != 0 && visible_us >= receive_us) {
     acc_add(&c.r2p_us, (uint32_t)(visible_us - receive_us));
+    hist_add(&h_r2p, (uint32_t)(visible_us - receive_us));
+  }
+  if (last_visible_us != 0 && visible_us > last_visible_us && visible_us - last_visible_us < HIST_GAP_US) {
+    uint32_t interval = (uint32_t)(visible_us - last_visible_us);
+    hist_add(&h_interval, interval);
+    if (s_fps > 0 && interval * 2 > 3 * (1000000u / (uint32_t)s_fps))
+      __atomic_fetch_add(&interval_over, 1, __ATOMIC_RELAXED);
+  }
+  last_visible_us = visible_us;
 }
 
 void stream_stats_on_decoder_pull(bool got_picture) {
@@ -315,7 +395,10 @@ static const char *k_legend =
   "  pkt_ooo         video packets that arrived out of order\n"
   "  reorder_held    packets of the next frame held back, waiting for late ones\n"
   "  reorder_saved   frames completed by late packets thanks to that wait\n"
-  "  *_avg = average over the second, *_max = maximum over the second\n";
+  "  *_avg = average over the second, *_max = maximum over the second\n"
+  "The end of this file gives percentiles over the whole session: half of the\n"
+  "values are below p50, 95 % below p95, 99 % below p99. Intervals between\n"
+  "shown frames over 1.5 frame times are frames shown late or repeated.\n";
 
 /* Creates <data>/stats/session-<date>.csv (integers only, ';' separated so that
  * Excel in a French locale opens it with a double click) and session-<date>.txt
@@ -336,6 +419,7 @@ static void open_session_files(void) {
   /* Session description */
   snprintf(path, sizeof(path), "%s/session-%s.txt", dir, stamp);
   SceUID info = sceIoOpen(path, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
+  snprintf(s_info_path, sizeof(s_info_path), "%s", info >= 0 ? path : "");
   if (info >= 0) {
     float refresh = 0.0f;
     sceDisplayGetRefreshRate(&refresh);
@@ -366,10 +450,12 @@ static void open_session_files(void) {
     snprintf(line, sizeof(line),
              "this build: decoder_catchup=%d auto_bitrate=%d keep_link_open=%d smooth_edges=%d (4x multisampling in use: %d)\n"
              "performance: yuv_decode=%d reorder_wait_ms=%d thread_pinning=%d\n"
-             "Wi-Fi: signal %d %%, channel %d, power-save registry value %d (-1 = not readable; 1 is assumed to mean on)\n\n",
+             "controls: read in step with the controller=%d\n"
+             "Wi-Fi: signal %d %%, channel %d, power-save registry value %d (-1 = not readable; 1 is assumed to mean on)\n"
+             "Bluetooth: %d (1 on, 0 off, -1 not readable)\n\n",
              config.decoder_catchup, config.auto_bitrate, config.http_keepalive, config.ui_msaa,
              gui_msaa_active(), config.decode_yuv, config.video_reorder_wait_ms, config.thread_pinning,
-             signal, channel, vitapower_wifi_power_save());
+             config.input_sync, signal, channel, vitapower_wifi_power_save(), vitapower_bluetooth());
     write_fd(info, line);
     write_fd(info, k_legend);
     sceIoClose(info);
@@ -542,6 +628,11 @@ void stream_stats_session_start(int width, int height, int fps) {
 
   memset(&c, 0, sizeof(c));
   sess_ms = sess_shown = sess_lost = sess_r2p_sum = sess_r2p_n = 0;
+  hist_reset(&h_r2p);
+  hist_reset(&h_interval);
+  hist_reset(&h_decode);
+  last_visible_us = 0;
+  interval_over = 0;
   sceRtcGetCurrentClockLocalTime(&s_start_time);
   memset(rx_ring_us, 0, sizeof(rx_ring_us));
   for (int i = 0; i < RX_RING; i++)
@@ -582,6 +673,31 @@ void stream_stats_session_end(void) {
     s_fd = -1;
   }
   s_overlay_valid = false;
+
+  /* Percentiles of the whole session, at the end of its description file. */
+  if (was_running && s_info_path[0]) {
+    SceUID fd = sceIoOpen(s_info_path, SCE_O_WRONLY | SCE_O_APPEND, 0777);
+    if (fd >= 0) {
+      char line[256];
+      snprintf(line, sizeof(line),
+               "\nwhole session, %u s (percentiles: upper bound of buckets of 0.5 / 0.25 / 0.05 ms):\n",
+               (unsigned)(sess_ms / 1000));
+      write_fd(fd, line);
+      hist_format(line, sizeof(line), "first packet -> visible (r2p)", &h_r2p);
+      write_fd(fd, line);
+      hist_format(line, sizeof(line), "interval between shown frames", &h_interval);
+      write_fd(fd, line);
+      uint32_t intervals = h_interval.n;
+      snprintf(line, sizeof(line), "  %-32s %u of %u (%u.%u %%)\n", "intervals over 1.5 frame times",
+               (unsigned)interval_over, (unsigned)intervals,
+               (unsigned)(intervals ? (uint64_t)interval_over * 100 / intervals : 0),
+               (unsigned)(intervals ? (uint64_t)interval_over * 1000 / intervals % 10 : 0));
+      write_fd(fd, line);
+      hist_format(line, sizeof(line), "hardware decode", &h_decode);
+      write_fd(fd, line);
+      sceIoClose(fd);
+    }
+  }
 
   /* Keep a short summary per app for the library screen (sessions >= 10 s). */
   if (was_running && s_app_id != 0 && sess_ms >= 10000) {

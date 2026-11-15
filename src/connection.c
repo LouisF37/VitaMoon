@@ -101,6 +101,10 @@ static void connection_connection_terminated(int error_code) {
 
   if (connection_status == LI_CONNECTED) {
     stop_output();
+  } else if (connection_status == LI_MINIMIZED) {
+    // pause_output() leaves the clocks raised: a stream ended from the pause
+    // must still put them back (juanjsebgarcia/vita-moonlight).
+    vitapower_stop();
   }
   vita_debug_log("connection terminated\n");
   connection_status = LI_DISCONNECTED;

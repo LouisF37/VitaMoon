@@ -339,4 +339,16 @@ T2 = {
 "Network, decoding and display each on their own core. Off: the system places them.":
     ("Réseau, décodage et affichage chacun sur son cœur. Désactivé" + NB + ": le système les place.",
      "Red, decodificación y visualización, cada uno en su núcleo. Desactivado: el sistema los coloca."),
+# --- second batch: Bluetooth, restart, controls ---
+"Bluetooth is on and can disturb the Wi-Fi: if you use no Bluetooth device, turn it off in the Vita's Settings.":
+    ("Le Bluetooth est activé et peut perturber le Wi-Fi" + NB + ": si vous n'utilisez aucun appareil Bluetooth, désactivez-le dans les Paramètres de la Vita.",
+     "El Bluetooth está activado y puede perturbar el Wi-Fi: si no usas ningún dispositivo Bluetooth, desactívalo en los Ajustes de la Vita."),
+"Restarting the stream...": ("Relance du stream...", "Reiniciando el stream..."),
+"Some settings you changed only apply to a new stream.\\nRestart the stream now? The game keeps running on the PC.":
+    ("Certains réglages modifiés ne s'appliquent qu'à un nouveau stream.\\nRelancer le stream maintenant" + NB + "? Le jeu continue sur le PC.",
+     "Algunos ajustes que cambiaste solo se aplican a un nuevo stream.\\n¿Reiniciar el stream ahora? El juego sigue en el PC."),
+"Read the controls in step with the Vita": ("Lire les commandes au rythme de la Vita", "Leer los controles al ritmo de la Vita"),
+"Reads the buttons once per sample of the Vita instead of every 2 ms. If touch feels slower, turn it off.":
+    ("Lit les boutons une fois par relevé de la Vita au lieu de toutes les 2 ms. Si le tactile semble plus lent, désactivez.",
+     "Lee los botones una vez por muestreo de la Vita en lugar de cada 2 ms. Si el táctil parece más lento, desactívalo."),
 }

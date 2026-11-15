@@ -101,6 +101,46 @@ static int host_open(const char *name, char *address, uint16_t port) {
   return ret;
 }
 
+/* Settings that only take effect when a stream starts (they shape the
+ * connection, the decoder, the display or the threads). Remembered when a
+ * stream starts: if they differ when a paused stream is resumed, the user is
+ * offered to restart it (juanjsebgarcia/vita-moonlight offers a restart too). */
+typedef struct {
+  int width, height, fps, bitrate, packet_size;
+  bool sops, localaudio, rfi, match_refresh, crop;
+  int display_mode;
+  bool low_latency_audio, decoder_catchup, decode_yuv, thread_pinning;
+  int reorder_wait_ms;
+} stream_start_settings;
+
+static stream_start_settings started_with;
+
+static void read_start_settings(stream_start_settings *out, int width, int height) {
+  memset(out, 0, sizeof(*out));   /* padding too, for memcmp */
+  out->width = width;
+  out->height = height;
+  out->fps = config.stream.fps;
+  out->bitrate = config.stream.bitrate;
+  out->packet_size = config.stream.packetSize;
+  out->sops = config.sops;
+  out->localaudio = config.localaudio;
+  out->rfi = config.enable_ref_frame_invalidation;
+  out->match_refresh = config.match_refresh_rate;
+  out->crop = config.center_region_only;
+  out->display_mode = config.display_mode;
+  out->low_latency_audio = config.low_latency_audio;
+  out->decoder_catchup = config.decoder_catchup;
+  out->decode_yuv = config.decode_yuv;
+  out->thread_pinning = config.thread_pinning;
+  out->reorder_wait_ms = config.video_reorder_wait_ms;
+}
+
+static bool start_settings_changed(void) {
+  stream_start_settings now;
+  read_start_settings(&now, config.stream.width, config.stream.height);
+  return memcmp(&now, &started_with, sizeof(now)) != 0;
+}
+
 void ui_connect_stream(int appId) {
   // TODO support force controller id
   vita_debug_log("Running gs_start_app...");
@@ -159,6 +199,7 @@ void ui_connect_stream(int appId) {
   }
 
   stream_stats_set_app(appId);
+  read_start_settings(&started_with, orig_width, orig_height);
   vita_debug_log("Running LiStartConnection...");
   // Wait for late video packets before giving a frame up (juanjsebgarcia's
   // reorder window, third_party/patches/moonlight-common-c).
@@ -195,12 +236,24 @@ static char connected_host_name[128] = "";
  * to show the library/menu again, 1 if the connection was lost. */
 static int ui_launch_app(int id) {
   int status = connection_get_status();
+  bool restart = status == LI_MINIMIZED && server.currentGame == id && start_settings_changed() &&
+                 display_confirm(tr("Some settings you changed only apply to a new stream.\nRestart the stream now? The game keeps running on the PC."));
   vitapower_config(config);
   vitainput_config(config);
   // The stream draws from its own thread: no menu frame may be left open.
   ui_end();
 
-  if (status == LI_MINIMIZED && server.currentGame == id) {
+  if (status == LI_MINIMIZED && server.currentGame == id && restart) {
+    // Settings that apply to a new stream changed during the pause: end this
+    // stream (the game keeps running on the PC) and start a new one.
+    flash_message(tr("Restarting the stream..."));
+    vita_debug_log("[CONNECT] restarting the stream to apply new settings");
+    connection_terminate();
+    sceKernelDelayThread(1000 * 1000);
+    connection_reset();
+    connection_paired();
+    ui_connect_stream(id);
+  } else if (status == LI_MINIMIZED && server.currentGame == id) {
     // paused stream of this game: let the button be released, then carry on
     sceKernelDelayThread(500 * 1000);
     connection_resume();
@@ -499,6 +552,12 @@ device_info_t* ui_connect_and_pairing(device_info_t *info) {
 
 void ui_connect_resume() {
   connected_screens();
+}
+
+int ui_connect_resume_paused(void) {
+  if (connection_get_status() != LI_MINIMIZED)
+    return 0;
+  return ui_launch_app(server.currentGame);
 }
 
 void ui_connect_manual() {

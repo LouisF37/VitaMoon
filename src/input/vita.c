@@ -86,6 +86,12 @@ static inline void update_touch_points();
 #define lerp(value, from_max, to_max) ((((value*10) * (to_max*10))/(from_max*10))/10)
 
 double mouse_multiplier;
+/* Mouse buttons pressed on the PC by the relative touch mode, so that a pause,
+ * a stop or a touch moving into a mapped zone can release them
+ * (dubleyu/vita-moonlight-relay, commit 3f9fbb8). */
+static bool mouse_left_down = false;
+static bool mouse_right_down = false;
+static bool touchzone_mouse_suppressed = false;
 
 #define PSBTN_DOUBLETAP_DELAY 250000 // 100ms
 
@@ -104,9 +110,11 @@ inline bool mouse_click(short finger_count, bool press) {
   switch (finger_count) {
     case 1:
       LiSendMouseButtonEvent(mode, BUTTON_LEFT);
+      mouse_left_down = press;
       return true;
     case 2:
       LiSendMouseButtonEvent(mode, BUTTON_RIGHT);
+      mouse_right_down = press;
       return true;
   }
   return false;
@@ -168,6 +176,24 @@ SceMotionState motionState;
 int front_state = NO_TOUCH_ACTION;
 short finger_count = 0;
 SceRtcTick current, until;
+
+/* Forgets the touch gesture in progress; with release_host_buttons, first
+ * releases on the PC the mouse buttons and fingers it still holds. */
+static void reset_pointer_state(bool release_host_buttons) {
+  if (release_host_buttons) {
+    if (mouse_left_down)
+      LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_LEFT);
+    if (mouse_right_down)
+      LiSendMouseButtonEvent(BUTTON_ACTION_RELEASE, BUTTON_RIGHT);
+  }
+  mouse_left_down = false;
+  mouse_right_down = false;
+  front_state = NO_TOUCH_ACTION;
+  finger_count = 0;
+  memset(&swipe, 0, sizeof(swipe));
+  memset(&touch_old, 0, sizeof(touch_old));
+  touchabsolute_reset(release_host_buttons);
+}
 
 
 //static int special_status;
@@ -689,8 +715,16 @@ void process_touch() {
     check_for_double_click(&curr);
   }
 
-  if(in_front_touchzone())
+  if (in_front_touchzone()) {
+    // A mapped zone bypasses the gestures: a click or swipe in progress would
+    // never get its release, leaving the PC's mouse held down.
+    if (!touchzone_mouse_suppressed) {
+      reset_pointer_state(true);
+      touchzone_mouse_suppressed = true;
+    }
     return;
+  }
+  touchzone_mouse_suppressed = false;
 
   // Exclusive touchscreen modes
 
@@ -761,11 +795,22 @@ void process_touch() {
   }
 }
 
+/* Set by vitainput_process: the controller was polled, not waited for, so the
+ * thread must pause before the next pass. */
+static bool input_needs_delay = true;
+
 inline void vitainput_process(void) {
   memset(&pad, 0, sizeof(pad));
   memset(&touch, 0, sizeof(TouchData));
   memset(&curr, 0, sizeof(input_data));
-  sceCtrlPeekBufferPositiveExt2(controller_port, &pad, 1);
+  // "Read the controls in step with the Vita": wait for the controller's next
+  // sample (one per screen refresh) instead of polling every 2 ms and reading
+  // the same sample again and again (juanjsebgarcia/vita-moonlight). Falls back
+  // to polling if the blocking read fails.
+  input_needs_delay = !config.input_sync ||
+                      sceCtrlReadBufferPositiveExt2(controller_port, &pad, 1) < 0;
+  if (input_needs_delay)
+    sceCtrlPeekBufferPositiveExt2(controller_port, &pad, 1);
   sceTouchPeek(SCE_TOUCH_PORT_FRONT, &front, 1);
   sceTouchPeek(SCE_TOUCH_PORT_BACK, &back, 1);
   // Always update the front touch points
@@ -873,10 +918,25 @@ inline void vitainput_process(void) {
 }
 
 static volatile uint8_t active_input_thread = 0;
+/* Set when the stream pauses or stops: the input thread then releases on the
+ * PC what it still holds. Done on that thread, the only one that touches the
+ * input state. */
+static volatile bool release_pending = false;
 
-/* Input thread: reads the pad and the touch panels every 2 ms and sends what
- * changed. It runs above the default priority (96, as in VitaRPS5) so a press
- * is not delayed by background work, and below the media threads (64).
+/* Releases on the PC every button, stick and touch this side still holds, and
+ * forgets the last state sent, so that a resumed stream sends it again. */
+static void release_host_input(void) {
+  LiSendMultiControllerEvent(0, 1, 0, 0, 0, 0, 0, 0, 0);
+  reset_pointer_state(true);
+  memset(&old, 0, sizeof(old));
+  memset(&pad_old, 0, sizeof(pad_old));
+  touchzone_mouse_suppressed = false;
+}
+
+/* Input thread: reads the pad and the touch panels once per controller sample
+ * (or every 2 ms) and sends what changed. It runs above the default priority
+ * (96, as in VitaRPS5) so a press is not delayed by background work, and below
+ * the media threads (64).
  * A pthread: it sends through moonlight-common-c, whose locks are pthread ones
  * (dubleyu/vita-moonlight-relay saw crashes in sem_timedwait with a kernel
  * thread here). */
@@ -894,8 +954,13 @@ static void *vitainput_thread(void *argp) {
         placed = true;
       }
       vitainput_process();
-      sceKernelDelayThread(2000); // 2 ms
+      if (input_needs_delay)
+        sceKernelDelayThread(2000); // 2 ms
     } else {
+      if (release_pending) {
+        release_host_input();
+        release_pending = false;
+      }
       placed = false;
       sceKernelDelayThread(20000); // idle: nothing to send
     }
@@ -1042,6 +1107,10 @@ void vitainput_start(void) {
   if(config.enable_psbutton_capture)
     lock_psbutton();
 
+  // A release asked by the pause is done by the input thread within 20 ms;
+  // let it finish before the thread reads the controls again.
+  for (int i = 0; i < 50 && release_pending; i++)
+    sceKernelDelayThread(1000);
   active_input_thread = true;
   active_motion_threads = true;
 }
@@ -1050,4 +1119,5 @@ void vitainput_stop(void) {
   unlock_psbutton();
   active_input_thread = false;
   active_motion_threads = false;
+  release_pending = true;
 }

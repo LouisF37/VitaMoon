@@ -161,3 +161,10 @@ int vitapower_wifi_power_save(void) {
     return -1;
   return value;
 }
+
+int vitapower_bluetooth(void) {
+  int value = -1;
+  if (sceRegMgrGetKeyInt("/CONFIG/BT", "bt_enable", &value) < 0)
+    return -1;
+  return value != 0;
+}
