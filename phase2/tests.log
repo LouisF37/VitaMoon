@@ -1,4 +1,154 @@
-/home/runner/work/vita-moonlight/vita-moonlight/tools/tests/test_sps.c: In function ‘main’:
-/home/runner/work/vita-moonlight/vita-moonlight/tools/tests/test_sps.c:108:3: error: implicit declaration of function ‘gs_sps_stop’ [-Wimplicit-function-declaration]
-  108 |   gs_sps_stop();
-      |   ^~~~~~~~~~~
+[pacing]
+    steady 60 fps            frames  3600 shown  3596 dropped   4 repeats    0 | wait max early  28.7, late  24.7, avg late  14.0 ms | margin  4.0 ms
+  ok    frames shown in order
+  ok    every frame shown or dropped
+  ok    at most 0.2 % dropped on a steady link
+  ok    margin comes down to the minimum when nothing is late
+  ok    steady: almost no repeated frame
+  ok    wait stays within the delay plus two refreshes
+    60 fps, 0-15 ms jitter   frames  3600 shown  3597 dropped   3 repeats    0 | wait max early  38.6, late  35.8, avg late  23.0 ms | margin  4.0 ms
+  ok    frames shown in order
+  ok    even cadence despite jitter: almost no repeated frame
+  ok    margin within its bounds
+  ok    at most 5 % dropped with heavy jitter
+  ok    wait bounded by the maximum delay
+    PC clock 200 ppm fast    frames  7200 shown  7191 dropped   9 repeats    0 | wait max early  34.0, late  28.8, avg late  19.1 ms | margin  4.0 ms
+  ok    wait does not grow with a fast PC clock
+  ok    few frames dropped with a fast PC clock
+  ok    fast PC clock: few repeated frames
+    PC clock 200 ppm slow    frames  7200 shown  7192 dropped   8 repeats    2 | wait max early  29.3, late  26.0, avg late  16.3 ms | margin  4.0 ms
+  ok    wait bounded with a slow PC clock
+  ok    few frames dropped with a slow PC clock
+  ok    slow PC clock: few repeated frames
+    PC clock 0.1 % fast      frames  7200 shown  7185 dropped  15 repeats    0 | wait max early  34.5, late  30.5, avg late  21.0 ms | margin  4.0 ms
+  ok    0.1 % fast: wait does not grow
+  ok    0.1 % fast: under 2 % dropped
+    PC clock 0.1 % slow      frames  7200 shown  7171 dropped  29 repeats   19 | wait max early  27.4, late  25.4, avg late  14.5 ms | margin  4.0 ms
+  ok    0.1 % slow: wait bounded
+  ok    0.1 % slow: under 2 % dropped
+    59.94 fps (matched)      frames  3596 shown  3596 dropped   0 repeats    0 | wait max early  27.3, late  26.3, avg late  24.8 ms | margin  4.0 ms
+  ok    matched rate: no drop, no repeat
+    30 fps                   frames  1800 shown  1800 dropped   0 repeats  897 | wait max early  33.3, late  28.3, avg late  18.4 ms | margin  4.0 ms
+  ok    frames shown in order
+  ok    30 fps: nearly nothing dropped
+    3 s pause on the PC      frames  1620 shown  1618 dropped   2 repeats    0 | wait max early  30.1, late  23.1, avg late  19.2 ms | margin  8.0 ms
+  ok    first frame after a pause shown within 3 refreshes
+  ok    every frame shown or dropped after a pause
+  ok    catch-up picks the newest frame
+  ok    catch-up drops the older frames
+  ok    catch-up anchors on the frame shown
+  ok    first frame due after the start delay
+  ok    clock going back re-anchors
+[pacing] 31 checks, 0 failed
+
+[url and percentiles]
+  ok    space encoded
+  ok    unreserved characters kept
+  ok    UTF-8 bytes and & encoded
+  ok    never ends in the middle of an escape
+  ok    NULL gives an empty string
+  ok    empty histogram: 0
+  ok    count and maximum
+    1..100 ms: p50 50500, p95 95500, p99 99500 us
+  ok    p50 is the bucket of 50 ms
+  ok    p95 is the bucket of 95 ms
+  ok    p99 is the bucket of 99 ms
+  ok    formatted in milliseconds
+  ok    values above the range reported as such
+  ok    maximum kept beyond the range
+[url and percentiles] 13 checks, 0 failed
+
+[config]
+  ok    round trip: stream.width
+  ok    round trip: stream.height
+  ok    round trip: stream.fps
+  ok    round trip: stream.bitrate
+  ok    round trip: auto_bitrate
+  ok    round trip: stream.packetSize
+  ok    round trip: sops
+  ok    round trip: localaudio
+  ok    round trip: enable_frame_pacer
+  ok    round trip: center_region_only
+  ok    round trip: disable_powersave
+  ok    round trip: jp_layout
+  ok    round trip: show_fps
+  ok    round trip: save_debug_log
+  ok    round trip: enable_front_touchzones
+  ok    round trip: mouse_acceleration
+  ok    round trip: enable_ref_frame_invalidation
+  ok    round trip: stream.streamingRemotely
+  ok    round trip: enable_vita_vblank_wait
+  ok    round trip: boost_clocks
+  ok    round trip: match_refresh_rate
+  ok    round trip: low_latency_audio
+  ok    round trip: display_mode
+  ok    round trip: decoder_catchup
+  ok    round trip: http_keepalive
+  ok    round trip: ui_msaa
+  ok    round trip: decode_yuv
+  ok    round trip: video_reorder_wait_ms
+  ok    round trip: thread_pinning
+  ok    round trip: input_sync
+  ok    round trip: enable_motion_controls
+  ok    round trip: enable_psbutton_capture
+  ok    round trip: enable_double_tap_sprint
+  ok    round trip: double_tap_sprint_step_time
+  ok    round trip: keyboard_layout
+  ok    round trip: language
+  ok    round trip: touchscreen_mode
+  ok    round trip: swap_shoulder_buttons
+  ok    round trip: controller_type
+  ok    round trip: back_deadzone.top
+  ok    round trip: back_deadzone.right
+  ok    round trip: back_deadzone.bottom
+  ok    round trip: back_deadzone.left
+  ok    round trip: special_keys.nw
+  ok    round trip: special_keys.ne
+  ok    round trip: special_keys.sw
+  ok    round trip: special_keys.se
+  ok    round trip: special_keys.offset
+  ok    round trip: special_keys.size
+  ok    round trip: motion scalar x
+  ok    round trip: motion scalar y
+  ok    old packetsize key ignored
+  ok    out-of-range packet size falls back to the default
+  ok    reorder wait clamped to 50 ms
+  ok    negative reorder wait clamped to 0
+  ok    old bitrate line read as a manual bitrate
+  ok    sanitize: resolution back to 960x544
+  ok    sanitize: fps back to 60
+  ok    sanitize: absurd bitrate back to automatic
+  ok    sanitize: unknown display mode back to Smooth
+  ok    sanitize: touch mode and controller type
+  ok    sanitize: mouse acceleration
+  ok    sanitize: NaN motion scale
+  ok    sanitize: huge motion scale
+  ok    sanitize: sprint tap time
+  ok    sanitize: unknown language back to English
+  ok    sanitize: a valid packet size is kept
+  ok    sanitize leaves valid settings alone
+    auto bitrate: 960x544@60 8000, 1280x720@60 10000, 1280x720@30 6250 kbps
+  ok    auto bitrate grows with the resolution
+  ok    auto bitrate lower at 30 fps
+  ok    auto bitrate stays within 20 Mbps
+[config] 71 checks, 0 failed
+
+[sps rewrite]
+  ok    test SPS built
+    SPS 19 bytes in, 23 bytes out
+  ok    nothing written before the offset
+  ok    result within the room kept by the renderer
+  ok    start code kept
+  ok    result is a valid SPS
+  ok    one reference frame
+  ok    bitstream restriction present
+  ok    decoder buffers a single frame
+  ok    no reordering
+  ok    picture size untouched
+  ok    unparsable SPS passed through unchanged
+  ok    missing start code: passed through
+  ok    truncated SPS: passed through
+  ok    not an SPS: passed through
+[sps rewrite] 14 checks, 0 failed
+
+all tests passed
