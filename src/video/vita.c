@@ -44,8 +44,6 @@
 
 #define printf vita_debug_log
 
-extern void gs_sps_stop();
-
 extern double_click_tracker dc_tracker;
 
 void draw_streaming(vita2d_texture *frame_texture);

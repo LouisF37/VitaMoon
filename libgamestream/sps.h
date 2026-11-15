@@ -23,7 +23,10 @@
 #define GS_SPS_REMOVE_VST_FIXUP 0x02
 #define GS_SPS_REMOVE_CLI_FIXUP 0x04
 
+/* Sets up the SPS rewrite for a stream of that size; gs_sps_stop() releases it. */
 void gs_sps_init(int width, int height);
+void gs_sps_stop(void);
+
 /* Largest rewritten SPS payload. The rewrite can be longer than the SPS
  * received, by less than this: the caller's buffer must keep that much room. */
 #define GS_SPS_MAX_REWRITE 128

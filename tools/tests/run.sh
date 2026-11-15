@@ -14,7 +14,8 @@ mkdir -p "$out/inc"
 for d in psp2 psp2common vitasdk; do ln -sfn "$VITASDK/arm-vita-eabi/include/$d" "$out/inc/$d"; done
 
 cc="gcc -std=gnu99 -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare
-    -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer"
+    -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer
+    -Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=int-conversion"
 
 $cc -I"$here" -I"$root/src/video" "$here/test_pacing.c" "$root/src/video/pacing.c" -o "$out/test_pacing"
 $cc -I"$here" -I"$root/libgamestream" -I"$root/src/video" "$here/test_misc.c" "$root/libgamestream/url.c" -o "$out/test_misc"
