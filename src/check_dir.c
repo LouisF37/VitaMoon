@@ -83,7 +83,7 @@ void check_and_create_moonlight_dir(char* out_path, char* out_key_dir) {
     // Create moonlight.conf if it does not exist
     FILE* conf_file = fopen(out_path, "a");
     if (conf_file) fclose(conf_file);
-    if (test_log) fclose(test_log);
+    // test_log, when opened above, is already closed.
 
     // Save only key_dir in moonlight.conf
     FILE* conf_save = fopen(out_path, "r+");

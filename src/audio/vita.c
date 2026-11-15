@@ -248,6 +248,13 @@ static void vita_renderer_cleanup() {
 
 static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGURATION opusConfig, void* audioContext, int arFlags) {
   int rc;
+  // Both output paths write 2 interleaved channels: anything else would
+  // overflow their buffers. The stream is always set up as stereo
+  // (config.c), so this only guards against a future change there.
+  if (opusConfig->channelCount != 2) {
+    vita_debug_log("audio: %d channels, only stereo is supported\n", opusConfig->channelCount);
+    return VITA_AUDIO_ERROR_BAD_OPUS;
+  }
   decoder = opus_multistream_decoder_create(opusConfig->sampleRate,
                                             opusConfig->channelCount,
                                             opusConfig->streams,
@@ -262,8 +269,7 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
   samples_per_frame = opusConfig->samplesPerFrame > 0 && opusConfig->samplesPerFrame <= LL_MAX_PACKET
                           ? opusConfig->samplesPerFrame : FRAME_SIZE;
 
-  // Both modes assume stereo (2 interleaved channels), as the original code did.
-  ll_mode = config.low_latency_audio && opusConfig->channelCount == 2;
+  ll_mode = config.low_latency_audio;
   decode_offset = 0;
   classic_block = 0;
   // Classic mode fills 20 ms blocks with whole packets: the packet length must

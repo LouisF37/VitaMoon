@@ -21,6 +21,7 @@
 #include "xml.h"
 #include "mkcert.h"
 #include "client.h"
+#include "url.h"
 #include "errors.h"
 #include "limits.h"
 
@@ -435,26 +436,7 @@ static void decrypt(const unsigned char *ciphertext, int ciphertextLen, const un
 }
 
 void gs_set_device_name(const char *name) {
-  static const char hex[] = "0123456789ABCDEF";
-  size_t out = 0;
-  for (const unsigned char *p = (const unsigned char *)name; name && *p; p++) {
-    // RFC 3986 unreserved characters stay; everything else is percent-encoded,
-    // each byte of a multi-byte UTF-8 character included.
-    bool unreserved = (*p >= 'A' && *p <= 'Z') || (*p >= 'a' && *p <= 'z') ||
-                      (*p >= '0' && *p <= '9') || *p == '-' || *p == '_' || *p == '.' || *p == '~';
-    size_t need = unreserved ? 1 : 3;
-    if (out + need >= sizeof(device_name))
-      break;
-    if (unreserved) {
-      device_name[out++] = (char)*p;
-    } else {
-      device_name[out++] = '%';
-      device_name[out++] = hex[*p >> 4];
-      device_name[out++] = hex[*p & 0x0F];
-    }
-  }
-  device_name[out] = '\0';
-  if (out == 0)
+  if (gs_url_encode(name, device_name, sizeof(device_name)) == 0)
     snprintf(device_name, sizeof(device_name), "%s", DEFAULT_DEVICE_NAME);
 }
 
@@ -503,7 +485,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
   else if ((ret = http_request_timeout(url, data, 0)) != GS_OK)
     goto cleanup;
 
-  if ((ret = xml_status(data->memory, data->size) != GS_OK))
+  if (((ret = xml_status(data->memory, data->size)) != GS_OK))
     goto cleanup;
   else if ((ret = xml_search(data->memory, data->size, "paired", &result)) != GS_OK)
     goto cleanup;
@@ -560,7 +542,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
 
   free(result);
   result = NULL;
-  if ((ret = xml_status(data->memory, data->size) != GS_OK))
+  if (((ret = xml_status(data->memory, data->size)) != GS_OK))
     goto cleanup;
   else if ((ret = xml_search(data->memory, data->size, "paired", &result)) != GS_OK)
     goto cleanup;
@@ -623,7 +605,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
 
   free(result);
   result = NULL;
-  if ((ret = xml_status(data->memory, data->size) != GS_OK))
+  if (((ret = xml_status(data->memory, data->size)) != GS_OK))
     goto cleanup;
   else if ((ret = xml_search(data->memory, data->size, "paired", &result)) != GS_OK)
     goto cleanup;
@@ -682,7 +664,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
 
   free(result);
   result = NULL;
-  if ((ret = xml_status(data->memory, data->size) != GS_OK))
+  if (((ret = xml_status(data->memory, data->size)) != GS_OK))
     goto cleanup;
   else if ((ret = xml_search(data->memory, data->size, "paired", &result)) != GS_OK)
     goto cleanup;
@@ -701,7 +683,7 @@ int gs_pair(PSERVER_DATA server, char* pin) {
 
   free(result);
   result = NULL;
-  if ((ret = xml_status(data->memory, data->size) != GS_OK))
+  if (((ret = xml_status(data->memory, data->size)) != GS_OK))
     goto cleanup;
   else if ((ret = xml_search(data->memory, data->size, "paired", &result)) != GS_OK)
     goto cleanup;
@@ -853,7 +835,7 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION *config, int appId, b
   else
     goto cleanup;
 
-  if ((ret = xml_status(data->memory, data->size) != GS_OK))
+  if (((ret = xml_status(data->memory, data->size)) != GS_OK))
     goto cleanup;
   else if ((ret = xml_search(data->memory, data->size, "gamesession", &result)) != GS_OK &&
            (ret = xml_search(data->memory, data->size, "resume", &result)) != GS_OK)
@@ -896,7 +878,7 @@ int gs_quit_app(PSERVER_DATA server) {
   if ((ret = http_request_timeout(url, data, 30)) != GS_OK)
     goto cleanup;
 
-  if ((ret = xml_status(data->memory, data->size) != GS_OK))
+  if (((ret = xml_status(data->memory, data->size)) != GS_OK))
     goto cleanup;
   else if ((ret = xml_search(data->memory, data->size, "cancel", &result)) != GS_OK)
     goto cleanup;

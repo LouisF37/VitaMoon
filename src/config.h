@@ -121,6 +121,7 @@ extern char *config_path;
 extern bool inputAdded;
 
 bool config_file_parse(char* filename, PCONFIGURATION config);
+void config_sanitize(PCONFIGURATION config);
 void config_parse(int argc, char* argv[], PCONFIGURATION config);
 void config_save(const char* filename, PCONFIGURATION config);
 void update_layout();

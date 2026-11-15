@@ -86,6 +86,13 @@ jobs:
             ls -lh build
           } 2>&1 | tee ci/build.log
 
+      # Pacing, settings file, SPS rewrite and helpers, built for the PC with
+      # AddressSanitizer and UBSan (tools/tests).
+      - name: PC tests
+        run: |
+          set -o pipefail
+          tools/tests/run.sh build/tests 2>&1 | tee ci/tests.log
+
       - name: Upload VPK artifact
         uses: actions/upload-artifact@v4
         with:
@@ -132,6 +139,7 @@ jobs:
           rm -rf "$SAFE_BRANCH" && mkdir -p "$SAFE_BRANCH"
           cp "$GITHUB_WORKSPACE/ci/build.log" "$SAFE_BRANCH/build.log" 2>/dev/null || echo "no build log (job stopped before the build step)" > "$SAFE_BRANCH/build.log"
           tail -n 400 "$GITHUB_WORKSPACE/ci/sdk.log" > "$SAFE_BRANCH/sdk-tail.log" 2>/dev/null || echo "SDK restored from cache" > "$SAFE_BRANCH/sdk-tail.log"
+          cp "$GITHUB_WORKSPACE/ci/tests.log" "$SAFE_BRANCH/tests.log" 2>/dev/null || echo "no test log" > "$SAFE_BRANCH/tests.log"
           echo "status=$JOB_STATUS run=$GITHUB_RUN_ID sha=$GITHUB_SHA date=$(date -u +%FT%TZ)" > "$SAFE_BRANCH/status.txt"
           git add -A
           git commit -q -m "CI log $BUILD_BRANCH ${GITHUB_SHA::7} ($JOB_STATUS)"

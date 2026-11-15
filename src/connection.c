@@ -27,6 +27,7 @@
 #include "video/stream_stats.h"
 #include "audio/vita.h"
 #include <stdbool.h>
+#include <pthread.h>
 #include "connection_overlay.h"
 #include "debug.h"
 
@@ -71,10 +72,19 @@ void connection_connection_started() {
   vitavideo_hide_poor_net_indicator();
 }
 
+/* The end of a stream can come from two threads at once: moonlight-common-c
+ * reports a host-side end on its own thread ("AsyncTerm") while the menus may
+ * be ending it too. LiStopConnection() must run once, so both go through this
+ * lock and the second finds the stream already ended. */
+static pthread_mutex_t terminate_lock = PTHREAD_MUTEX_INITIALIZER;
+
 static void connection_connection_terminated(int error_code) {
+  pthread_mutex_lock(&terminate_lock);
   if (connection_status != LI_PAIRED && connection_status != LI_CONNECTED &&
       connection_status != LI_MINIMIZED) {
-    vita_debug_log("connection_connection_terminated error: %d\n", connection_status);
+    vita_debug_log("connection_connection_terminated: already ended (%d)\n", connection_status);
+    pthread_mutex_unlock(&terminate_lock);
+    return;
   }
 
   switch (error_code) {
@@ -108,6 +118,7 @@ static void connection_connection_terminated(int error_code) {
   }
   vita_debug_log("connection terminated\n");
   connection_status = LI_DISCONNECTED;
+  pthread_mutex_unlock(&terminate_lock);
 }
 
 int connection_reset() {

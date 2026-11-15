@@ -95,6 +95,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/wake_on_lan.c
 	src/audio/vita.c
 	src/video/vita.c
+	src/video/pacing.c
 	src/video/stream_stats.c
 	src/gui/boxart.c
 	src/gui/ui_library.c
@@ -121,6 +122,7 @@ add_executable(${PROJECT_NAME}.elf
 	libgamestream/http.c
 	libgamestream/mkcert.c
 	libgamestream/sps.c
+	libgamestream/url.c
 	libgamestream/xml.c
 
 	# moonlight-common-c, ENet, h264bitstream, inih and libuuid are built once,

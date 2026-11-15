@@ -20,6 +20,7 @@
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h>
 
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,7 +38,10 @@ static boxart_job jobs[MAX_JOBS];
 static int job_count = 0;
 static SERVER_DATA job_server;
 static char job_address[256];   /* own copy: the worker outlives the caller's strings */
-static SceUID worker = -1;
+/* A pthread: it goes through the HTTP client, whose lock is a pthread mutex
+ * (dubleyu/vita-moonlight-relay saw pthread waits crash in kernel threads). */
+static pthread_t worker;
+static bool worker_created = false;
 static volatile bool worker_busy = false;
 
 /* <key_dir>/boxart/<host>, where <host> is the MAC (or the address) with only
@@ -137,7 +141,9 @@ static bool write_cover(const char *path, const uint8_t *rgba) {
   return ok;
 }
 
-static int worker_main(SceSize args, void *argp) {
+static void *worker_main(void *argp) {
+  // Below the menus (priority 160, larger is lower): covers come second.
+  sceKernelChangeThreadPriority(sceKernelGetThreadId(), 176);
   char dir[512], path[640], line[256];
   host_dir(&job_server, dir, sizeof(dir));
   snprintf(path, sizeof(path), "%.400s/boxart", config.key_dir);
@@ -186,20 +192,17 @@ static int worker_main(SceSize args, void *argp) {
   if (index >= 0)
     sceIoClose(index);
   worker_busy = false;
-  return 0;
+  return NULL;
 }
 
 void boxart_prefetch(PSERVER_DATA server, PAPP_LIST apps) {
   if (worker_busy || server == NULL)
     return;
 
-  if (worker >= 0) {
-    /* previous run finished: reap it */
-    SceUInt timeout = 100000;
-    int thread_ret = 0;
-    sceKernelWaitThreadEnd(worker, &thread_ret, &timeout);
-    sceKernelDeleteThread(worker);
-    worker = -1;
+  if (worker_created) {
+    /* previous run finished (worker_busy is false): reap it */
+    pthread_join(worker, NULL);
+    worker_created = false;
   }
 
   /* Copy what the worker needs: the UI may free or reload the list meanwhile. */
@@ -216,12 +219,16 @@ void boxart_prefetch(PSERVER_DATA server, PAPP_LIST apps) {
     return;
 
   worker_busy = true;
-  worker = sceKernelCreateThread("boxart", worker_main, 176, 0x20000, 0, 0, NULL);
-  if (worker < 0) {
+  pthread_attr_t attr;
+  pthread_attr_init(&attr);
+  pthread_attr_setstacksize(&attr, 0x20000);
+  int err = pthread_create(&worker, &attr, worker_main, NULL);
+  pthread_attr_destroy(&attr);
+  if (err != 0) {
     worker_busy = false;
     return;
   }
-  sceKernelStartThread(worker, 0, NULL);
+  worker_created = true;
 }
 
 vita2d_texture *boxart_load_texture(PSERVER_DATA server, int app_id) {

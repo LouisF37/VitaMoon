@@ -66,7 +66,8 @@ int vita2d_fini(void) { return 1; }
 void vita2d_set_clear_color(unsigned int color) { clear_color = color; }
 void vita2d_set_vblank_wait(int enable) {}
 void vita2d_wait_rendering_done(void) {}
-void vita2d_start_drawing(void) { apply_clip(); }
+static void pool_reset(void);
+void vita2d_start_drawing(void) { pool_reset(); apply_clip(); }
 void vita2d_end_drawing(void) {}
 void vita2d_clear_screen(void) {
   cairo_save(cr);
@@ -88,9 +89,25 @@ void vita2d_set_clip_rectangle(int x_min, int y_min, int x_max, int y_max) {
 void vita2d_enable_clipping(void) { clip_on = 1; apply_clip(); }
 void vita2d_disable_clipping(void) { clip_on = 0; apply_clip(); }
 
-/* Per-frame vertex memory: a simple arena, never freed (the preview is short-lived). */
+/* Per-frame vertex memory, released when the frame starts, like vita2d's pool
+ * (so that a leak check only reports what the menus themselves keep). */
+static void **pool_blocks;
+static size_t pool_count, pool_cap;
+
+static void pool_reset(void) {
+  for (size_t i = 0; i < pool_count; i++)
+    free(pool_blocks[i]);
+  pool_count = 0;
+}
+
 void *vita2d_pool_memalign(unsigned int size, unsigned int alignment) {
-  return malloc(size);
+  if (pool_count == pool_cap) {
+    pool_cap = pool_cap ? pool_cap * 2 : 256;
+    pool_blocks = realloc(pool_blocks, pool_cap * sizeof(void *));
+  }
+  void *p = malloc(size);
+  pool_blocks[pool_count++] = p;
+  return p;
 }
 
 void vita2d_draw_rectangle(float x, float y, float w, float h, unsigned int color) {

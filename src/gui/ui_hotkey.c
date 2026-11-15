@@ -168,15 +168,15 @@ int add_hotkey_menu() {
         if (second_btn >= 0) hotkey_button_name(second_btn, btn2, sizeof(btn2));
         if (action >= 0) hotkey_func_name(action, act, sizeof(act));
         menu[idx].name = tr("First button");
-        strncpy(menu[idx].subname, btn1, sizeof(menu[idx].subname));
+        snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s", btn1);
         menu[idx].id = 1;
         idx++;
         menu[idx].name = tr("Second button (optional)");
-        strncpy(menu[idx].subname, btn2, sizeof(menu[idx].subname));
+        snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s", btn2);
         menu[idx].id = 2;
         idx++;
         menu[idx].name = tr("Action");
-        strncpy(menu[idx].subname, act, sizeof(menu[idx].subname));
+        snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s", act);
         menu[idx].id = 3;
         idx++;
         menu[idx++] = (menu_entry){ .name = tr("Save shortcut"), .id = 4, .disabled = (first_btn < 0 || action < 0) };

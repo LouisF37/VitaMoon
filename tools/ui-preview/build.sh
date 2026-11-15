@@ -15,7 +15,12 @@ srcs="$here/fake_vita2d.c $here/preview_sys.c $here/preview_main.c
   $root/src/gui/guilib.c $root/src/gui/theme.c $root/src/gui/ui_settings.c $root/src/gui/ui_library.c
   $root/src/gui/ui.c $root/src/gui/ui_connect.c
   $root/src/i18n.c $root/src/config.c $root/third_party/inih/ini.c"
-gcc -std=gnu99 -O1 -g -w -fcommon -D__vita__ -DUI_PREVIEW -DVERSION_MAJOR=0 -DVERSION_MINOR=6 -DVERSION_PATCH=0 -DBUILD_ID=\"preview\" \
+# PREVIEW_SANITIZE=1 builds with AddressSanitizer and UBSan: every scenario then
+# also checks the menus for memory errors and undefined behaviour (shifts
+# excepted: vita2d's RGBA8 macro shifts a signed int by 24).
+san=""
+[ -n "$PREVIEW_SANITIZE" ] && san="-fsanitize=address,undefined -fno-sanitize=shift -fno-omit-frame-pointer -fno-sanitize-recover=undefined"
+gcc -std=gnu99 -O1 -g -w -fcommon $san -D__vita__ -DUI_PREVIEW -DVERSION_MAJOR=0 -DVERSION_MINOR=6 -DVERSION_PATCH=0 -DBUILD_ID=\"preview\" \
   -DASSET_PREFIX="\"$root/assets/\"" \
   -I"$here" -I"$out/inc" -I"$root/src" -I"$root/src/gui" -I"$root/libgamestream" -I"$root/third_party/inih" \
   -I"$root/third_party/moonlight-common-c/src" -I"$root/third_party/libuuid/src" \

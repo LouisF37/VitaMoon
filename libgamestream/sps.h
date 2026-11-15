@@ -24,4 +24,10 @@
 #define GS_SPS_REMOVE_CLI_FIXUP 0x04
 
 void gs_sps_init(int width, int height);
+/* Largest rewritten SPS payload. The rewrite can be longer than the SPS
+ * received, by less than this: the caller's buffer must keep that much room. */
+#define GS_SPS_MAX_REWRITE 128
+
+/* Appends the SPS, rewritten with low-latency hints, at out_buf + *out_offset
+ * and advances *out_offset; appends it unchanged if it cannot be rewritten. */
 void gs_sps_fix(PLENTRY sps, int flags, uint8_t* out_buf, uint32_t* out_offset);

@@ -22,9 +22,11 @@
 #define write_bool(fd, key, value) fprintf(fd, "%s = %s\n", key, value ? "true" : "false");
 #define write_string(fd, key, value) fprintf(fd, "%s = %s\n", key, value)
 
-// Deletes the device folder and its file
+// Renames a PC: its folder (keys, settings) follows the new name. Names that
+// are not plain folder names (a path separator, "." or "..") are refused.
 bool rename_device(device_info_t *info, const char *new_name) {
-  if (!new_name[0] || strpbrk(new_name, "/\\:*?\"<>|") || find_device(new_name))
+  if (!new_name[0] || strpbrk(new_name, "/\\:*?\"<>|") || !strcmp(new_name, ".") ||
+      !strcmp(new_name, "..") || find_device(new_name))
     return false;
   char old_dir[512], new_dir[512];
   snprintf(old_dir, sizeof(old_dir), "%s%s", config.key_dir, info->name);

@@ -102,10 +102,13 @@ typedef struct Section {
   Point right;
 } Section;
 
+/* The front panel reports up to 6 fingers (SCE_TOUCH_MAX_REPORT is 8). */
+#define TOUCH_MAX_POINTS 8
+
 typedef struct TouchData {
   short button;
   short finger;
-  Point points[4];
+  Point points[TOUCH_MAX_POINTS];
 } TouchData;
 
 bool vitainput_init();

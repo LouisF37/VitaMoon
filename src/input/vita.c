@@ -257,7 +257,9 @@ inline uint8_t read_backscreen() {
 // Only updates touch.points and touch.finger
 static inline void update_touch_points() {
   touch.finger = 0;
-  for (int i = 0; i < front.reportNum; i++) {
+  // Never more points than TouchData holds (it held 4 while the front panel
+  // reports up to 6: a fifth finger wrote past the array).
+  for (int i = 0; i < front.reportNum && i < TOUCH_MAX_POINTS; i++) {
     int x = lerp(front.report[i].x, 1919, WIDTH);
     int y = lerp(front.report[i].y, 1087, HEIGHT);
     touch.points[touch.finger].x = x;

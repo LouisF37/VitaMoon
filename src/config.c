@@ -196,6 +196,41 @@ bool config_file_parse(char* filename, PCONFIGURATION config) {
   return ini_parse(filename, ini_handle, config);
 }
 
+/* Values from a settings file written by another version or edited by hand:
+ * anything outside what the app can use goes back to its default (idea from
+ * alex4580/vita-moonlight's config_sanitize). */
+void config_sanitize(PCONFIGURATION config) {
+  if (config->stream.width < 64 || config->stream.width > 1920 ||
+      config->stream.height < 64 || config->stream.height > 1080) {
+    config->stream.width = 960;
+    config->stream.height = 544;
+  }
+  if (config->stream.fps != -1 && (config->stream.fps < 24 || config->stream.fps > 60))
+    config->stream.fps = 60;
+  if (config->stream.bitrate != -1 && (config->stream.bitrate < 500 || config->stream.bitrate > 50000)) {
+    config->stream.bitrate = -1;
+    config->auto_bitrate = true;
+  }
+  if (config->stream.packetSize < PACKET_SIZE_MIN || config->stream.packetSize > PACKET_SIZE_MAX)
+    config->stream.packetSize = PACKET_SIZE_DEFAULT;
+  if (config->display_mode < DISPLAY_MODE_DIRECT || config->display_mode > DISPLAY_MODE_PACED)
+    config->display_mode = DISPLAY_MODE_SMOOTH;
+  if (config->touchscreen_mode < 0 || config->touchscreen_mode > 3)
+    config->touchscreen_mode = 0;
+  if (config->controller_type < 1 || config->controller_type > 4)
+    config->controller_type = 2;
+  if (config->mouse_acceleration < 15 || config->mouse_acceleration > 300)
+    config->mouse_acceleration = 150;
+  if (!(config->motion_controls_scalar_x >= 0.1f && config->motion_controls_scalar_x <= 5.0f))
+    config->motion_controls_scalar_x = 1.2f;
+  if (!(config->motion_controls_scalar_y >= 0.1f && config->motion_controls_scalar_y <= 5.0f))
+    config->motion_controls_scalar_y = 0.8f;
+  if (config->double_tap_sprint_step_time < 50 || config->double_tap_sprint_step_time > 1000)
+    config->double_tap_sprint_step_time = 200;
+  if (config->language < 0 || config->language > 2)
+    config->language = 0;
+}
+
 void config_save(const char* filename, PCONFIGURATION config) {
   FILE* fd = fopen(filename, "w");
   if (fd == NULL) {
@@ -404,6 +439,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   char* config_file = config_path;
   if (config_file) {
     config_file_parse(config_file, config);
+    config_sanitize(config);
     vita_debug_log("[DEBUG] Config loaded: key_dir = %s, touchscreen_mode = %d, show_fps = %d", config->key_dir, config->touchscreen_mode, config->show_fps);
   }
 

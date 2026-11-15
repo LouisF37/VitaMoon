@@ -19,6 +19,8 @@
 
 #include "sps.h"
 
+#include <string.h>
+
 #include "h264_stream.h"
 
 static h264_stream_t* h264_stream;
@@ -37,10 +39,30 @@ void gs_sps_stop() {
   }
 }
 
-void gs_sps_fix(PLENTRY sps, int flags, uint8_t* out_buf, uint32_t* out_offset) {
-  int start_len = sps->data[2] == 0x01 ? 3 : 4;
+/* The original SPS, unchanged: what the decoder gets when the rewrite fails. */
+static void copy_original(PLENTRY sps, uint8_t* out_buf, uint32_t* out_offset) {
+  memcpy(out_buf + *out_offset, sps->data, sps->length);
+  *out_offset += sps->length;
+}
 
-  read_nal_unit(h264_stream, sps->data+start_len, sps->length-start_len);
+void gs_sps_fix(PLENTRY sps, int flags, uint8_t* out_buf, uint32_t* out_offset) {
+  // Annex B start code: 00 00 01 or 00 00 00 01. Anything else, or an SPS the
+  // parser rejects, goes to the decoder as received (the original code wrote
+  // the previous SPS state, and a failed write moved the offset back a byte).
+  if (h264_stream == NULL || sps->length < 5 || sps->data[0] != 0 || sps->data[1] != 0) {
+    copy_original(sps, out_buf, out_offset);
+    return;
+  }
+  int start_len = sps->data[2] == 0x01 ? 3 : 4;
+  if (start_len == 4 && !(sps->data[2] == 0x00 && sps->data[3] == 0x01)) {
+    copy_original(sps, out_buf, out_offset);
+    return;
+  }
+  if (read_nal_unit(h264_stream, (uint8_t *)sps->data + start_len, sps->length - start_len) <= 0 ||
+      h264_stream->nal->nal_unit_type != NAL_UNIT_TYPE_SPS) {
+    copy_original(sps, out_buf, out_offset);
+    return;
+  }
 
   // Some decoders rely on H264 level to decide how many buffers are needed
   // Since we only need one frame buffered, we'll set level as low as we can
@@ -83,8 +105,16 @@ void gs_sps_fix(PLENTRY sps, int flags, uint8_t* out_buf, uint32_t* out_offset) 
     h264_stream->sps->vui.max_bits_per_mb_denom = 1;
   }
 
-  memcpy(out_buf+*out_offset, sps->data, start_len);
+  // Written aside first, so that a failure leaves the output untouched. The
+  // caller's buffer keeps room for an SPS up to GS_SPS_MAX_REWRITE bytes larger.
+  uint8_t nal[GS_SPS_MAX_REWRITE];
+  int written = write_nal_unit(h264_stream, nal, sizeof(nal));
+  if (written <= 0 || written > (int)sizeof(nal)) {
+    copy_original(sps, out_buf, out_offset);
+    return;
+  }
+  memcpy(out_buf + *out_offset, sps->data, start_len);
   *out_offset += start_len;
-
-  *out_offset += write_nal_unit(h264_stream, out_buf+*out_offset, 128);
+  memcpy(out_buf + *out_offset, nal, written);
+  *out_offset += written;
 }

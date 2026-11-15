@@ -26,6 +26,7 @@
 #include "vita.h"
 #include "sps.h"
 #include "stream_stats.h"
+#include "pacing.h"
 #include "../thread_policy.h"
 
 #include <Limelight.h>
@@ -65,7 +66,7 @@ enum {
 #define DECODER_BUFFER_SIZE (128 * 1024)
 
 #define AV_INPUT_BUFFER_PADDING_SIZE 64
-#define SPS_GROWTH_MAX 128  /* gs_sps_fix rewrites the SPS into at most 128 bytes */
+#define SPS_GROWTH_MAX GS_SPS_MAX_REWRITE  /* a rewritten SPS grows by less than this */
 
 static char* decoder_buffer = NULL;
 
@@ -107,14 +108,12 @@ enum VideoStatus video_status = NOT_INIT;
  *   SMOOTH      the display thread shows exactly one frame per screen refresh,
  *               oldest first, so bursts of frames are spread out instead of
  *               overwriting each other.
- *   PACED       the display thread shows each frame at the time the PC
- *               captured it plus a small delay (12 ms to begin with, as in
- *               dubleyu/vita-moonlight-relay), which absorbs Wi-Fi jitter and
- *               keeps the cadence of 30 fps streams even. When several frames
- *               are due, the newest is shown. The delay grows when frames come
- *               late and shrinks back when they no longer do, and the clock is
- *               re-aligned when frames keep waiting longer than needed (the two
- *               clocks drift a little).
+ *   PACED       the display thread shows each frame at the cadence the PC
+ *               captured it (its presentation times) plus a small delay, which
+ *               absorbs Wi-Fi jitter and keeps 30 fps streams even; idea from
+ *               dubleyu/vita-moonlight-relay. When several frames are due, the
+ *               newest is shown. The timing logic is in pacing.c (tested on a
+ *               PC by tools/tests).
  *
  * SMOOTH and PACED draw "just in time": after each vertical blank the thread
  * sleeps until only the time needed to draw remains before the next one, and
@@ -134,8 +133,8 @@ enum VideoStatus video_status = NOT_INIT;
  */
 #define VIDEO_SLOTS 3
 /* PACED holds frames until they are due: at 60 fps and the largest delay, two
- * can wait while one is on screen and one is being decoded (dubleyu's fork uses
- * a 4-frame queue too). */
+ * can wait while one is being drawn and one is being decoded (dubleyu's fork
+ * uses a 4-frame queue too). */
 #define VIDEO_SLOTS_PACED 4
 #define SMOOTH_BACKLOG_LIMIT 20   /* refreshes in a row with 2+ frames waiting before one is dropped */
 
@@ -166,27 +165,12 @@ typedef struct {
 #define PTS_RING 64
 static uint64_t pts_ring[PTS_RING];
 
-/* PACED: a frame is shown at anchor_local + (pts - anchor_pts), i.e. at the
- * Vita time of the first frame plus the capture interval since, plus the delay
- * already built into anchor_local. Protected by slot_mutex. */
-#define PACE_DELAY_START_US  12000
-#define PACE_DELAY_MIN_US     8000
-#define PACE_DELAY_MAX_US    33000
-#define PACE_DELAY_UP_US      4000   /* after a window with 2+ late frames */
-#define PACE_DELAY_DOWN_US    2000   /* after 5 windows without one */
-#define PACE_WINDOW_US     2000000
-#define PACE_REALIGN_MAX_US   4000   /* largest clock re-alignment per window */
-#define PACE_JUMP_FUTURE_US 250000   /* re-anchor when a frame is due this far ahead... */
-#define PACE_JUMP_PAST_US   500000   /* ...or was due this long ago */
-static bool pace_valid;
-static uint64_t pace_anchor_pts;
-static uint64_t pace_anchor_local;
-static uint32_t pace_delay_us;
+/* PACED: when each frame is due (pacing.c). Protected by slot_mutex. */
+static pace_state pace;
 static bool pace_catch_up;           /* a waiting frame was overwritten: jump to the newest */
-static uint64_t pace_window_start;
-static int64_t pace_window_min_slack;
-static uint32_t pace_window_late;
-static uint32_t pace_calm_windows;
+/* How long before the blank the display thread picks a frame (its drawing
+ * budget): a frame ready later than that misses its flip. */
+static volatile uint32_t latch_budget_us = LATCH_BUDGET_MIN_US;
 
 static video_slot slots[VIDEO_SLOTS_PACED];
 static int slot_count = 0;
@@ -196,7 +180,7 @@ static bool decode_yuv = false;
 static uint32_t ready_seq = 0;
 static SceUID slot_mutex = -1;   /* protects slot states */
 static SceUID ready_sema = -1;   /* LOW_LATENCY: signalled when a frame is ready */
-static SceUID draw_mutex = -1;   /* held while the display thread draws */
+static SceUID draw_mutex = -1;   /* held while a stream frame is drawn (every mode) */
 static SceUID display_thread = -1;
 static volatile bool display_running = false;
 
@@ -310,10 +294,10 @@ void update_scaling_settings(int width, int height) {
 }
 
 /*
- * Original frame pacer (enabled by "frame pacer" in the settings).
+ * Original frame pacer (enabled by "frame pacer" in the settings, DIRECT mode).
  * Once per second it compares the number of frames shown with the target fps
  * and schedules the excess to be dropped during the next second. It does not
- * follow the screen refresh; phase 2 replaces it with vblank-aligned display.
+ * follow the screen refresh; the other display modes replace it.
  */
 static int vita_pacer_thread_main(SceSize args, void *argp) {
   const int wait = 1000000; // 1 s
@@ -354,6 +338,10 @@ static bool vblank_clock_start(void);
 static void vita_cleanup() {
   display_stop();
   vblank_clock_stop();
+  if (draw_mutex >= 0) {
+    sceKernelDeleteMutex(draw_mutex);
+    draw_mutex = -1;
+  }
   stream_stats_session_end();
 
   if (video_status == INIT_FRAME_PACER_THREAD) {
@@ -586,14 +574,16 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
   last_vblank_lo = 0;
   vblank_count = 0;
 
-  pace_valid = false;
-  pace_delay_us = PACE_DELAY_START_US;
+  pace_reset(&pace);
   pace_catch_up = false;
-  pace_window_start = 0;
-  pace_window_min_slack = INT64_MAX;
-  pace_window_late = 0;
-  pace_calm_windows = 0;
   memset(pts_ring, 0, sizeof(pts_ring));
+
+  // Every mode draws under this lock, so that vitavideo_stop() can wait for a
+  // frame being drawn before the menus take the screen back (the original
+  // DIRECT path had no such lock: the menus and the decoder thread could drive
+  // vita2d at the same time).
+  if (draw_mutex < 0)
+    draw_mutex = sceKernelCreateMutex("vid_draw", 0, 0, NULL);
 
   dec_fed = dec_handed = 0;
   pull_floor = pull_base = 0;
@@ -652,56 +642,6 @@ static void slot_set_free(int slot) {
   sceKernelUnlockMutex(slot_mutex, 1);
 }
 
-/* PACED, slot_mutex held: when a frame is due on the Vita clock. */
-static uint64_t pace_target(uint64_t pts_us, uint64_t now_us) {
-  if (!pace_valid || pts_us < pace_anchor_pts) {
-    // First frame, or the PC's clock went back (new stream): anchor here.
-    pace_anchor_pts = pts_us;
-    pace_anchor_local = now_us + pace_delay_us;
-    pace_valid = true;
-  }
-  return pace_anchor_local + (pts_us - pace_anchor_pts);
-}
-
-/* PACED, slot_mutex held: called when a frame is ready. Every 2 s, adjusts the
- * delay to the lateness seen, and re-aligns the clock when every frame waited
- * longer than the delay asks (the PC's and the Vita's clocks drift apart). */
-static void pace_observe(uint64_t pts_us, uint64_t now_us) {
-  int64_t slack = (int64_t)pace_target(pts_us, now_us) - (int64_t)now_us;
-  if (slack < 0)
-    pace_window_late++;
-  if (slack < pace_window_min_slack)
-    pace_window_min_slack = slack;
-  if (pace_window_start == 0)
-    pace_window_start = now_us;
-  if (now_us - pace_window_start < PACE_WINDOW_US)
-    return;
-
-  if (pace_window_late >= 2) {
-    if (pace_delay_us < PACE_DELAY_MAX_US) {
-      pace_delay_us += PACE_DELAY_UP_US;
-      pace_anchor_local += PACE_DELAY_UP_US;
-    }
-    pace_calm_windows = 0;
-  } else if (pace_window_late == 0 && ++pace_calm_windows >= 5) {
-    if (pace_delay_us > PACE_DELAY_MIN_US) {
-      pace_delay_us -= PACE_DELAY_DOWN_US;
-      pace_anchor_local -= PACE_DELAY_DOWN_US;
-    }
-    pace_calm_windows = 0;
-  }
-  // Every frame of the window waited more than the delay: the anchor has
-  // drifted late. Bring it back, a few milliseconds at a time.
-  int64_t excess = pace_window_min_slack - (int64_t)pace_delay_us;
-  if (pace_window_late == 0 && excess > 1000)
-    pace_anchor_local -= (uint64_t)(excess > PACE_REALIGN_MAX_US ? PACE_REALIGN_MAX_US : excess);
-  stream_stats_on_pace(pace_delay_us);
-
-  pace_window_start = now_us;
-  pace_window_min_slack = INT64_MAX;
-  pace_window_late = 0;
-}
-
 /* Decode thread: a decoded picture is ready to be shown. */
 static void slot_publish(int slot, int frame_number, uint64_t receive_us, uint64_t pts_us) {
   sceKernelLockMutex(slot_mutex, 1, NULL);
@@ -710,54 +650,33 @@ static void slot_publish(int slot, int frame_number, uint64_t receive_us, uint64
   slots[slot].pts_us = pts_us;
   slots[slot].seq = ++ready_seq;
   slots[slot].state = SLOT_READY;
-  if (display_mode == DISPLAY_MODE_PACED)
-    pace_observe(pts_us, LiGetMicroseconds());
+  if (display_mode == DISPLAY_MODE_PACED &&
+      pace_observe(&pace, pts_us, LiGetMicroseconds(), latch_budget_us))
+    stream_stats_on_pace(pace.delay_us);
   sceKernelUnlockMutex(slot_mutex, 1);
   if (display_mode == DISPLAY_MODE_LOW_LATENCY)
     sceKernelSignalSema(ready_sema, 1);
 }
 
 /* PACED, slot_mutex held: the newest frame due by `deadline` (when the next
- * flip becomes visible); older waiting frames are dropped. -1 if none is due. */
-static int pace_pick(uint64_t deadline, int ready) {
-  int pick = -1;
-  if (pace_catch_up) {
-    // A frame was overwritten before it could be shown: show the newest now
-    // and anchor the clock on it, rather than pacing a backlog.
-    for (int i = 0; i < slot_count; i++) {
-      if (slots[i].state == SLOT_READY && (pick < 0 || slots[i].seq > slots[pick].seq))
-        pick = i;
-    }
-    if (pick >= 0) {
-      pace_anchor_pts = slots[pick].pts_us;
-      pace_anchor_local = deadline;
-      pace_valid = true;
-    }
-    pace_catch_up = false;
-  } else {
-    for (int i = 0; i < slot_count; i++) {
-      if (slots[i].state != SLOT_READY)
-        continue;
-      uint64_t target = pace_target(slots[i].pts_us, deadline - pace_delay_us);
-      if (target > deadline + PACE_JUMP_FUTURE_US || target + PACE_JUMP_PAST_US < deadline) {
-        // Far from the clock (pause, PC stall, reconnection): start again here.
-        pace_anchor_pts = slots[i].pts_us;
-        pace_anchor_local = deadline;
-        target = deadline;
-      }
-      if (target <= deadline && (pick < 0 || slots[i].seq > slots[pick].seq))
-        pick = i;
+ * flip becomes visible), chosen by pacing.c; older waiting frames are dropped.
+ * -1 if none is due. */
+static int slot_pick_paced(uint64_t deadline) {
+  pace_frame frames[VIDEO_SLOTS_PACED];
+  for (int i = 0; i < slot_count; i++) {
+    frames[i].ready = slots[i].state == SLOT_READY;
+    frames[i].pts_us = slots[i].pts_us;
+    frames[i].seq = slots[i].seq;
+  }
+  uint32_t drop = 0;
+  int pick = pace_pick(&pace, frames, slot_count, deadline, pace_catch_up, &drop);
+  pace_catch_up = false;
+  for (int i = 0; i < slot_count; i++) {
+    if (drop & (1u << i)) {
+      slots[i].state = SLOT_FREE;
+      stream_stats_on_frame_replaced();
     }
   }
-  if (pick >= 0) {
-    for (int i = 0; i < slot_count; i++) {
-      if (i != pick && slots[i].state == SLOT_READY && slots[i].seq < slots[pick].seq) {
-        slots[i].state = SLOT_FREE;
-        stream_stats_on_frame_replaced();
-      }
-    }
-  }
-  (void)ready;
   return pick;
 }
 
@@ -770,7 +689,7 @@ static int slot_pick_for_display(int *backlog, uint64_t deadline) {
   if (display_mode == DISPLAY_MODE_PACED) {
     for (int i = 0; i < slot_count; i++)
       ready += slots[i].state == SLOT_READY;
-    pick = pace_pick(deadline, ready);
+    pick = slot_pick_paced(deadline);
     if (pick >= 0)
       slots[pick].state = SLOT_DRAWING;
     sceKernelUnlockMutex(slot_mutex, 1);
@@ -887,6 +806,7 @@ static int display_thread_main(SceSize args, void *argp) {
         uint32_t budget = cost_peak_us + margin_us;
         if (budget < LATCH_BUDGET_MIN_US) budget = LATCH_BUDGET_MIN_US;
         if (budget > LATCH_BUDGET_MAX_US) budget = LATCH_BUDGET_MAX_US;
+        latch_budget_us = budget;
         if (refresh_period_us > budget + 500)
           sceKernelDelayThread(refresh_period_us - budget);
         stream_stats_on_latch_budget(budget);
@@ -984,7 +904,6 @@ static void vblank_clock_stop(void) {
 
 static bool display_start(void) {
   slot_mutex = sceKernelCreateMutex("vid_slots", 0, 0, NULL);
-  draw_mutex = sceKernelCreateMutex("vid_draw", 0, 0, NULL);
   ready_sema = sceKernelCreateSema("vid_ready", 0, 0, 64, NULL);
   if (slot_mutex < 0 || draw_mutex < 0 || ready_sema < 0)
     return false;
@@ -1012,7 +931,6 @@ static void display_stop(void) {
   }
   display_thread = -1;
   if (ready_sema >= 0) { sceKernelDeleteSema(ready_sema); ready_sema = -1; }
-  if (draw_mutex >= 0) { sceKernelDeleteMutex(draw_mutex); draw_mutex = -1; }
   if (slot_mutex >= 0) { sceKernelDeleteMutex(slot_mutex); slot_mutex = -1; }
 }
 
@@ -1221,17 +1139,23 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   }
 
   // DIRECT: draw here, unless the original frame pacer asked to drop this frame.
-  if (active_video_thread) {
-    if (need_drop > 0) {
-      need_drop--;
-      stream_stats_on_pacer_drop();
-    } else {
+  if (need_drop > 0 && active_video_thread) {
+    need_drop--;
+    stream_stats_on_pacer_drop();
+  } else {
+    if (draw_mutex >= 0)
+      sceKernelLockMutex(draw_mutex, 1, NULL);
+    // Checked with the lock held: vitavideo_stop() clears the flag, then takes
+    // the lock, so the menus never draw while this thread does.
+    if (active_video_thread) {
       uint32_t render_us, swap_us;
       uint64_t t_done = draw_and_flip(frame_texture, &render_us, &swap_us);
       frame_count++;
       stream_stats_on_present(render_us, swap_us, stream_stats_receive_time(shown_frame),
                               visible_time(t_done));
     }
+    if (draw_mutex >= 0)
+      sceKernelUnlockMutex(draw_mutex, 1);
   }
 
   return DR_OK;

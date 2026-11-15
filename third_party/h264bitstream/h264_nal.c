@@ -77,6 +77,7 @@ void h264_free(h264_stream_t* h)
         free(h->seis);
     }
     free(h->sh);
+    free(h->slice_data);  /* allocated by h264_new but not freed upstream: 16 bytes per stream */
     free(h);
 }
 

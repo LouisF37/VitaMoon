@@ -1,6 +1,6 @@
 # Vita: thread start hook, 512-packet video receive buffer, log of the granted buffer,
 # video FEC recovered/failed and out-of-order packet counters (LiGetRTPVideoStats).
-# Origin: vita-moonlight phase2 (affinity hook and buffer size after dubleyu/moonlight-common-c, vita-relay)
+# Origin: this project (thread hook and buffer size after dubleyu/vita-moonlight-relay's fork of moonlight-common-c)
 
 diff --git a/src/Limelight.h b/src/Limelight.h
 index 450997e..42dc6f1 100644

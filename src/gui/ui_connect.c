@@ -279,6 +279,15 @@ static int ui_launch_app(int id) {
 /* Quit the app running on the host. */
 static int ui_quit_app(void) {
   flash_message(tr("Quitting game..."));
+  // A paused stream is ended here first. Otherwise quitting the game ends it
+  // on the PC, moonlight-common-c reports that from its own thread while this
+  // one carries on, and the Vita falls back to the home screen.
+  int status = connection_get_status();
+  if (status == LI_MINIMIZED || status == LI_CONNECTED) {
+    connection_terminate();
+    connection_reset();
+    connection_paired();
+  }
   vitapower_busy_begin();
   int ret = gs_quit_app(&server);
   vitapower_busy_end();
