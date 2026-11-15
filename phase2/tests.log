@@ -1,1 +1,4 @@
-no test log
+/home/runner/work/vita-moonlight/vita-moonlight/tools/tests/test_sps.c: In function ‘main’:
+/home/runner/work/vita-moonlight/vita-moonlight/tools/tests/test_sps.c:108:3: error: implicit declaration of function ‘gs_sps_stop’ [-Wimplicit-function-declaration]
+  108 |   gs_sps_stop();
+      |   ^~~~~~~~~~~
