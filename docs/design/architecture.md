@@ -89,8 +89,24 @@ rate even on a still picture, so the menu is redrawn often enough. The decisions
 
 Colour themes: `src/gui/theme.c` holds five palettes (`k_themes`); `theme_select()` copies one into
 `th_pal`, which the theme-dependent `TH_*` colours read, and loads its background
-(`assets/bg_<theme>.png`, drawn by `tools/make_background.py`). Colours that carry a meaning (OK,
-warning, error, the PlayStation symbols) are the same in every theme.
+(`assets/bg_<theme>.png`, a lunar sky drawn by `tools/make_background.py`, one texture per frame like
+any picture). Colours that carry a meaning (OK, warning, error, the PlayStation symbols) are the same
+in every theme.
+
+Type: Inter for the text (Regular up to 16 px, Light above), Poppins, the logo's typeface, for the
+titles (22 px and above). Each size has its own vita2d font instance, its glyphs prepared at start-up.
+Poppins has Latin only: a title with a character it lacks is drawn with an Inter Light instance of the
+same size, made the first time one is needed (`face_font()`, with the table
+`src/gui/title_font_cover.h` and `text_cover.h`).
+
+The waiting moon (`flash_moon()` in `src/gui/guilib.c`, pictures in `assets/moon.png`, choice of
+picture in `moon.h`): a new moon when a PC is contacted or the PC is asked for the game, then one
+picture per stage of `LiStartConnection`, drawn by `connection_set_stage_hook()` on the menu thread
+before each stage's clock starts, at most one per 50 ms. The moon is full as the video stream starts,
+and the menus draw nothing after that stage, since from there the video thread may draw. The log
+gives the number of pictures and the time they took (`waiting moon: N pictures drawn in M ms`). A
+reconnection draws its own screen between tries, the moon filling over the minute of tries; no
+picture is drawn during a try.
 
 ## Data on the memory card
 

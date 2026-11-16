@@ -19,6 +19,7 @@ by CI on every push.
 | `test_misc.c` | URL encoding of the pairing name, percentiles of the session summary, the decisions of the automatic reconnection |
 | `test_quickmenu.c` | the in-game quick menu: what opens it, moves in it, acts and closes it, when the game gets its buttons back |
 | `test_log.c` | the log's ring (order, wrap-around, whole lines refused when full), its token buckets (burst, refill, report of the lines left out) and the folding of repeated lines |
+| `test_ui.c` | which texts the title font can draw (Latin and its accents yes; Greek, Cyrillic, Japanese and malformed UTF-8 fall back to Inter), the picture of the waiting moon for each step and over the minute of reconnection, the interval between two pictures |
 
 ## Interface preview (`tools/ui-preview`)
 

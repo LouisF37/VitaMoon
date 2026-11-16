@@ -12,3 +12,8 @@ void ui_connect_resume();
 int ui_connect_resume_paused(void);
 void ui_connect_manual();
 void ui_connect_paired_device(device_info_t *info);
+#ifdef UI_PREVIEW
+/* Draws the waiting moon of a stream start at `stage` (0: before the PC is
+ * asked for the game), for the UI preview. */
+void ui_connect_preview_moon(const char *host, int stage);
+#endif

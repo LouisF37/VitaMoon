@@ -355,15 +355,10 @@ T2 = {
 "After a Wi-Fi drop or a sleep during a stream, the game starts again on its own.":
     ("Après une coupure du Wi-Fi ou une mise en veille pendant un stream, le jeu reprend tout seul.",
      "Tras un corte del Wi-Fi o una suspensión durante un stream, el juego vuelve solo."),
-"Connection lost.\\nReconnecting to %s (try %d)...":
-    ("Connexion perdue.\\nReconnexion à %s (essai %d)...",
-     "Conexión perdida.\\nReconectando con %s (intento %d)..."),
-"Connection lost.\\nReconnecting to %s...":
-    ("Connexion perdue.\\nReconnexion à %s...",
-     "Conexión perdida.\\nReconectando con %s..."),
-"Connection lost.\\nWaiting for the Wi-Fi...":
-    ("Connexion perdue.\\nEn attente du Wi-Fi...",
-     "Conexión perdida.\\nEsperando al Wi-Fi..."),
+"Connection lost": ("Connexion perdue", "Conexión perdida"),
+"Reconnecting to %s (try %d)...": ("Reconnexion à %s (essai %d)...", "Reconectando con %s (intento %d)..."),
+"Reconnecting to %s...": ("Reconnexion à %s...", "Reconectando con %s..."),
+"Waiting for the Wi-Fi...": ("En attente du Wi-Fi...", "Esperando al Wi-Fi..."),
 "The connection keeps dropping.\\nThe game should still be running on the PC: connect again to resume it.":
     ("La connexion coupe sans cesse.\\nLe jeu devrait toujours tourner sur le PC" + NB + ": reconnectez-vous pour le reprendre.",
      "La conexión se corta una y otra vez.\\nEl juego debería seguir en el PC: vuelve a conectarte para continuarlo."),
@@ -391,4 +386,14 @@ T2 = {
 "Text: characters arrive as typed, whatever the PC keyboard. Or the PC's layout, for games that read keys.":
     ("Texte" + NB + ": les caractères arrivent tels quels, quel que soit le clavier du PC. Ou la disposition du PC, pour les jeux qui lisent les touches.",
      "Texto: los caracteres llegan tal cual, sea cual sea el teclado del PC. O la distribución del PC, para juegos que leen las teclas."),
+# --- the waiting moon: steps of a stream start ---
+"Getting ready...": ("Préparation...", "Preparando..."),
+"Finding the PC...": ("Recherche du PC...", "Buscando el PC..."),
+"Preparing the sound...": ("Préparation du son...", "Preparando el sonido..."),
+"Agreeing on the stream with the PC...": ("Accord sur le stream avec le PC...", "Acordando el stream con el PC..."),
+"Preparing the control link...": ("Préparation de la liaison de contrôle...", "Preparando el enlace de control..."),
+"Preparing the video...": ("Préparation de la vidéo...", "Preparando el vídeo..."),
+"Preparing the controls...": ("Préparation des commandes...", "Preparando los controles..."),
+"Starting the control link...": ("Ouverture de la liaison de contrôle...", "Abriendo el enlace de control..."),
+"Starting the video...": ("Démarrage de la vidéo...", "Iniciando el vídeo..."),
 }

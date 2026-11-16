@@ -19,6 +19,7 @@
 #include <psp2/rtc.h>
 #include <psp2/power.h>
 #include "../i18n.h"
+#include "moon.h"
 
 #ifndef ASSET_PREFIX
 #define ASSET_PREFIX "app0:assets/"
@@ -617,14 +618,40 @@ void flash_message(char *format, ...) {
   ui_end();
 }
 
-/* One frame of a message with a single "Cancel" hint, for a wait the caller
- * runs itself (it reads the buttons between frames). */
-void flash_cancelable(const char *message) {
-  theme_hint_item cancel = {theme_cancel_glyph(), tr("Cancel")};
+/* ---------------- the waiting moon ---------------- */
+
+#define MOON_CELL 112           /* side of one picture in assets/moon.png */
+static vita2d_texture *moon_sheet = NULL;
+
+/* One frame of a wait: the moon at `phase` (0, new, to MOON_PHASES - 1, full:
+ * see moon.h), a title and a line under it, and a Cancel hint when the caller
+ * reads the buttons between frames. The picture is loaded at the first wait. */
+void flash_moon(int phase, const char *title, const char *caption, bool cancel) {
+  if (!moon_sheet)
+    moon_sheet = vita2d_load_PNG_file(ASSET_PREFIX "moon.png");
+  if (phase < 0)
+    phase = 0;
+  if (phase > MOON_PHASES - 1)
+    phase = MOON_PHASES - 1;
+  const float cx = WIDTH / 2.0f;
+  const int max_w = TH_RIGHT - TH_MARGIN;
   ui_end();
   ui_start();
   theme_topbar(NULL);
-  draw_dialog_hints(message, &cancel, 1);
+  if (moon_sheet)
+    vita2d_draw_texture_part(moon_sheet, cx - MOON_CELL / 2.0f, 156, phase * MOON_CELL, 0, MOON_CELL, MOON_CELL);
+  if (title && *title)
+    theme_text_fit_center(cx, 312, TH_TEXT, TS_LEAD, title, max_w);
+  if (caption && *caption) {
+    char lines[2][256];
+    int n = theme_wrap(TS_SMALL, caption, max_w, lines, 2);
+    for (int i = 0; i < n; i++)
+      theme_text_center(cx, 340 + i * 20, TH_TEXT2, TS_SMALL, lines[i]);
+  }
+  if (cancel) {
+    theme_hint_item h = {theme_cancel_glyph(), tr("Cancel")};
+    theme_hints(&h, 1);
+  }
   ui_end();
 }
 

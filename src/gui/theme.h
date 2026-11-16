@@ -6,9 +6,10 @@
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
- * Visual theme shared by every screen, in the spirit of VitaRPS5's themes:
- * wave background, Roboto type, thin dividers, rounded focus highlight,
- * outlined PlayStation symbols on the hint row. Five colour themes (Settings >
+ * Visual theme shared by every screen: a lunar sky behind the menus, Inter for
+ * the text and Poppins (the logo's typeface) for the titles, thin dividers,
+ * rounded focus highlight, outlined PlayStation symbols on the hint row. The
+ * idea of colour themes comes from VitaRPS5. Five colour themes (Settings >
  * General > Theme) change the background and the colours below that follow
  * the theme; the others are the same in every theme.
  *

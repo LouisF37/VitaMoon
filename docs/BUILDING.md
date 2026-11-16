@@ -57,7 +57,12 @@ Spanish texts are in `tools/i18n/table.py` and `table2.py`; `python3 tools/i18n/
 - `tools/sunshine-import.ps1`: adds the PC's installed Steam games (and PS1 games for DuckStation)
   to Sunshine with their cover art.
 - `tools/wol_sniffer.py`: listens for Wake-on-LAN packets, to check them without turning the PC off.
-- `tools/make_background.py`: generates the interface background.
+- `tools/make_background.py`: draws the five menu backgrounds, a lunar sky per colour theme
+  (`assets/bg_<theme>.png`). Needs numpy and Pillow.
 - `tools/art/make_brand.py`: draws the logo and the images made from it (LiveArea bubble, gate and
-  background, `assets/logo_mark.png`, `docs/assets/`). Needs Pillow, fontTools, `rsvg-convert` and
-  the Poppins and Inter Display fonts.
+  background, `assets/logo_mark.png`, the waiting moon `assets/moon.png`, `docs/assets/`). Needs
+  Pillow, fontTools, `rsvg-convert` and the Poppins and Inter Display fonts.
+- `tools/art/make_fonts.py`: cuts Inter (Regular, Light) and Poppins (Regular) down to the characters
+  VitaMoon can meet, into `assets/`, and writes the table of the characters Poppins has
+  (`src/gui/title_font_cover.h`). Needs fontTools and the two fonts (Debian's `fonts-inter`, the Google
+  Fonts copy of Poppins).

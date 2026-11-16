@@ -26,6 +26,7 @@
 #include "../input/vita.h"
 #include "../reconnect.h"
 #include "quickmenu.h"
+#include "moon.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -154,6 +155,72 @@ static bool start_settings_changed(void) {
   return memcmp(&now, &started_with, sizeof(now)) != 0;
 }
 
+static char connected_host_name[128] = "";
+
+/* ---------------- the waiting moon during a stream start ---------------- */
+
+/* The moon fills over the stages up to the start of the video, and is full as
+ * that one begins. From there the video thread may draw on the screen, so the
+ * menus stop drawing: the last stages (video, sound and controls start) are
+ * short. Each picture is drawn on this thread, inside LiStartConnection, at
+ * most one per MOON_MIN_INTERVAL_US; their total time is logged. */
+#define MOON_LAST_STAGE STAGE_VIDEO_STREAM_START
+static char moon_title[192];
+static SceUInt64 moon_last_us;
+static int moon_draws;
+static SceUInt64 moon_draw_us;
+
+static const char *stage_caption(int stage) {
+  switch (stage) {
+    case STAGE_PLATFORM_INIT: return tr("Getting ready...");
+    case STAGE_NAME_RESOLUTION: return tr("Finding the PC...");
+    case STAGE_AUDIO_STREAM_INIT: return tr("Preparing the sound...");
+    case STAGE_RTSP_HANDSHAKE: return tr("Agreeing on the stream with the PC...");
+    case STAGE_CONTROL_STREAM_INIT: return tr("Preparing the control link...");
+    case STAGE_VIDEO_STREAM_INIT: return tr("Preparing the video...");
+    case STAGE_INPUT_STREAM_INIT: return tr("Preparing the controls...");
+    case STAGE_CONTROL_STREAM_START: return tr("Starting the control link...");
+    case STAGE_VIDEO_STREAM_START: return tr("Starting the video...");
+    default: return "";
+  }
+}
+
+/* First picture, a new moon, before the PC is asked to start the game. */
+static void moon_begin(const char *caption) {
+  snprintf(moon_title, sizeof(moon_title), tr("Connecting to %s..."), connected_host_name);
+  flash_moon(0, moon_title, caption, false);
+  moon_last_us = sceKernelGetProcessTimeWide();
+  moon_draws = 0;
+  moon_draw_us = 0;
+}
+
+static void moon_stage(int stage) {
+  if (stage < STAGE_PLATFORM_INIT || stage > MOON_LAST_STAGE)
+    return;
+  int phase = moon_phase(stage - STAGE_PLATFORM_INIT, MOON_LAST_STAGE - STAGE_PLATFORM_INIT);
+  SceUInt64 now = sceKernelGetProcessTimeWide();
+  if (!moon_should_draw(moon_last_us, now, phase))
+    return;
+  flash_moon(phase, moon_title, stage_caption(stage), false);
+  moon_last_us = sceKernelGetProcessTimeWide();
+  moon_draws++;
+  moon_draw_us += moon_last_us - now;
+}
+
+#ifdef UI_PREVIEW
+/* The preview draws the moon of a stage as a stream start would. */
+void ui_connect_preview_moon(const char *host, int stage) {
+  snprintf(connected_host_name, sizeof(connected_host_name), "%s", host);
+  if (stage == 0) {
+    moon_begin(tr("Starting stream..."));
+    return;
+  }
+  snprintf(moon_title, sizeof(moon_title), tr("Connecting to %s..."), connected_host_name);
+  moon_last_us = 0;
+  moon_stage(stage);
+}
+#endif
+
 /* Starts the stream of appId (launch, or resume when the PC already runs it).
  * Returns 0 when the stream runs; on failure, explains it on screen when
  * report_errors is set (a reconnection retries quietly instead). */
@@ -232,10 +299,17 @@ static int start_stream(int appId, bool report_errors) {
   // Wait for late video packets before giving a frame up (juanjsebgarcia's
   // reorder window, third_party/patches/moonlight-common-c).
   LiSetVideoReorderWaitUs((uint32_t)(config.video_reorder_wait_ms > 0 ? config.video_reorder_wait_ms : 0) * 1000);
+  // A reconnection draws its own screen between tries: the moon of the stages
+  // is for a start asked by the user.
+  if (report_errors)
+    connection_set_stage_hook(moon_stage);
   ret = LiStartConnection(&server.serverInfo, &config.stream, &connection_callbacks,
                           video_callback, platform_get_audio(system),
                           NULL, drFlags, NULL, 0);
+  connection_set_stage_hook(NULL);
   vitapower_busy_end();
+  if (report_errors)
+    LOGI("stream", "waiting moon: %d pictures drawn in %u ms", moon_draws, (unsigned)(moon_draw_us / 1000));
 
   // Restore the requested resolution
   config.stream.width = orig_width;
@@ -264,8 +338,6 @@ enum {
 };
 
 #define QUIT_RELOAD 2
-
-static char connected_host_name[128] = "";
 
 static bool wifi_connected(void) {
   int state = 0;
@@ -296,13 +368,14 @@ static reconnect_result reconnect_stream(int id) {
       wifi_logged = wifi;
     }
     if (wifi && attempt > 0)
-      snprintf(message, sizeof(message), tr("Connection lost.\nReconnecting to %s (try %d)..."),
-               connected_host_name, attempt);
+      snprintf(message, sizeof(message), tr("Reconnecting to %s (try %d)..."), connected_host_name, attempt);
     else if (wifi)
-      snprintf(message, sizeof(message), tr("Connection lost.\nReconnecting to %s..."), connected_host_name);
+      snprintf(message, sizeof(message), tr("Reconnecting to %s..."), connected_host_name);
     else
-      snprintf(message, sizeof(message), "%s", tr("Connection lost.\nWaiting for the Wi-Fi..."));
-    flash_cancelable(message);
+      snprintf(message, sizeof(message), "%s", tr("Waiting for the Wi-Fi..."));
+    // The moon fills as the minute of tries goes by.
+    unsigned elapsed_ms = (unsigned)((sceKernelGetProcessTimeWide() - start) / 1000);
+    flash_moon(moon_phase(elapsed_ms, RECONNECT_GIVE_UP_MS), tr("Connection lost"), message, true);
 
     int buttons = read_buttons();
     if ((buttons & config.btn_cancel) && !(buttons & SCE_CTRL_HOLD)) {
@@ -355,7 +428,7 @@ static int ui_launch_app(int id) {
   if (status == LI_MINIMIZED && server.currentGame == id && restart) {
     // Settings that apply to a new stream changed during the pause: end this
     // stream (the game keeps running on the PC) and start a new one.
-    flash_message(tr("Restarting the stream..."));
+    moon_begin(tr("Restarting the stream..."));
     LOGI("stream", "restarting the stream to apply new settings");
     connection_terminate();
     sceKernelDelayThread(1000 * 1000);
@@ -367,7 +440,7 @@ static int ui_launch_app(int id) {
     sceKernelDelayThread(500 * 1000);
     connection_resume();
   } else if (status == LI_MINIMIZED || status == LI_PAIRED) {
-    flash_message(tr("Starting stream..."));
+    moon_begin(tr("Starting stream..."));
     ui_connect_stream(id);
   }
 
@@ -671,7 +744,9 @@ static void connected_screens(void) {
 device_info_t* ui_connect_and_pairing(device_info_t *info) {
   if (!info->port)
     info->port = 47989;
-  flash_message(tr("Connecting to %s..."), info->internal);
+  char title[192];
+  snprintf(title, sizeof(title), tr("Connecting to %s..."), info->internal);
+  flash_moon(0, title, NULL, false);
   vita_debug_log("[CONNECT] adding name=%s, ip=%s, port=%d", info->name, info->internal, info->port);
 
   int ret = host_open(info->name, info->internal, info->port);
@@ -744,7 +819,9 @@ void ui_connect_paired_device(device_info_t *info) {
     return;
   }
 
-  flash_message(tr("Connecting to %s..."), info->name);
+  char title[192];
+  snprintf(title, sizeof(title), tr("Connecting to %s..."), info->name);
+  flash_moon(0, title, NULL, false);
 
   // Home address first, unless the Internet address worked last time. One status
   // request per address; the first PC that answers is used as it is (the

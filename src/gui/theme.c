@@ -10,6 +10,8 @@
  */
 #include "theme.h"
 #include "guilib.h"
+#include "text_cover.h"
+#include "title_font_cover.h"
 #include "../config.h"
 #include "../app_info.h"
 #include "../i18n.h"
@@ -38,17 +40,31 @@
 /* ---------------- fonts ---------------- */
 
 /* One font instance per size: vita2d caches each glyph at the first size it
- * is drawn with and rescales it afterwards, which blurs every other size. */
+ * is drawn with and rescales it afterwards, which blurs every other size.
+ * Inter for the text (Regular for the small sizes, Light from the body size),
+ * Poppins, the logo's typeface, for the titles. Poppins has Latin only: a title
+ * with a character it lacks (Greek, Cyrillic, some accented letters) is drawn
+ * with Inter Light at the same size, an instance made the first time one is
+ * needed. tools/art/make_fonts.py builds the three files and the table. */
+enum { FONT_TEXT, FONT_TEXT_LIGHT, FONT_TITLE, FONT_FILES };
+static const char *const k_font_files[FONT_FILES] = {
+  ASSET_PREFIX "Inter-Regular.otf", ASSET_PREFIX "Inter-Light.otf", ASSET_PREFIX "Poppins-Regular.ttf",
+};
+static void *font_data[FONT_FILES];
+static unsigned int font_size[FONT_FILES];
+
 typedef struct {
   int size;
-  bool light;
+  int file;
   vita2d_font *font;
+  vita2d_font *fallback;   /* titles only: Inter Light at this size */
 } th_face;
 
 static th_face faces[] = {
-  {TS_MICRO, false, NULL}, {TS_SMALL, false, NULL}, {TS_HINT, false, NULL},
-  {TS_BODY, true, NULL},   {TS_CLOCK, true, NULL},  {TS_LEAD, true, NULL},
-  {TS_TITLE, true, NULL},  {TS_HERO, true, NULL},
+  {TS_MICRO, FONT_TEXT, NULL, NULL},       {TS_SMALL, FONT_TEXT, NULL, NULL},
+  {TS_HINT, FONT_TEXT, NULL, NULL},        {TS_BODY, FONT_TEXT_LIGHT, NULL, NULL},
+  {TS_CLOCK, FONT_TEXT_LIGHT, NULL, NULL}, {TS_LEAD, FONT_TITLE, NULL, NULL},
+  {TS_TITLE, FONT_TITLE, NULL, NULL},      {TS_HERO, FONT_TITLE, NULL, NULL},
 };
 #define FACE_COUNT ((int)(sizeof(faces) / sizeof(faces[0])))
 
@@ -150,15 +166,13 @@ static void *read_file(const char *path, unsigned int *size) {
 }
 
 void theme_init(void) {
-  /* The font files are read once; every size shares the same data. */
-  unsigned int regular_size = 0, light_size = 0;
-  void *regular = read_file(ASSET_PREFIX "Roboto-Regular.ttf", &regular_size);
-  void *light = read_file(ASSET_PREFIX "Roboto-Light.ttf", &light_size);
+  /* The font files are read once and kept: every size shares the same data. */
+  for (int i = 0; i < FONT_FILES; i++)
+    font_data[i] = read_file(k_font_files[i], &font_size[i]);
   for (int i = 0; i < FACE_COUNT; i++) {
-    void *data = faces[i].light && light ? light : regular;
-    unsigned int size = faces[i].light && light ? light_size : regular_size;
-    if (data)
-      faces[i].font = vita2d_load_font_mem(data, size);
+    int file = font_data[faces[i].file] ? faces[i].file : FONT_TEXT;
+    if (font_data[file])
+      faces[i].font = vita2d_load_font_mem(font_data[file], font_size[file]);
     if (faces[i].font)
       vita2d_font_text_width(faces[i].font, faces[i].size, k_prewarm);
   }
@@ -175,7 +189,13 @@ static th_face *face_for(int size) {
   return best;
 }
 
-static vita2d_font *face_font(th_face *f) {
+static vita2d_font *face_font(th_face *f, const char *text) {
+  if (f->file == FONT_TITLE && f->font && !text_covered(text, k_title_cover, TITLE_COVER_COUNT)) {
+    if (!f->fallback && font_data[FONT_TEXT_LIGHT])
+      f->fallback = vita2d_load_font_mem(font_data[FONT_TEXT_LIGHT], font_size[FONT_TEXT_LIGHT]);
+    if (f->fallback)
+      return f->fallback;
+  }
   return f->font ? f->font : font; /* icon font as a last resort */
 }
 
@@ -214,14 +234,14 @@ int theme_text_width(int size, const char *text) {
   if (!text || !*text)
     return 0;
   th_face *f = face_for(size);
-  return vita2d_font_text_width(face_font(f), f->size, text);
+  return vita2d_font_text_width(face_font(f, text), f->size, text);
 }
 
 void theme_text(float x, float y, unsigned int color, int size, const char *text) {
   if (!text || !*text)
     return;
   th_face *f = face_for(size);
-  vita2d_font_draw_text(face_font(f), (int)(x + 0.5f), (int)(y + 0.5f), theme_color(color), f->size, text);
+  vita2d_font_draw_text(face_font(f, text), (int)(x + 0.5f), (int)(y + 0.5f), theme_color(color), f->size, text);
 }
 
 void theme_text_right(float right, float y, unsigned int color, int size, const char *text) {

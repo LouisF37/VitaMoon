@@ -2,10 +2,14 @@
 """Generates assets/bg_<theme>.png, the 960x544 background of every menu, one
 per colour theme (src/gui/theme.c lists the themes and their colours).
 
-The picture is drawn from scratch (no third-party artwork): a vertical
-gradient and three soft wave crests in the lower part of the screen. The crests
-are kept faint so that text drawn on top of them stays readable, and the
-gradient is dithered so that it shows no banding on the Vita screen.
+The picture is drawn from scratch (no third-party artwork): a lunar sky. A
+vertical gradient, a few faint stars (none behind the top bar's text, fewer
+towards the horizon), a large faint crescent low on the right whose disc is the
+one of the logo seen from closer, and a soft glow on the horizon. Each theme has
+one touch of its own: aurora curtains, a warm dawn horizon, and for Eclipse a
+dark disc with a thin corona. Everything is kept faint so that text drawn on top
+stays readable, and the picture is dithered so that it shows no banding on the
+Vita screen. The app draws it as one texture per frame, like any picture.
 
     python3 tools/make_background.py [output folder]
 
@@ -18,8 +22,6 @@ from PIL import Image
 
 W, H = 960, 544
 
-# Per theme: vertical gradient as (row, colour) stops, rows in between being
-# interpolated, and the tint of the light added by the wave crests.
 THEMES = {
     "night": ([(0, (4, 20, 48)), (120, (8, 45, 94)), (330, (14, 66, 128)), (544, (16, 56, 102))],
               (0.55, 0.85, 1.0)),
@@ -33,15 +35,15 @@ THEMES = {
                 (1.0, 0.82, 0.5)),
 }
 
-# Wave crests: base row, (amplitude, wavelength, phase) terms, glow strength,
-# glow depth in rows, crest line strength.
-WAVES = [
-    (452, [(26, 1250, 3.9), (9, 520, 1.2)], 9.0, 70.0, 20.0),
-    (486, [(20, 1050, 0.6), (7, 430, 2.4)], 7.0, 60.0, 14.0),
-    (508, [(14, 880, 2.2), (5, 360, 5.0)], 5.0, 44.0, 9.0),
-]
+# Per theme: how many stars, how bright the moon disc is, horizon glow strength.
+STYLE = {
+    "night": dict(stars=60, moon=11.0, horizon=10.0),
+    "dawn": dict(stars=25, moon=9.0, horizon=26.0),
+    "aurora": dict(stars=50, moon=8.0, horizon=8.0),
+    "twilight": dict(stars=80, moon=10.0, horizon=14.0),
+    "eclipse": dict(stars=70, moon=0.0, horizon=4.0),
+}
 
-# 8x8 ordered dither matrix, values in [0, 1).
 BAYER = np.array([
     [0, 32, 8, 40, 2, 34, 10, 42],
     [48, 16, 56, 24, 50, 18, 58, 26],
@@ -53,32 +55,74 @@ BAYER = np.array([
     [63, 31, 55, 23, 61, 29, 53, 21],
 ]) / 64.0
 
+MOON_C = (858.0, 610.0)   # centre of the big moon, below the bottom-right corner
+MOON_R = 300.0
 
-def draw(stops, tint, out):
+
+def draw(name, stops, tint, out):
+    st = STYLE[name]
     rows = np.arange(H, dtype=np.float64)
     cols = np.arange(W, dtype=np.float64)
+    yy, xx = np.meshgrid(rows, cols, indexing="ij")
 
     img = np.zeros((H, W, 3))
     stop_rows = [s[0] for s in stops]
     for c in range(3):
         img[:, :, c] = np.interp(rows, stop_rows, [s[1][c] for s in stops])[:, None]
 
-    # Light added by the waves, same amount on every channel then tinted.
     light = np.zeros((H, W))
-    for base, terms, glow, depth, line in WAVES:
-        crest = np.full(W, float(base))
-        for amp, wavelength, phase in terms:
-            crest += amp * np.sin(2 * np.pi * cols / wavelength + phase)
-        below = rows[:, None] - crest[None, :]
-        # Soft glow under the crest, fading with depth.
-        light += np.where(below >= 0, glow * np.exp(-np.maximum(below, 0) / depth), 0.0)
-        # Thin anti-aliased crest line, brighter towards the right of the screen.
-        fade = 0.45 + 0.55 * (cols / (W - 1))
-        light += line * fade[None, :] * np.exp(-(below ** 2) / (2 * 0.9 ** 2))
+
+    # Horizon: a soft glow rising from the bottom edge.
+    light += st["horizon"] * np.exp(-(H - 1 - yy) / 70.0)
+
+    # The big moon: a faint disc with a brighter limb and a soft halo.
+    d = np.hypot(xx - MOON_C[0], yy - MOON_C[1])
+    if name == "eclipse":
+        # Dark disc, thin bright corona around it.
+        light += 34.0 * np.exp(-((d - MOON_R) ** 2) / (2 * 2.2 ** 2))
+        light += 16.0 * np.exp(-np.maximum(d - MOON_R, 0) / 26.0) * (d >= MOON_R)
+        img *= np.where(d < MOON_R, 0.55, 1.0)[:, :, None]
+    else:
+        inside = d < MOON_R
+        # Lit crescent: the part of the disc not covered by a second disc shifted down-right.
+        d2 = np.hypot(xx - (MOON_C[0] + 70.0), yy - (MOON_C[1] + 40.0))
+        lit = inside & (d2 > MOON_R * 0.98)
+        light += st["moon"] * inside
+        light += st["moon"] * 1.6 * lit
+        light += 7.0 * np.exp(-((d - MOON_R) ** 2) / (2 * 1.2 ** 2)) * (d2 > MOON_R)
+        light += 9.0 * np.exp(-np.maximum(d - MOON_R, 0) / 40.0) * (d >= MOON_R)
+
+    # Aurora curtains: soft vertical bands in the upper half.
+    if name == "aurora":
+        band = (np.sin(xx / 61.0 + 0.8) * 0.5 + 0.5) * (np.sin(xx / 23.0 + 2.1) * 0.3 + 0.7)
+        curtain = np.exp(-((yy - (120 + 40 * np.sin(xx / 140.0))) ** 2) / (2 * 55.0 ** 2))
+        light += 26.0 * band * curtain
 
     img += light[:, :, None] * np.array(tint)[None, None, :]
 
-    # Ordered dither before rounding down to 8 bits.
+    # Stars: few, small, faint; fewer towards the horizon.
+    rng = np.random.default_rng({"night": 7, "dawn": 11, "aurora": 3, "twilight": 5, "eclipse": 9}[name])
+    star = np.zeros((H, W))
+    n = 0
+    while n < st["stars"]:
+        x, y = rng.uniform(0, W), rng.uniform(0, H)
+        if rng.uniform() > (1.0 - y / H) ** 1.4:
+            continue
+        if np.hypot(x - MOON_C[0], y - MOON_C[1]) < MOON_R + 20:
+            continue
+        # Keep the top bar's text clear (name on the left, status on the right).
+        if y < 58 and (x < 280 or x > 690):
+            continue
+        size = rng.choice([0.55, 0.7, 0.9, 1.2], p=[0.45, 0.3, 0.17, 0.08])
+        bright = rng.uniform(45, 115) * (1.0 - 0.6 * y / H)
+        x0, x1 = int(max(x - 4, 0)), int(min(x + 5, W))
+        y0, y1 = int(max(y - 4, 0)), int(min(y + 5, H))
+        gy, gx = np.meshgrid(np.arange(y0, y1), np.arange(x0, x1), indexing="ij")
+        star[y0:y1, x0:x1] += bright * np.exp(-((gx + 0.5 - x) ** 2 + (gy + 0.5 - y) ** 2) / (2 * size ** 2))
+        n += 1
+    white = np.array([0.92, 0.95, 1.0])
+    img += np.minimum(star, 200)[:, :, None] * white[None, None, :]
+
     tile = np.tile(BAYER, (H // 8 + 1, W // 8 + 1))[:H, :W]
     img = np.floor(img + tile[:, :, None])
     Image.fromarray(np.clip(img, 0, 255).astype(np.uint8), "RGB").save(out, optimize=True)
@@ -88,7 +132,7 @@ def draw(stops, tint, out):
 def main():
     folder = sys.argv[1] if len(sys.argv) > 1 else "assets"
     for name, (stops, tint) in THEMES.items():
-        draw(stops, tint, "%s/bg_%s.png" % (folder, name))
+        draw(name, stops, tint, "%s/bg_%s.png" % (folder, name))
 
 
 if __name__ == "__main__":

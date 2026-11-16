@@ -25,7 +25,7 @@ set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
 set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "0")
-set(VERSION_LABEL "beta.2")        # empty for a final release
+set(VERSION_LABEL "beta.3")        # empty for a final release
 set(VERSION_NAME "Nouvelle Lune")  # milestone name, shown in the docs
 if(VERSION_LABEL)
 	set(VERSION_TEXT "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_LABEL}")
@@ -212,14 +212,18 @@ add_custom_target(${PROJECT_NAME}.vpk ALL
 			--add ../sce_sys/livearea/contents/startup.png=sce_sys/livearea/contents/startup.png
 			--add ${CMAKE_BINARY_DIR}/livearea/template.xml=sce_sys/livearea/contents/template.xml
 			--add ../assets/nerdfont.ttf=assets/nerdfont.ttf
-			--add ../assets/Roboto-Regular.ttf=assets/Roboto-Regular.ttf
-			--add ../assets/Roboto-Light.ttf=assets/Roboto-Light.ttf
+			--add ../assets/Inter-Regular.otf=assets/Inter-Regular.otf
+			--add ../assets/Inter-Light.otf=assets/Inter-Light.otf
+			--add ../assets/Poppins-Regular.ttf=assets/Poppins-Regular.ttf
+			--add ../assets/LICENSE.Inter=assets/LICENSE.Inter
+			--add ../assets/LICENSE.Poppins=assets/LICENSE.Poppins
 			--add ../assets/bg_night.png=assets/bg_night.png
 			--add ../assets/bg_dawn.png=assets/bg_dawn.png
 			--add ../assets/bg_aurora.png=assets/bg_aurora.png
 			--add ../assets/bg_twilight.png=assets/bg_twilight.png
 			--add ../assets/bg_eclipse.png=assets/bg_eclipse.png
 			--add ../assets/logo_mark.png=assets/logo_mark.png
+			--add ../assets/moon.png=assets/moon.png
 			${PROJECT_NAME}.vpk
 )
 

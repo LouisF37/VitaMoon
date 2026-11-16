@@ -201,6 +201,39 @@ def app_mark():
     return svg_doc(100, 100, mark_svg(0, 0, 100))
 
 
+MOON_STEPS = 11   # src/gui/moon.h: MOON_PHASES - 1
+MOON_CELL = 112   # pixels per picture in assets/moon.png
+
+
+def moon_lit(f, cx=50.0, cy=52.0, r=34.0):
+    """Waxing moon lit on the right, f = lit fraction of the disc (0..1): the
+    right half of the disc and a half ellipse through its top and bottom."""
+    k = abs(1.0 - 2.0 * f) * r
+    sweep = 0 if f < 0.5 else 1
+    return (f'M{cx},{cy - r} A{r},{r} 0 0 1 {cx},{cy + r} '
+            f'A{k:.3f},{r} 0 0 {sweep} {cx},{cy - r} Z')
+
+
+def moon_phase(step):
+    """The waiting moon at step 0 (new: only a faint disc) to MOON_STEPS (full:
+    the mark itself). Same disc as the mark."""
+    dim = ('<circle cx="50" cy="52" r="34" fill="#FFFFFF" fill-opacity="0.10"/>'
+           '<circle cx="50" cy="52" r="33.5" fill="none" stroke="#FFFFFF" stroke-opacity="0.28" stroke-width="1"/>')
+    if step == 0:
+        return svg_doc(100, 100, dim)
+    if step == MOON_STEPS:
+        return svg_doc(100, 100, mark_svg(0, 0, 100))
+    return svg_doc(100, 100, dim + f'<path d="{moon_lit(step / MOON_STEPS)}" fill="{MOON}"/>')
+
+
+def moon_sheet():
+    """assets/moon.png: the MOON_STEPS + 1 pictures side by side."""
+    sheet = Image.new('RGBA', ((MOON_STEPS + 1) * MOON_CELL, MOON_CELL), (0, 0, 0, 0))
+    for step in range(MOON_STEPS + 1):
+        sheet.alpha_composite(render(moon_phase(step), MOON_CELL, MOON_CELL).convert('RGBA'), (step * MOON_CELL, 0))
+    return sheet
+
+
 # ---------------------------------------------------------------- files
 
 def render(svg, w, h):
@@ -244,6 +277,7 @@ def main():
     write_png('sce_sys/livearea/contents/startup.png', render(startup(), 280, 158), vita=True)
     write_png('sce_sys/livearea/contents/bg.png', render(livearea_bg(), 840, 500), vita=True)
     write_png('assets/logo_mark.png', render(app_mark(), 64, 64))
+    write_png('assets/moon.png', moon_sheet())
 
 
 if __name__ == '__main__':

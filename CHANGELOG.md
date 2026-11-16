@@ -3,6 +3,28 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.0.0-beta.3 "Nouvelle Lune" (2026-11-16)
+
+### Changed
+
+- A look of VitaMoon's own for the menus, which looked too much like VitaRPS5's:
+  - **Lunar sky** behind every menu, in place of the waves: faint stars (none behind the top bar's
+    text, fewer towards the horizon), a large faint crescent low on the right, a soft glow on the
+    horizon, and one touch per theme (aurora curtains, a warm dawn horizon, a dark disc with its
+    corona for Eclipse). Still one picture per theme, drawn once per frame as before
+    (`tools/make_background.py`).
+  - **Type**: Poppins, the logo's typeface, for the titles, and Inter for the text, in place of Roboto.
+    Both are cut down to Latin (with Vietnamese), Greek and Cyrillic by `tools/art/make_fonts.py`: 350 KB
+    for the three files against 342 KB for the two Roboto ones. A title with a character Poppins lacks
+    (Greek, Cyrillic, a few accented letters) is drawn in Inter. Glyphs are still prepared at start-up
+    for every size.
+  - **The waiting moon**, in place of the "Starting stream..." box that stayed on screen until the game
+    appeared: contacting a PC and starting a stream show a moon that fills at each stage of the start,
+    the stage written under it, and is full, the VitaMoon mark, as the video starts. The reconnection
+    screen shows it filling over the minute of tries. Pictures are drawn on the menu thread, at most
+    one per 50 ms and never once the video thread may draw; the log says how many and how long
+    (`waiting moon: N pictures drawn in M ms`), to compare start times with beta.2.
+
 ## 1.0.0-beta.2 "Nouvelle Lune" (2026-11-16)
 
 ### Identity

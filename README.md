@@ -35,6 +35,7 @@ taken from other forks, and what was measured by whom, is listed in
   <img src="docs/screenshots/settings_profile_smooth.png" alt="Settings: performance profiles" width="48%"/>
   <img src="docs/screenshots/pairing_code.png" alt="Pairing: code to type in Sunshine" width="48%"/>
   <img src="docs/screenshots/quickmenu.png" alt="In-game quick menu over the game" width="48%"/>
+  <img src="docs/screenshots/connecting.png" alt="Starting a stream: the waiting moon fills at each step" width="48%"/>
   <img src="docs/screenshots/themes.png" alt="The five colour themes: Night, Dawn, Aurora, Twilight, Eclipse" width="96%"/>
 </div>
 
@@ -56,7 +57,8 @@ measurements).</sub>
   with percentiles, to compare settings on your own setup.
 - **Interface**: computers with their state, a game library with cover art, two-pane settings with
   help for every option, pairing with a code to type in Sunshine, English, French and Spanish, five
-  colour themes (Night, Dawn, Aurora, Twilight, Eclipse).
+  colour themes over a lunar sky (Night, Dawn, Aurora, Twilight, Eclipse), titles in Poppins and text in
+  Inter, a moon that fills at each step while a stream starts or reconnects.
 - **In-game quick menu** (L + R + SELECT): statistics on or off, keyboard, pause or quit the game,
   with the battery and the clock, without leaving the game.
 - **Controls**: Xbox or PlayStation layout, rear touch, front touch as DS4 touchpad, mouse or tablet,
@@ -174,9 +176,10 @@ from the other Vita forks.
   [alex4580/vita-moonlight](https://github.com/alex4580/vita-moonlight) and
   [NowaLone/vita-moonlight](https://github.com/NowaLone/vita-moonlight). Details in
   [docs/design/forks.md](docs/design/forks.md).
-- Roboto font (Apache 2.0, `assets/LICENSE.Roboto`), Nerd Fonts icons. The logo, the LiveArea images
-  and the GitHub preview are drawn by `tools/art/make_brand.py` (wordmark in Poppins, SIL Open Font
-  License).
+- Interface fonts Inter and Poppins (SIL Open Font License 1.1, `assets/LICENSE.Inter`,
+  `assets/LICENSE.Poppins`), cut down to the characters VitaMoon can meet by `tools/art/make_fonts.py`;
+  Nerd Fonts icons. The logo, the LiveArea images, the waiting moon and the GitHub preview are drawn by
+  `tools/art/make_brand.py` (wordmark in Poppins), the menu backgrounds by `tools/make_background.py`.
 
 Developed by [LouisF37](https://github.com/LouisF37) with the help of
 [Claude Code](https://claude.com/claude-code).

@@ -1,6 +1,6 @@
 # VitaMoon : guide d'utilisation et de test
 
-VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 2 « Nouvelle Lune ». Jusqu'à la
+VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 3 « Nouvelle Lune ». Jusqu'à la
 bêta 1, le projet s'appelait Lune.
 
 Téléchargement :
@@ -8,7 +8,7 @@ Téléchargement :
 - dernière compilation de la branche `phase2` :
   https://github.com/LouisF37/VitaMoon/releases/download/build-phase2/vitamoon-phase2.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.2  phase2-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.3  phase2-xxxxxxx`.
 
 **Installation à côté de Moonlight.** VitaMoon a son propre identifiant (`VMOON0001`), sa propre bulle et
 son propre dossier (`ux0:data/vitamoon`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc
@@ -59,9 +59,15 @@ s'appliquent qu'au démarrage d'un stream ont été modifiés pendant la pause (
 options de la rubrique Performance...), la reprise propose de relancer le stream : le jeu continue sur le PC,
 seul le flux est recommencé.
 
+**Lune d'attente.** Pendant la connexion à un PC et le démarrage d'un stream, une lune se remplit à chaque
+étape (préparation, recherche du PC, son, accord sur le stream, commandes, vidéo), avec l'étape écrite
+dessous ; elle est pleine, le logo de VitaMoon, au démarrage de la vidéo. Le journal indique combien d'images
+de la lune ont été dessinées et le temps qu'elles ont pris (`waiting moon: N pictures drawn in M ms`).
+
 **Reconnexion automatique.** Si le Wi-Fi coupe ou si la Vita se met en veille pendant un stream, VitaMoon
 affiche « Connexion perdue », attend le retour du Wi-Fi puis relance le stream du même jeu, qui a continué
-sur le PC. Il essaie toutes les 3 secondes pendant une minute ; Rond (ou Croix si X et O sont inversés)
+sur le PC. Il essaie toutes les 3 secondes pendant une minute, la lune se remplissant au fil de cette
+minute ; Rond (ou Croix si X et O sont inversés)
 annule. Si le stream retombe trois fois de suite moins de 20 secondes après être reparti, VitaMoon arrête et
 le dit. Option : Réglages → Général → Reconnexion automatique (activée par défaut). Une coupure pendant la
 pause (dans les menus) ne déclenche pas de reconnexion : reconnectez-vous et choisissez Reprendre.
@@ -73,8 +79,8 @@ affiché dans la liste des appareils de Sunshine. Les appairages existants garde
 - Haut / bas : option. Gauche / droite : changer la valeur. ✕ : basculer, valeur suivante ou ouvrir.
 - L / R : rubrique précédente / suivante. ○ : retour (les réglages sont enregistrés).
 - Langue : English, Français, Español (rubrique Général).
-- Thème : Nuit (l'apparence d'origine), Aube, Aurore, Crépuscule, Éclipse (rubrique Général) ; appliqué
-  tout de suite, avec son propre fond.
+- Thème : Nuit, Aube, Aurore, Crépuscule, Éclipse (rubrique Général) ; appliqué tout de suite, avec son
+  propre ciel lunaire (étoiles et grand croissant ; Éclipse : disque sombre et sa couronne).
 
 ## Performance (Réglages → Performance)
 

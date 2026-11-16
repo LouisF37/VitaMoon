@@ -208,9 +208,16 @@ void connection_close_idle() {
 
 /* Stages of the stream start (RTSP, control, video, audio...), each timed. */
 static SceUInt64 stage_started_us;
+static void (*stage_hook)(int stage) = NULL;
+
+void connection_set_stage_hook(void (*hook)(int stage)) {
+  stage_hook = hook;
+}
 
 void connection_stage_starting(int stage) {
   connection_stage = stage;
+  if (stage_hook)
+    stage_hook(stage);   // drawn before the clock starts: not counted in the stage's time
   stage_started_us = sceKernelGetProcessTimeWide();
   LOGD("stream", "stage %s...", LiGetStageName(stage));
 }

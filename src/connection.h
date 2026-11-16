@@ -46,6 +46,11 @@ extern CONNECTION_LISTENER_CALLBACKS connection_callbacks;
 
 extern int connection_stage;
 
+/* Called on the thread that starts the stream (inside LiStartConnection) as
+ * each stage begins, before its time is taken; NULL for none. ui_connect.c
+ * draws the waiting moon with it. */
+void connection_set_stage_hook(void (*hook)(int stage));
+
 int connection_reset();
 int connection_paired();
 int connection_minimize();

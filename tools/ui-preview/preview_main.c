@@ -30,6 +30,9 @@
 int ui_main_menu(void);
 #include "gui/ui_settings.h"
 #include "gui/ui_library.h"
+#include "gui/ui_connect.h"
+#include "gui/moon.h"
+#include "reconnect.h"
 #include "gui/boxart.h"
 #include "video/stream_stats.h"
 
@@ -52,6 +55,7 @@ int connection_terminate(void) { return 0; }
 int connection_get_status(void) { return fake_status; }
 int connection_paired(void) { fake_status = LI_PAIRED; return 0; }
 int connection_reset(void) { return 0; }
+void connection_set_stage_hook(void (*hook)(int stage)) { (void)hook; }
 void connection_close_idle(void) {}
 bool connection_was_lost(void) { return false; }
 int connection_last_error(void) { return 0; }
@@ -353,12 +357,13 @@ static void scenario_reconnect(void) {
   preview_snap("reconnect_4_failed");
   preview_press(SCE_CTRL_CROSS);
 
+  /* As reconnect_stream() draws them: the moon fills over the minute of tries. */
   char message[256];
-  flash_cancelable(tr("Connection lost.\nWaiting for the Wi-Fi..."));
-  snprintf(message, sizeof(message), tr("Connection lost.\nReconnecting to %s..."), "MINI-PC");
-  flash_cancelable(message);
-  snprintf(message, sizeof(message), tr("Connection lost.\nReconnecting to %s (try %d)..."), "MINI-PC", 3);
-  flash_cancelable(message);
+  flash_moon(moon_phase(0, RECONNECT_GIVE_UP_MS), tr("Connection lost"), tr("Waiting for the Wi-Fi..."), true);
+  snprintf(message, sizeof(message), tr("Reconnecting to %s..."), "MINI-PC");
+  flash_moon(moon_phase(1500, RECONNECT_GIVE_UP_MS), tr("Connection lost"), message, true);
+  snprintf(message, sizeof(message), tr("Reconnecting to %s (try %d)..."), "MINI-PC", 3);
+  flash_moon(moon_phase(27000, RECONNECT_GIVE_UP_MS), tr("Connection lost"), message, true);
   ui_start();
   display_error(tr("Could not reconnect.\nThe game should still be running on the PC: connect again to resume it."));
 }
@@ -391,6 +396,19 @@ static void scenario_quickmenu(void) {
     quickmenu_draw();
     ui_end();
   }
+}
+
+/* Stream start: the moon before the PC is asked for the game, then at a few
+ * stages (2: finding the PC, 4: RTSP, 7: controls, 9: video, the full moon). */
+static void scenario_connecting(void) {
+  static const int stages[] = {0, 2, 4, 7, 9};
+  char name[32];
+  for (int i = 0; i < 5; i++) {
+    snprintf(name, sizeof(name), "connecting_%d", stages[i]);
+    preview_snap(name);
+  }
+  for (int i = 0; i < 5; i++)
+    ui_connect_preview_moon("MINI-PC", stages[i]);
 }
 
 static void scenario_pairing(void) {
@@ -436,6 +454,7 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "restart")) scenario_restart();
   else if (!strcmp(s, "reconnect")) scenario_reconnect();
   else if (!strcmp(s, "quickmenu")) scenario_quickmenu();
+  else if (!strcmp(s, "connecting")) scenario_connecting();
   else {
     fprintf(stderr, "unknown scenario %s\n", s);
     return 2;
