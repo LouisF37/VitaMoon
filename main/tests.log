@@ -41,7 +41,7 @@
   ok    clock going back re-anchors
 [pacing] 31 checks, 0 failed
 
-[url, percentiles and reconnection]
+[url, percentiles, reconnection and PC names]
   ok    space encoded
   ok    unreserved characters kept
   ok    UTF-8 bytes and & encoded
@@ -69,7 +69,12 @@
   ok    lost again after 2 s: retry, 2 quick losses
   ok    third quick loss in a row: stop
   ok    a stream that held 20 s resets the count
-[url, percentiles and reconnection] 26 checks, 0 failed
+  ok    plain names accepted
+  ok    empty, . and .. refused
+  ok    path separators and drive colons refused
+  ok    announced name: forbidden characters become '-'
+  ok    announced name '..' replaced
+[url, percentiles, reconnection and PC names] 31 checks, 0 failed
 
 [config]
   ok    round trip: stream.width
