@@ -141,13 +141,14 @@
   ok    sanitize: sprint tap time
   ok    sanitize: unknown language back to English
   ok    sanitize: unknown theme back to Night
+  ok    sanitize: unknown keyboard layout back to text
   ok    sanitize: a valid packet size is kept
   ok    sanitize leaves valid settings alone
     auto bitrate: 960x544@60 8000, 1280x720@60 10000, 1280x720@30 6250 kbps
   ok    auto bitrate grows with the resolution
   ok    auto bitrate lower at 30 fps
   ok    auto bitrate stays within 20 Mbps
-[config] 74 checks, 0 failed
+[config] 75 checks, 0 failed
 
 [sps rewrite]
   ok    test SPS built
@@ -194,5 +195,35 @@
   ok    pause closes the menu
   ok    swapped buttons: Circle confirms Back to the game
 [quick menu] 25 checks, 0 failed
+
+[log]
+  ok    lines go in
+  ok    and come out in order
+  ok    the ring is then empty
+  ok    a line almost as big as the ring fits
+  ok    partial reads leave the rest
+  ok    a line across the end of the buffer
+  ok    comes out whole after the wrap
+  ok    nearly full
+  ok    a line that does not fit is refused
+  ok    counted, nothing written
+  ok    a line that fits exactly still goes in
+  ok    a burst of five lines passes at once
+  ok    the rest of the flood is counted
+  ok    0.4 s later: still nothing (2 lines a second)
+  ok    half a second refills one line, which reports the 16
+  ok    the bucket is empty again
+  ok    the next line reports the one left out
+  ok    after a quiet minute the bucket holds a full burst, no more
+  ok    a clock that goes back refills nothing
+  ok    a first message is written
+  ok    the same again is held back
+  ok    and counted
+  ok    another message is written, after the count of copies
+  ok    nothing held back: nothing to report
+  ok    copies are kept while the flood may go on
+  ok    and reported once it has stopped
+  ok    after that report the message is written again
+[log] 27 checks, 0 failed
 
 all tests passed
