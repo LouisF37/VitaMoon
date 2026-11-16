@@ -41,7 +41,7 @@
   ok    clock going back re-anchors
 [pacing] 31 checks, 0 failed
 
-[url and percentiles]
+[url, percentiles and reconnection]
   ok    space encoded
   ok    unreserved characters kept
   ok    UTF-8 bytes and & encoded
@@ -56,7 +56,20 @@
   ok    formatted in milliseconds
   ok    values above the range reported as such
   ok    maximum kept beyond the range
-[url and percentiles] 13 checks, 0 failed
+  ok    ended by the PC or the user: no reconnection
+  ok    DRM content: no reconnection
+  ok    capture error on the PC: no reconnection
+  ok    picture conversion error: no reconnection
+  ok    no video traffic: reconnection
+  ok    no video frame: reconnection
+  ok    control stream lost: reconnection
+  ok    socket error: reconnection
+  ok    lost after 10 min: retry, no quick loss
+  ok    lost after 5 s: retry, 1 quick loss
+  ok    lost again after 2 s: retry, 2 quick losses
+  ok    third quick loss in a row: stop
+  ok    a stream that held 20 s resets the count
+[url, percentiles and reconnection] 26 checks, 0 failed
 
 [config]
   ok    round trip: stream.width
@@ -89,6 +102,7 @@
   ok    round trip: video_reorder_wait_ms
   ok    round trip: thread_pinning
   ok    round trip: input_sync
+  ok    round trip: auto_reconnect
   ok    round trip: enable_motion_controls
   ok    round trip: enable_psbutton_capture
   ok    round trip: enable_double_tap_sprint
@@ -131,7 +145,7 @@
   ok    auto bitrate grows with the resolution
   ok    auto bitrate lower at 30 fps
   ok    auto bitrate stays within 20 Mbps
-[config] 71 checks, 0 failed
+[config] 72 checks, 0 failed
 
 [sps rewrite]
   ok    test SPS built
