@@ -4,7 +4,7 @@ about: Something does not work as expected
 labels: bug
 ---
 
-**Build** (bottom left of the home screen, e.g. `v1.0.0-beta.8  main-abc1234`):
+**Build** (bottom left of the home screen, e.g. `v1.0.0-beta.9  main-abc1234`):
 
 **What happened, and what you expected:**
 

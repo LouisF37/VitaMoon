@@ -1,6 +1,6 @@
 # VitaMoon : guide d'utilisation et de test
 
-VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 8 « Nouvelle Lune ». Jusqu'à la
+VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 9 « Nouvelle Lune ». Jusqu'à la
 bêta 1, le projet s'appelait Lune.
 
 Téléchargement :
@@ -8,7 +8,7 @@ Téléchargement :
 - dernière compilation de la branche `main` :
   https://github.com/LouisF37/VitaMoon/releases/download/build-main/vitamoon-main.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.8  main-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.9  main-xxxxxxx`.
 
 **Installation à côté de Moonlight.** VitaMoon a son propre identifiant (`VMOON0001`), sa propre bulle et
 son propre dossier (`ux0:data/vitamoon`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc
@@ -20,11 +20,13 @@ d'essai précédente de ce projet y est peut-être installée.
 `ux0:data/vitamoon` : les PC appairés, les réglages, les statistiques et les journaux suivent, sans
 nouvel appairage. La bulle Lune peut ensuite être supprimée.
 
-**État des vérifications.** Le code compile pour la Vita, les 228 vérifications des tests sur PC
+**État des vérifications.** Le code compile pour la Vita, les 240 vérifications des tests sur PC
 passent (affichage cadencé simulé, fichier de réglages, réécriture du SPS, menu rapide, journal,
-reconnexion, police des titres et lune d'attente), tous les écrans ont été rendus hors console
-(outil `tools/ui-preview`) en anglais, français et espagnol, et le code a été audité (voir
-[le point d'étape](checkpoints/2026-11-16.md)). Sur une vraie Vita, seuls le démarrage, le
+reconnexion, police des titres, lune d'attente, recherche des PC sur le réseau), tous les écrans ont
+été rendus hors console (outil `tools/ui-preview`) en anglais, français et espagnol, et 29 parcours
+complets (ouvrir le PC, jouer, pause, reprise, perte du Wi-Fi, changement de jeu, réglages,
+appairage) passent sur PC avec le vrai code de connexion face à une imitation de Sunshine. Le code a
+été relu en entier en bêta 9 (voir [le point d'étape](checkpoints/2026-11-16.md)). Sur une vraie Vita, seuls le démarrage, le
 changement de thème (il bloquait la Vita, corrigé en bêta 6) et l'ouverture du PC ont été essayés
 (« Jouer » dans la bibliothèque ne lançait rien, corrigé en bêta 8) : la fluidité, la latence et le
 son restent à mesurer avec le plan de test ci-dessous.

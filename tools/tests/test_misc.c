@@ -8,6 +8,7 @@
 #include "histogram.h"
 #include "reconnect.h"
 #include "device_name.h"
+#include "stats_prune.h"
 
 #include <string.h>
 
@@ -78,5 +79,35 @@ int main(void) {
   char dots[16] = "..";
   device_name_sanitize(dots, sizeof(dots), "PC");
   CHECK(strcmp(dots, "PC") == 0, "announced name '..' replaced");
+
+  /* Statistics files: the newest STATS_KEEP_SESSIONS streams are kept
+   * (stats_prune.h); nothing else in the folder is ever chosen. */
+  static char names[80][40];
+  const char *list[80];
+  bool del[80];
+  int files = 0;
+  for (int s = 0; s < 35; s++) {   /* 35 streams, written in no order */
+    int k = (s * 17) % 35;
+    snprintf(names[files], sizeof(names[files]), "session-202611%02d-%06d.txt", 1 + k / 10, k);
+    list[files] = names[files]; files++;
+    snprintf(names[files], sizeof(names[files]), "session-202611%02d-%06d.csv", 1 + k / 10, k);
+    list[files] = names[files]; files++;
+  }
+  snprintf(names[files], sizeof(names[files]), "last_1005.txt"); list[files] = names[files]; files++;
+  snprintf(names[files], sizeof(names[files]), "session-notes.txt"); list[files] = names[files]; files++;
+  snprintf(names[files], sizeof(names[files]), "session-20261101-000000.log"); list[files] = names[files]; files++;
+  int marked = stats_prune_choose(list, files, STATS_KEEP_SESSIONS, del);
+  CHECK(marked == 10, "35 streams: the files of the 5 oldest are chosen (10 files)");
+  bool oldest_only = true, others_kept = true;
+  for (int i = 0; i < files; i++) {
+    const char *stamp = stats_session_stamp(list[i]);
+    if (del[i] && (!stamp || strcmp(stamp, "20261101-000005") >= 0))
+      oldest_only = false;
+    if (!stamp && del[i])
+      others_kept = false;
+  }
+  CHECK(oldest_only, "only the 5 oldest streams are chosen");
+  CHECK(others_kept, "per-game summaries and other files are never chosen");
+  CHECK(stats_prune_choose(list, 4, STATS_KEEP_SESSIONS, del) == 0, "fewer than 30 streams: nothing chosen");
   return TEST_END();
 }

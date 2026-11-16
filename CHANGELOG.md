@@ -3,6 +3,62 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.0.0-beta.9 "Nouvelle Lune" (2026-11-16)
+
+A full review after the first tests on a Vita: every journey of a user replayed on a PC through
+the real menus, the real connection code and the real libgamestream against an imitation of
+Sunshine 2026.914; every module read; static analysis; memory checked.
+
+### Fixed
+
+- **A game the PC refused stayed "running" for the Vita** (inherited from upstream). libgamestream
+  recorded the game as running as soon as the PC answered, before reading the answer; Sunshine
+  refuses inside a normal answer ("An app is already running", "No running app to resume"). Every
+  Play then asked to resume a game that did not run, was refused, and so on, with no way out. The
+  game is now recorded only once the PC has accepted it.
+- **The library follows the PC.** What runs on the PC is read again each time the library opens: a
+  game closed on the PC no longer shows *Resume*, a game started there does.
+- **Reconnection gives up when the game was closed on the PC** meanwhile, with a message, instead of
+  trying for a minute; it never starts the game again by itself.
+- **A paused stream of another game** is ended before a new stream starts (moonlight-common-c runs
+  one at a time).
+- **The network search could freeze.** Its mDNS reader followed DNS name pointers without limit: a
+  packet whose name points to itself, from any device on the network, looped for ever. Names now
+  follow 16 pointers at most, inside the packet, and a record longer than its packet ends the
+  reading. mdnsniff is now a copy in the repository with this change (it was a submodule, which the
+  change could not reach).
+- **The PC detection thread of the home screen did not really stop.** It was given 100 ms, then
+  deleted while still running, which fails: it went on, next to the following one, sharing the mDNS
+  reader and reading the list of PCs while the menus changed it (forget, rename). It now stops
+  within a step, is waited for and deleted; the list of PCs is guarded by a lock. The network search
+  thread is also deleted every time (one was kept per search) and can be stopped right after it
+  starts.
+- **The PS button could stay locked in the menus after a stream**: it was unlocked from the menus
+  while the input thread could lock it again. Only the input thread locks and unlocks it now.
+- **Memory**: the pairing certificate was loaded again, without freeing the previous one, each time a
+  PC was opened (a few KB); the list of games at each visit of the library; the display modes, the
+  status strings and the stream address at each request; a copy of each refusal message. The
+  certificate's text is read within its buffer. Sorting the games no longer allocates, and an empty
+  title or mode no longer reads uninitialised memory.
+- **A failed start-up** (network, controls) went on without them and crashed later; it now stops
+  with a message (the PS button closes the app).
+- **Statistics files**: every stream wrote two files that were never deleted (about 1 MB an hour).
+  The last 30 streams are kept.
+
+### Tests
+
+- The preview runs **journeys**: the real menus, `src/connection.c` and libgamestream (`client.c`,
+  `xml.c`) against `fake_http.c`, which answers as Sunshine 2026.914 does (from its `nvhttp.cpp`), and
+  a fake moonlight-common-c that refuses a stream nobody launched. 29 journeys, from opening the PC
+  to the end of a game: play, pause, resume, quit, switch game, settings and restart, stream lost
+  and reconnected or given up, PC refusing, pairing. Every request to the PC must be expected;
+  a wait without drawing for 15 minutes is a hang. They fail on the code before the fixes they
+  cover (Play in the library on beta.7, the refused launch). With AddressSanitizer they also check
+  for leaks.
+- `test_mdns`: a Sunshine answer is understood; pointer loops, every cut of an answer and 20000
+  random or damaged packets neither hang nor crash the reader (the original reader hangs).
+- `test_misc`: which statistics files are deleted. 240 PC checks.
+
 ## 1.0.0-beta.8 "Nouvelle Lune" (2026-11-16)
 
 ### Fixed

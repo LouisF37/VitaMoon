@@ -14,6 +14,7 @@
  * downloaded a coloured tile with the game's initials stands in for it.
  */
 #include "ui_library.h"
+#include "preview_hooks.h"
 #include "boxart.h"
 #include "guilib.h"
 #include "theme.h"
@@ -212,6 +213,7 @@ static bool button_hit(int tx, int ty, int bx, int by, int bw) {
 }
 
 int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *app_id) {
+  PREVIEW_SCREEN("library");
   load_items(apps);
   if (item_count == 0)
     return LIBRARY_OPTIONS;

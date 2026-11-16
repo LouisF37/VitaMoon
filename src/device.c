@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -36,7 +37,9 @@ bool rename_device(device_info_t *info, const char *new_name) {
     vita_debug_log("rename_device: %s -> %s failed: 0x%x\n", old_dir, new_dir, ret);
     return false;
   }
+  devices_lock();
   snprintf(info->name, sizeof(info->name), "%s", new_name);
+  devices_unlock();
   save_device_info(info);
   return true;
 }
@@ -57,10 +60,12 @@ bool remove_device(const char *name) {
     return false;
   }
   // Remove from the array
+  devices_lock();
   for (int i = idx; i < known_devices.count - 1; i++) {
     known_devices.devices[i] = known_devices.devices[i + 1];
   }
   known_devices.count--;
+  devices_unlock();
 
   // Remove from disk
   char dir_path[512];
@@ -87,6 +92,10 @@ bool remove_device(const char *name) {
 
 
 device_infos_t known_devices = {0};
+
+static pthread_mutex_t devices_mutex = PTHREAD_MUTEX_INITIALIZER;
+void devices_lock(void) { pthread_mutex_lock(&devices_mutex); }
+void devices_unlock(void) { pthread_mutex_unlock(&devices_mutex); }
 
 device_info_t* find_device(const char *name) {
   // TODO: mutex
@@ -140,12 +149,13 @@ device_info_t* append_device(device_info_t *info) {
     vita_debug_log("append_device: device %s is already in the list\n", info->name);
     return NULL;
   }
-  // FIXME: need mutex
+  devices_lock();
   if (known_devices.size == 0) {
     vita_debug_log("append_device: allocating memory for the initial device list...\n");
     known_devices.devices = malloc(sizeof(device_info_t) * 4);
     if (known_devices.devices == NULL) {
       vita_debug_log("append_device: failed to allocate memory for the initial device list\n");
+      devices_unlock();
       return NULL;
     }
     known_devices.size = 4;
@@ -158,6 +168,7 @@ device_info_t* append_device(device_info_t *info) {
     device_info_t *tmp = realloc(known_devices.devices, new_size);
     if (tmp == NULL) {
       vita_debug_log("append_device: failed to resize the device list\n");
+      devices_unlock();
       return NULL;
     }
     known_devices.devices = tmp;
@@ -165,17 +176,17 @@ device_info_t* append_device(device_info_t *info) {
   }
   device_info_t *p = &known_devices.devices[known_devices.count];
 
-  strncpy(p->name, info->name, 255);
+  snprintf(p->name, sizeof(p->name), "%s", info->name);
   p->paired = info->paired;
-  strncpy(p->internal, info->internal, 255);
-  strncpy(p->external, info->external, 255);
-  strncpy(p->mac, info->mac, 17);
-  p->mac[17] = '\0';
+  snprintf(p->internal, sizeof(p->internal), "%s", info->internal);
+  snprintf(p->external, sizeof(p->external), "%s", info->external);
+  snprintf(p->mac, sizeof(p->mac), "%s", info->mac);
   p->port = info->port;
   p->prefer_external = info->prefer_external;
   vita_debug_log("append_device: device %s is added to the list\n", p->name);
 
   known_devices.count++;
+  devices_unlock();
   return p;
 }
 
@@ -185,12 +196,13 @@ bool update_device(device_info_t *info) {
     return false;
   }
 
-  //strncpy(p->name, info->name, 255);
+  devices_lock();
   p->paired = info->paired;
-  strncpy(p->internal, info->internal, 255);
-  strncpy(p->external, info->external, 255);
+  snprintf(p->internal, sizeof(p->internal), "%s", info->internal);
+  snprintf(p->external, sizeof(p->external), "%s", info->external);
   p->port = info->port;
   p->prefer_external = info->prefer_external;
+  devices_unlock();
   return true;
 }
 

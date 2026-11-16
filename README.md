@@ -24,8 +24,10 @@ interface, and the tools to measure what the Vita actually does. What was taken 
 what was measured by whom, is listed in [docs/design/performance.md](docs/design/performance.md). Up to
 1.0.0-beta.1 it was called *Lune*.
 
-> **Status: beta.** Everything builds, the menus are checked on a PC in three languages and the
-> stream logic is covered by PC tests, but this version has not yet been measured on a Vita. See
+> **Status: beta.** Everything builds, the menus are checked on a PC in three languages, every
+> journey from opening a PC to the end of a game is replayed on a PC against an imitation of
+> Sunshine, and the stream logic is covered by PC tests; the video, the sound and the timings have
+> not yet been measured on a Vita. See
 > [the checkpoint report](docs/checkpoints/2026-11-16.md), with the test plan for the Vita.
 
 ## Screenshots

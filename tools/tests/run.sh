@@ -26,6 +26,8 @@ $cc -w -fcommon -D__vita__ -I"$here" -I"$out/inc" -I"$root/src" -I"$root/third_p
 
 $cc -I"$here" -I"$out/inc" -I"$root/src/gui" "$here/test_quickmenu.c" -o "$out/test_quickmenu"
 $cc -I"$here" -I"$root/src" "$here/test_log.c" "$root/src/log_core.c" -o "$out/test_log"
+$cc -D__vita__ -I"$here" -I"$out/inc" -I"$root/third_party/mdnsniff" "$here/test_mdns.c" \
+    "$root/third_party/mdnsniff/udp_sniffer_vita.c" -o "$out/test_mdns"
 $cc -I"$here" -I"$root/src/gui" -I"$root/src" -I"$root/third_party/moonlight-common-c/src" \
     "$here/test_ui.c" -o "$out/test_ui"
 
@@ -35,7 +37,7 @@ $cc -w -I"$here" -I"$root/libgamestream" -I"$hb" -I"$root/third_party/moonlight-
     -o "$out/test_sps"
 
 status=0
-for t in test_pacing test_misc test_config test_sps test_quickmenu test_log test_ui; do
+for t in test_pacing test_misc test_config test_sps test_quickmenu test_log test_ui test_mdns; do
   "$out/$t" || status=1
 done
 if [ $status -eq 0 ]; then echo "all tests passed"; else echo "SOME TESTS FAILED"; fi

@@ -26,7 +26,7 @@ The result is `build/vitamoon.vpk` (and `build/vitamoon.elf` with debug symbols,
 - `-DVITA_OPT_LEVEL=-O0` builds without optimisation, for debugging (default `-O2`).
 - The home screen shows the version and the build (`branch-commit`), so a tester can tell which
   build is installed.
-- Submodules: ENet, inih and mdnsniff. moonlight-common-c is a copy in the repository with its patches
+- Submodules: ENet and inih. moonlight-common-c and mdnsniff are copies in the repository with their patches
   ([third_party/patches/README.md](../third_party/patches/README.md)), so no patch step is needed.
 
 ## Continuous integration

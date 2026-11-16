@@ -20,6 +20,7 @@
 #include <psp2/power.h>
 #include "../i18n.h"
 #include "moon.h"
+#include "preview_hooks.h"
 
 #ifndef ASSET_PREFIX
 #define ASSET_PREFIX "app0:assets/"
@@ -526,6 +527,7 @@ static void draw_dialog(const char *message, char *buttons_captions[], int butto
 
 void display_alert(char *message, char *button_captions[], int buttons_count,
                    gui_loop_callback cb, void *context) {
+  PREVIEW_DIALOG("alert", message);
   ui_end();
   gui_touch_reset();
 
@@ -577,6 +579,7 @@ void display_notice(int duration_ms, char *format, ...) {
   va_start(opt, format);
   vsnprintf(buf, sizeof(buf), format, opt);
   va_end(opt);
+  PREVIEW_DIALOG("notice", buf);
 
   ui_end();
   /* one frame per refresh (ui_end waits for the screen), so ~60 frames a second */
@@ -611,6 +614,7 @@ void flash_message(char *format, ...) {
   va_start(opt, format);
   vsnprintf(buf, sizeof(buf), format, opt);
   va_end(opt);
+  PREVIEW_DIALOG("flash", buf);
 
   ui_end();
   ui_start();
@@ -715,6 +719,7 @@ void flash_pairing_code(const char *host, const char *code, const char *url) {
 }
 
 int display_confirm(const char* message) {
+    PREVIEW_DIALOG("confirm", message);
     char* buttons[] = {tr("Yes"), tr("No")};
     ui_end();
     gui_touch_reset();

@@ -19,5 +19,20 @@ patch step.
 To move to a newer upstream version: copy the new sources over, copy nanors
 again, and apply the three patches with `git apply`.
 
+## mdnsniff
+
+`third_party/mdnsniff` is a copy of the two files the build uses from
+https://github.com/AorsiniYT/mdnsniff at commit 6496c32 (28 Jun 2025),
+`udp_sniffer_vita.c` and `udp_sniffer_vita.h`, with its README (licence: "MIT
+or similar", to be used citing the author). It was a submodule before; it is
+copied so that this fork's changes are part of the build:
+
+- the include of `common/debugScreen.h`, not used, is removed;
+- the packets come from anything on the network, so a DNS name follows at most
+  16 compression pointers, only inside the packet (a pointer to itself made the
+  search loop for ever and froze the screen), and a record longer than its
+  packet ends the reading. `tools/tests/test_mdns.c` checks both, with 20000
+  random and damaged packets.
+
 The ENet submodule (`third_party/enet`) stays at dea6fb5: the next commit
 (aca8784) does not build for the Vita (`in6addr_any` is not declared).

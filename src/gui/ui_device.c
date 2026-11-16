@@ -107,12 +107,6 @@ static void moonlight_found_callback(int idx, const char* host, const char* pcna
 
 int mdns_discovery_main(SceSize args, void *argp) {
   vita_debug_log("[mDNS] Searching for devices...\n");
-  if (search_thread_status != SEARCH_THREAD_IDLE) {
-    vita_debug_log("[mDNS] search_thread_status != IDLE, saliendo.\n");
-    return 0;
-  }
-
-  search_thread_status = SEARCH_THREAD_RUNNING;
   found_device = 0;
 
   udp_sniffer_vita_deinit(); // close the socket and reset the state
@@ -128,6 +122,7 @@ int mdns_discovery_main(SceSize args, void *argp) {
       ticks++;
   }
 
+  udp_sniffer_vita_deinit();   // the multicast socket is not kept open after the search
   search_thread_status = SEARCH_THREAD_IDLE;
   vita_debug_log("[mDNS] Search done. found_device=%d\n", found_device);
   return 0;
@@ -137,12 +132,13 @@ static SceUID search_thread_id = -1;
 
 int end_search_thread(SceUID thid);
 
+/* Ends the search thread, running or already over (after its 10 s): either
+ * way it is deleted, a thread that ended on its own was kept before, one more
+ * for every search. */
 void stop_search_thread_if_running() {
   vita_debug_log("[mDNS] stop_search_thread_if_running: status=%d, thid=%d\n", search_thread_status, search_thread_id);
-  if (search_thread_status == SEARCH_THREAD_RUNNING && search_thread_id > 0) {
-    vita_debug_log("[mDNS] Calling end_search_thread(%d)\n", search_thread_id);
+  if (search_thread_id >= 0) {
     end_search_thread(search_thread_id);
-    vita_debug_log("[mDNS] end_search_thread done\n");
     search_thread_id = -1;
   }
 }
@@ -161,7 +157,13 @@ SceUID start_search_thread() {
     vita_debug_log("[mDNS] Could not create the search thread\n");
     return -1;
   }
-  sceKernelStartThread(thid, 0, 0);
+  // Running before it starts: a stop right after is then seen by the thread.
+  search_thread_status = SEARCH_THREAD_RUNNING;
+  if (sceKernelStartThread(thid, 0, 0) < 0) {
+    search_thread_status = SEARCH_THREAD_IDLE;
+    sceKernelDeleteThread(thid);
+    return -1;
+  }
   search_thread_id = thid;
   vita_debug_log("[mDNS] Search thread started: thid=%d\n", thid);
   return thid;
@@ -171,7 +173,8 @@ SceUID start_search_thread() {
 
 int end_search_thread(SceUID thid) {
   vita_debug_log("[mDNS] end_search_thread: stopping thread %d\n", thid);
-  search_thread_status = SEARCH_THREAD_REQ_STOP;
+  if (search_thread_status == SEARCH_THREAD_RUNNING)
+    search_thread_status = SEARCH_THREAD_REQ_STOP;
 
   SceUInt timeout;
   do {

@@ -1,4 +1,5 @@
 #include "../log.h"
+#include "preview_hooks.h"
 #include "ui_settings.h"
 #include "theme.h"
 
@@ -1216,6 +1217,7 @@ void ui_settings_save_config() {
 }
 
 int ui_settings_menu() {
+  PREVIEW_SCREEN("settings");
   ui_end();
   gui_touch_reset();
   probe_resolutions();

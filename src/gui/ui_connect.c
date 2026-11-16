@@ -28,6 +28,7 @@
 #include "quickmenu.h"
 #include "moon.h"
 #include "../device_name.h"
+#include "preview_hooks.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -351,7 +352,7 @@ static bool wifi_connected(void) {
   return sceNetCtlInetGetState(&state) >= 0 && state == SCE_NETCTL_STATE_CONNECTED;
 }
 
-typedef enum { RECONNECTED, RECONNECT_CANCELLED, RECONNECT_FAILED } reconnect_result;
+typedef enum { RECONNECTED, RECONNECT_CANCELLED, RECONNECT_FAILED, RECONNECT_GAME_CLOSED } reconnect_result;
 
 /* A stream was lost while it ran (Wi-Fi drop, sleep): waits for the Wi-Fi and
  * starts the stream of the same game again. The game kept running on the PC,
@@ -405,6 +406,12 @@ static reconnect_result reconnect_stream(int id) {
              (unsigned)((sceKernelGetProcessTimeWide() - start) / 1000));
         return RECONNECTED;
       }
+      // Closed on the PC meanwhile? Resuming can never work then, and starting
+      // it again is not what was lost.
+      if (gs_update_status(&server) == GS_OK && server.currentGame == 0) {
+        LOGW("reconn", "the game is no longer running on the PC: no more tries");
+        return RECONNECT_GAME_CLOSED;
+      }
       next_try = sceKernelGetProcessTimeWide() + RECONNECT_RETRY_MS * 1000ULL;
     }
     sceKernelDelayThread(100 * 1000);
@@ -456,7 +463,16 @@ static int ui_launch_app(int id) {
     // paused stream of this game: let the button be released, then carry on
     sceKernelDelayThread(500 * 1000);
     connection_resume();
-  } else if (status == LI_MINIMIZED || status == LI_PAIRED) {
+  } else if (status == LI_MINIMIZED) {
+    // A paused stream of another game (the PC no longer reports it running):
+    // end it before a new one, moonlight-common-c runs one stream at a time.
+    moon_begin(tr("Starting stream..."));
+    LOGI("stream", "ending the paused stream of app %d before app %d", server.currentGame, id);
+    connection_terminate();
+    connection_reset();
+    connection_paired();
+    ui_connect_stream(id);
+  } else if (status == LI_PAIRED) {
     moon_begin(tr("Starting stream..."));
     ui_connect_stream(id);
   } else if (status != LI_DISCONNECTED) {
@@ -489,6 +505,8 @@ static int ui_launch_app(int id) {
     connection_close_idle();   // a failed try leaves the session paired: end it
     if (r == RECONNECT_FAILED)
       display_error(tr("Could not reconnect.\nThe game should still be running on the PC: connect again to resume it."));
+    else if (r == RECONNECT_GAME_CLOSED)
+      display_error(tr("The game is no longer running on the PC."));
     break;
   }
 
@@ -652,6 +670,15 @@ int ui_connected_menu() {
   int app_count = 0;
   if (server.paired) {
     vitapower_busy_begin();
+    // What runs on the PC may have changed since the PC was opened (a game
+    // closed there, a launch refused): the library and its Play / Resume
+    // follow the PC, not what the Vita last believed.
+    if (gs_update_status(&server) != GS_OK)
+      LOGW("host", "status not read again: %s", gs_error ? gs_error : "");
+    // The list read last time goes: one more copy of every title was kept per
+    // visit (the screens copy what they keep from it).
+    xml_free_applist(server_applist);
+    server_applist = NULL;
     ret = gs_applist(&server, &server_applist);
     vitapower_busy_end();
     if (ret != GS_OK) {
@@ -778,6 +805,7 @@ int ui_connected_menu() {
   }
 
   gui_set_next_title(connected_host_name[0] ? connected_host_name : tr("Computer"));
+  PREVIEW_SCREEN("menu");
   int menu_ret = display_menu(menu, idx, NULL, &ui_connect_loop, NULL, NULL, &menu);
   // Back from the classic menu opened from the library: return to the library.
   if (from_library && menu_ret == 1 && connection_get_status() != LI_DISCONNECTED)

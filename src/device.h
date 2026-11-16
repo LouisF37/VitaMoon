@@ -22,6 +22,11 @@ struct device_infos {
 
 extern device_infos_t known_devices;
 
+/* The host scan thread reads the list while the menus may change it (add,
+ * forget, rename): both take this lock around a read or a change. */
+void devices_lock(void);
+void devices_unlock(void);
+
 device_info_t* find_device(const char *name);
 device_info_t* find_device_by_address(const char *address);
 device_info_t* append_device(device_info_t *info);

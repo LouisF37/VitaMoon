@@ -87,10 +87,13 @@ SceNetInitParam net_param = {
   .flags = 0
 };
 
+/* Start-up failed: the message printed just before stays on the screen. The
+ * original loop ended at once (no connection is ready at start-up) and the app
+ * went on without its network or its controls, to crash further on. */
 void loop_forever(void) {
-  while (connection_is_ready()) {
-    sceKernelDelayThread(100 * 1000);
-  }
+  printf("\nVitaMoon cannot start. Press the PS button to close it.\n");
+  while (1)
+    sceKernelDelayThread(1000 * 1000);
 }
 
 static void vita_init() {

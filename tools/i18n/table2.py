@@ -296,6 +296,7 @@ T2 = {
     ("Échec de l'appairage (erreur %d).\\n%s\\nVérifiez le code saisi sur le PC, puis réessayez.",
      "Error al emparejar (error %d).\\n%s\\nComprueba el código escrito en el PC e inténtalo de nuevo."),
 "%s is paired with this Vita.": ("%s est appairé avec cette Vita.", "%s está emparejado con esta Vita."),
+"The game is no longer running on the PC.": ("Le jeu ne tourne plus sur le PC.", "El juego ya no se está ejecutando en el PC."),
 "The stream could not start: the session with the PC is not ready.\\nGo back and open the PC again.":
     ("Le stream n'a pas pu démarrer" + NB + ": la session avec le PC n'est pas prête.\\nRevenez en arrière et rouvrez le PC.",
      "No se pudo iniciar el stream: la sesión con el PC no está lista.\\nVuelve atrás y abre de nuevo el PC."),

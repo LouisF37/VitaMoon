@@ -5,6 +5,7 @@
  * Time advances by one screen refresh per presented frame, the pad returns the
  * buttons of the current script step, and a step can save the frame as a PNG.
  */
+#include <stdbool.h>
 #include <psp2/ctrl.h>
 #include <psp2/touch.h>
 #include <psp2/rtc.h>
@@ -52,6 +53,12 @@ static step *add_step(void) {
   return s;
 }
 
+/* Frames with no button pressed after the script, before the preview ends. */
+static int idle_tail = 0;
+void preview_idle_tail(int frames) {
+  idle_tail = frames;
+}
+
 void preview_wait(int frames) {
   for (int i = 0; i < frames; i++)
     add_step();
@@ -80,8 +87,61 @@ static const step *current(void) {
   return frame < step_count ? &steps[frame] : &idle;
 }
 
+/* Virtual time: each frame is one refresh, each sceKernelDelayThread() moves it
+ * on as well. A wait that sleeps for long without ever drawing is a hang. */
+static SceUInt64 slept_us = 0, slept_since_frame_us = 0;
+#define HANG_US (15ULL * 60 * 1000000)
+
+/* What other threads do while the menu thread sleeps (journeys.c); none here. */
+__attribute__((weak)) void preview_background(void) {}
+/* What the menus show (src/gui/preview_hooks.h), followed by the journeys. */
+__attribute__((weak)) void preview_on_screen(const char *name) {}
+__attribute__((weak)) void preview_on_dialog(const char *kind, const char *text) {}
+
+/* Buttons pressed for the journeys, on top of the script: one entry per frame
+ * from the next one on (0 is a frame with the buttons released). */
+#define INJECT_MAX 1024
+static unsigned inject_queue[INJECT_MAX];
+static int inject_head = 0, inject_count = 0, inject_frame = -1;
+
+void preview_inject(unsigned buttons) {
+  if (inject_count + 2 > INJECT_MAX) {
+    fprintf(stderr, "preview: too many buttons queued\n");
+    exit(2);
+  }
+  inject_queue[(inject_head + inject_count++) % INJECT_MAX] = buttons;
+  inject_queue[(inject_head + inject_count++) % INJECT_MAX] = 0;
+}
+
+static bool inject_read = false;   /* the current entry was read during this frame */
+
+static unsigned injected_now(void) {
+  if (inject_count == 0)
+    return 0;
+  if (inject_frame < 0)
+    inject_frame = frame + 1;    /* starts on the next frame */
+  if (frame < inject_frame)
+    return 0;
+  inject_read = true;
+  return inject_queue[inject_head];
+}
+
+/* An entry lasts until a frame has read it: none is lost on a screen that
+ * does not read the buttons. */
+static void inject_advance(void) {
+  if (!inject_read)
+    return;
+  inject_read = false;
+  inject_head = (inject_head + 1) % INJECT_MAX;
+  inject_count--;
+  inject_frame = inject_count ? frame + 1 : -1;
+}
+
 /* Called by the vita2d stand-in when a frame is presented. */
 void preview_frame_done(cairo_surface_t *surface) {
+  slept_since_frame_us = 0;
+  inject_advance();
+  preview_background();
   const step *s = current();
   if (s->snapshot[0]) {
     char path[700];
@@ -89,7 +149,7 @@ void preview_frame_done(cairo_surface_t *surface) {
     cairo_surface_write_to_png(surface, path);
   }
   frame++;
-  if (frame >= step_count)
+  if (frame >= step_count + idle_tail)
     exit(0);   /* script finished */
 }
 
@@ -99,7 +159,7 @@ int sceCtrlSetSamplingMode(SceCtrlPadInputMode mode) { return 0; }
 int sceCtrlSetSamplingModeExt(SceCtrlPadInputMode mode) { return 0; }
 int sceCtrlPeekBufferPositive(int port, SceCtrlData *pad, int count) {
   memset(pad, 0, sizeof(*pad));
-  pad->buttons = current()->buttons;
+  pad->buttons = current()->buttons | injected_now();
   pad->lx = pad->ly = pad->rx = pad->ry = 0x80;
   return 1;
 }
@@ -116,8 +176,17 @@ int sceTouchPeek(SceUInt32 port, SceTouchData *data, SceUInt32 count) {
 }
 int sceTouchSetSamplingState(SceUInt32 port, SceTouchSamplingState state) { return 0; }
 
-SceUInt64 sceKernelGetProcessTimeWide(void) { return (SceUInt64)frame * 16683; }
-int sceKernelDelayThread(SceUInt delay) { return 0; }
+SceUInt64 sceKernelGetProcessTimeWide(void) { return (SceUInt64)frame * 16683 + slept_us; }
+int sceKernelDelayThread(SceUInt delay) {
+  slept_us += delay;
+  slept_since_frame_us += delay;
+  if (slept_since_frame_us > HANG_US) {
+    fprintf(stderr, "preview: the menu thread waited 15 minutes without drawing anything (hang)\n");
+    exit(3);
+  }
+  preview_background();
+  return 0;
+}
 
 int sceRtcGetCurrentClockLocalTime(SceDateTime *time) {
   memset(time, 0, sizeof(*time));

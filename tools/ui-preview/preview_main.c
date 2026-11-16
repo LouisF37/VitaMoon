@@ -35,6 +35,7 @@ int ui_main_menu(void);
 #include "reconnect.h"
 #include "gui/boxart.h"
 #include "video/stream_stats.h"
+#include "input/vita.h"
 
 /* ---------------- stand-ins for the rest of the app ---------------- */
 
@@ -45,33 +46,23 @@ volatile int g_host_scan_thread_status = 0;
 volatile int g_host_status_changed = 0;
 const char *gs_error = "";
 int gs_status_code = 0;
-CONNECTION_LISTENER_CALLBACKS connection_callbacks;
-static int fake_status = LI_DISCONNECTED;
-static int fake_running_game = 0;
 
 void vita_debug_log(const char *fmt, ...) {}
 void start_host_scan_thread(void) {}
 void stop_host_scan_thread(void) {}
-int connection_terminate(void) { return 0; }
-int connection_get_status(void) { return fake_status; }
-int connection_paired(void) { fake_status = LI_PAIRED; return 0; }
-/* Same transitions as src/connection.c for the states the menus go through. */
-int connection_reset(void) {
-  if (fake_status != LI_DISCONNECTED)
-    return -1;
-  fake_status = LI_READY;
-  return 0;
-}
-void connection_set_stage_hook(void (*hook)(int stage)) { (void)hook; }
-void connection_close_idle(void) {}
-bool connection_was_lost(void) { return false; }
-int connection_last_error(void) { return 0; }
-const char *connection_error_name(int error_code) { return "preview"; }
-void http_set_reuse(bool reuse) {}
-int connection_resume(void) { return 0; }
-int connection_minimize(void) { return 0; }
-bool connection_is_ready(void) { return false; }
-bool connection_is_connected(void) { return false; }
+/* What src/connection.c (real here) drives when a stream starts, pauses or ends. */
+motion_data_state motion_state;
+void vitainput_start(void) {}
+void vitainput_stop(void) {}
+void vitavideo_start(void) {}
+void vitavideo_stop(void) {}
+void vitaaudio_start(void) {}
+void vitaaudio_stop(void) {}
+void vitapower_start(void) {}
+void vitapower_stop(void) {}
+void vitavideo_show_poor_net_indicator(void) {}
+void vitavideo_hide_poor_net_indicator(void) {}
+void stream_stats_on_conn_status(bool poor) {}
 void save_device_info(const device_info_t *info) {}
 bool update_device(device_info_t *info) { return true; }
 bool remove_device(const char *name) { return true; }
@@ -101,49 +92,7 @@ bool send_wol_packet(const char *mac, const char *ip_broadcast, int port) { retu
 int sceKernelGetModelForCDialog(void) { return 0; }
 int sceIoMkdir(const char *dir, int mode) { return 0; }
 int sceDisplayGetRefreshRate(float *fps) { *fps = 59.94f; return 0; }
-PDECODER_RENDERER_CALLBACKS platform_get_video(enum platform system) { return NULL; }
-PAUDIO_RENDERER_CALLBACKS platform_get_audio(enum platform system) { return NULL; }
 void LiInitializeStreamConfiguration(PSTREAM_CONFIGURATION c) { memset(c, 0, sizeof(*c)); }
-int LiStartConnection(PSERVER_INFORMATION a, PSTREAM_CONFIGURATION b, PCONNECTION_LISTENER_CALLBACKS c,
-                      PDECODER_RENDERER_CALLBACKS d, PAUDIO_RENDERER_CALLBACKS e, void *f, int g, void *h, int i) { return -1; }
-const char *LiGetStageName(int stage) { return ""; }
-int connection_stage = 0;
-
-static APP_LIST fake_apps[8];
-static const char *fake_app_names[] = {
-  "Final Fantasy IX", "Final Fantasy VIII", "Chrono Cross", "DuckStation",
-  "Steam Big Picture", "Desktop", "Hollow Knight", "Celeste"
-};
-
-int gs_init(PSERVER_DATA server, char *address, unsigned short port, const char *key_dir, int log, bool unsupported) {
-  memset(server, 0, sizeof(*server));
-  server->paired = true;
-  server->gpuType = "Intel(R) Iris(R) Xe Graphics";
-  server->serverInfo.address = "192.168.1.24";
-  server->httpPort = 47989;
-  server->currentGame = fake_running_game;
-  return GS_OK;
-}
-int gs_applist(PSERVER_DATA server, PAPP_LIST *list) {
-  for (int i = 0; i < 8; i++) {
-    fake_apps[i].name = (char *)fake_app_names[i];
-    fake_apps[i].id = 1000 + i;
-    fake_apps[i].next = i < 7 ? &fake_apps[i + 1] : NULL;
-  }
-  *list = fake_apps;
-  return GS_OK;
-}
-void sort_app_list(PAPP_LIST list) {}
-int gs_pair(PSERVER_DATA server, char *pin, bool (*cancel)(void)) { return GS_OK; }
-int gs_unpair(PSERVER_DATA server) { return GS_OK; }
-static int stream_asked = 0;   /* app id the PC was asked to start (scenario play) */
-int gs_start_app(PSERVER_DATA s, PSTREAM_CONFIGURATION c, int id, bool sops, bool local, int mask) {
-  stream_asked = id;
-  gs_error = "preview: no PC";
-  return -1;
-}
-int gs_quit_app(PSERVER_DATA server) { return GS_OK; }
-int gs_get_server_mac(PSERVER_DATA server, char *mac, unsigned int size) { return -1; }
 void boxart_prefetch(PSERVER_DATA server, PAPP_LIST apps) {}
 vita2d_texture *boxart_load_texture(PSERVER_DATA server, int app_id) { return NULL; }
 bool stream_stats_read_last(int app_id, stream_last_session *out) {
@@ -311,10 +260,10 @@ static void scenario_settings_pages(void) {
 }
 
 static void scenario_library(void) {
-  SERVER_DATA server;
-  PAPP_LIST apps;
+  static SERVER_DATA server;   /* static: still referenced when the preview ends */
+  static PAPP_LIST apps;
   int app_id = 0;
-  gs_init(&server, "", 0, "", 0, true);
+  gs_init(&server, "192.168.1.24", 47989, PREVIEW_KEY_DIR "/MINI-PC", 0, true);
   gs_applist(&server, &apps);
   preview_wait(12);
   preview_snap("library_1_stats");
@@ -325,41 +274,17 @@ static void scenario_library(void) {
   for (int i = 0; i < 5; i++) preview_press(SCE_CTRL_RIGHT);
   preview_snap("library_4_end_of_shelf");
   preview_wait(4);
-  fake_status = LI_PAIRED;
+  connection_reset();
+  connection_paired();
   ui_library(&server, apps, "MINI-PC", &app_id);
 }
 
-/* Play from the library, the way the Vita gets there: open a paired PC from the
- * home screen, then X on a cover. The PC must be asked to start the game (here
- * it refuses, and the error is shown); until beta.7 nothing happened. */
-static void check_play_asked(void) {
-  if (!stream_asked)
-    fprintf(stderr, "preview: Play in the library did not ask the PC to start the game\n");
-}
-
-static void scenario_play(void) {
-  atexit(check_play_asked);
-  device_info_t pc;
-  memset(&pc, 0, sizeof(pc));
-  snprintf(pc.name, sizeof(pc.name), "MINI-PC");
-  snprintf(pc.internal, sizeof(pc.internal), "192.168.1.24");
-  pc.port = 47989;
-  pc.paired = true;
-  fake_status = LI_DISCONNECTED;
-  preview_wait(12);
-  preview_snap("play_1_library");
-  preview_press(SCE_CTRL_CROSS);
-  preview_snap("play_2_started");
-  preview_wait(4);
-  ui_connect_paired_device(&pc);
-}
-
 static void scenario_library_running(void) {
-  SERVER_DATA server;
-  PAPP_LIST apps;
+  static SERVER_DATA server;   /* static: still referenced when the preview ends */
+  static PAPP_LIST apps;
   int app_id = 0;
-  fake_running_game = 1000;
-  gs_init(&server, "", 0, "", 0, true);
+  preview_pc.running = 1000;
+  gs_init(&server, "192.168.1.24", 47989, PREVIEW_KEY_DIR "/MINI-PC", 0, true);
   gs_applist(&server, &apps);
   preview_wait(12);
   preview_snap("library_running_1_resume");
@@ -370,7 +295,8 @@ static void scenario_library_running(void) {
   preview_snap("library_running_3_switch");
   preview_press(SCE_CTRL_CIRCLE);
   preview_wait(4);
-  fake_status = LI_PAIRED;
+  connection_reset();
+  connection_paired();
   ui_library(&server, apps, "MINI-PC", &app_id);
 }
 
@@ -475,7 +401,8 @@ int main(int argc, char **argv) {
   static char *no_args[] = {"preview", NULL};
   config_path = "/nonexistent/vitamoon.conf";
   config_parse(1, no_args, &config);
-  config.key_dir[0] = 0;
+  /* the pairing keys of the fake PCs (libgamestream makes them the first time) */
+  snprintf(config.key_dir, sizeof(config.key_dir), "%s", PREVIEW_KEY_DIR);
   int lang = !strcmp(argv[2], "fr") ? LANG_FR : (!strcmp(argv[2], "es") ? LANG_ES : LANG_EN);
   config.language = lang;
   i18n_set_language(lang);
@@ -499,7 +426,7 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "settings_change")) scenario_settings_change();
   else if (!strcmp(s, "library")) scenario_library();
   else if (!strcmp(s, "library_running")) scenario_library_running();
-  else if (!strcmp(s, "play")) scenario_play();
+  else if (journey_run(s)) {}
   else if (!strcmp(s, "dialogs")) scenario_dialogs();
   else if (!strcmp(s, "restart")) scenario_restart();
   else if (!strcmp(s, "reconnect")) scenario_reconnect();

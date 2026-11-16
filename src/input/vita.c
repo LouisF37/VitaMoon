@@ -980,6 +980,11 @@ static void *vitainput_thread(void *argp) {
         release_host_input();
         release_pending = false;
       }
+      // The PS button belongs to the Vita again outside the stream. Done here,
+      // on the thread that locks it: unlocked from the menus while this thread
+      // was in handle_psbutton(), it was locked again right after, and the PS
+      // button stayed dead in the menus.
+      unlock_psbutton();
       placed = false;
       sceKernelDelayThread(20000); // idle: nothing to send
     }
@@ -1128,8 +1133,8 @@ void vitainput_start(void) {
   // Menus may have changed the sampling mode: set it once here, not on every poll.
   sceCtrlSetSamplingModeExt(SCE_CTRL_MODE_ANALOG_WIDE);
 
-  if(config.enable_psbutton_capture)
-    lock_psbutton();
+  // The PS button is locked by the input thread (handle_psbutton), the only one
+  // that locks or unlocks it.
 
   // A release asked by the pause is done by the input thread within 20 ms;
   // let it finish before the thread reads the controls again.
@@ -1141,7 +1146,7 @@ void vitainput_start(void) {
 }
 
 void vitainput_stop(void) {
-  unlock_psbutton();
+  // the input thread gives the PS button back within 20 ms (vitainput_thread)
   active_input_thread = false;
   active_motion_threads = false;
   release_pending = true;

@@ -20,9 +20,6 @@ struct host_status {
     char current_ip[64];
 };
 
-// Checks the status of a saved host
-struct host_status check_host_status(const device_info_t *info);
-
 #include <psp2/kernel/threadmgr.h>
 #define MAX_HOSTS 16
 
@@ -33,7 +30,6 @@ extern volatile int g_host_status_changed;
 
 void start_host_scan_thread();
 void stop_host_scan_thread();
-bool find_host_ip_mdns(const char *hostname, char *out_ip, size_t out_len);
 
 #ifdef __cplusplus
 }

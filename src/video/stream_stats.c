@@ -9,6 +9,7 @@
  * Per-second streaming statistics; see stream_stats.h.
  */
 #include "stream_stats.h"
+#include "stats_prune.h"
 #include "histogram.h"
 #include "../app_info.h"
 #include "../config.h"
@@ -24,6 +25,7 @@
 #include <psp2/display.h>
 #include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
+#include <psp2/io/dirent.h>
 #include <psp2/kernel/processmgr.h>
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/net/netctl.h>
@@ -370,6 +372,40 @@ static void minute_log(const char *what) {
 /* Creates <data>/stats/session-<date>.csv (integers only, ';' separated so that
  * Excel in a French locale opens it with a double click) and session-<date>.txt
  * (settings of the session + column legend). */
+/* Deletes the session files of all but the newest STATS_KEEP_SESSIONS streams
+ * (stats_prune.h). The per-game summaries (last_<app>.txt) are not touched. */
+static void prune_session_files(const char *dir) {
+  enum { MAX_NAMES = 512 };
+  static char names[MAX_NAMES][64];
+  static const char *list[MAX_NAMES];
+  static bool del[MAX_NAMES];
+  int count = 0;
+  SceUID d = sceIoDopen(dir);
+  if (d < 0)
+    return;
+  SceIoDirent ent;
+  memset(&ent, 0, sizeof(ent));
+  while (count < MAX_NAMES && sceIoDread(d, &ent) > 0) {
+    if (stats_session_stamp(ent.d_name)) {
+      snprintf(names[count], sizeof(names[count]), "%s", ent.d_name);
+      list[count] = names[count];
+      count++;
+    }
+    memset(&ent, 0, sizeof(ent));
+  }
+  sceIoDclose(d);
+  int marked = stats_prune_choose(list, count, STATS_KEEP_SESSIONS, del);
+  char path[640];
+  for (int i = 0; i < count; i++) {
+    if (del[i]) {
+      snprintf(path, sizeof(path), "%s/%s", dir, list[i]);
+      sceIoRemove(path);
+    }
+  }
+  if (marked)
+    LOGI("stats", "%d old statistics files deleted (the last %d streams are kept)", marked, STATS_KEEP_SESSIONS);
+}
+
 static void open_session_files(void) {
   char dir[512];
   char path[640];
@@ -377,6 +413,7 @@ static void open_session_files(void) {
 
   snprintf(dir, sizeof(dir), "%.400s/stats", config.key_dir);
   sceIoMkdir(dir, 0777); /* ignore "already exists" */
+  prune_session_files(dir);
 
   sceRtcGetCurrentClockLocalTime(&t);
   char stamp[32];

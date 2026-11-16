@@ -154,8 +154,12 @@ static int load_cert(const char* keyDirectory) {
     return GS_FAILED;
   }
 
+  // Read again at every gs_init (each PC has its own folder): the previous
+  // certificate went with it, a few KB per PC opened.
+  X509_free(cert);
   if (!(cert = PEM_read_X509(fd, NULL, NULL, NULL))) {
     gs_error = "Error loading cert into memory";
+    fclose(fd);
     return GS_FAILED;
   }
 
@@ -163,8 +167,10 @@ static int load_cert(const char* keyDirectory) {
 
   int c;
   int length = 0;
-  while ((c = fgetc(fd)) != EOF) {
-    sprintf(cert_hex + length, "%02x", c);
+  // Two hex digits per byte of the PEM file (1.3 KB): a larger, damaged file
+  // stops at the size of cert_hex instead of writing past it.
+  while ((c = fgetc(fd)) != EOF && length + 3 <= (int)sizeof(cert_hex)) {
+    snprintf(cert_hex + length, 3, "%02x", c);
     length += 2;
   }
   cert_hex[length] = 0;
@@ -177,6 +183,8 @@ static int load_cert(const char* keyDirectory) {
     return GS_FAILED;
   }
 
+  EVP_PKEY_free(privateKey);
+  privateKey = NULL;
   PEM_read_PrivateKey(fd, &privateKey, NULL, NULL);
   fclose(fd);
 
@@ -220,6 +228,17 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
     goto cleanup;
   }
 
+  // Read again at every status request (gs_update_status): the previous
+  // strings go first.
+  free((char *)server->serverInfo.serverInfoAppVersion);
+  free((char *)server->serverInfo.serverInfoGfeVersion);
+  free(server->gpuType);
+  free(server->gsVersion);
+  server->serverInfo.serverInfoAppVersion = NULL;
+  server->serverInfo.serverInfoGfeVersion = NULL;
+  server->gpuType = NULL;
+  server->gsVersion = NULL;
+
   if (xml_search(data->memory, data->size, "PairStatus", &pairedText) != GS_OK)
     goto cleanup;
 
@@ -251,6 +270,8 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
     server->mac[0] = '\0';
   }
 
+  xml_free_modelist(server->modes);   /* the list of the previous request */
+  server->modes = NULL;
   if (xml_modelist(data->memory, data->size, &server->modes) != GS_OK)
     goto cleanup;
 
@@ -296,7 +317,14 @@ static int load_serverinfo(PSERVER_DATA server, bool https) {
   if (macText != NULL)
     free(macText);
 
+  if (stateText != NULL)
+    free(stateText);
+
   return ret;
+}
+
+int gs_update_status(PSERVER_DATA server) {
+  return load_serverinfo(server, true);
 }
 
 static int load_server_status(PSERVER_DATA server) {
@@ -848,9 +876,7 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION *config, int appId, b
            (config->supportedVideoFormats & VIDEO_FORMAT_MASK_10BIT) ? "&hdrMode=1&clientHdrCapVersion=0&clientHdrCapSupportedFlagsInUint32=0&clientHdrCapMetaDataId=NV_STATIC_METADATA_TYPE_1&clientHdrCapDisplayData=0x0x0x0x0x0x0x0x0x0x0" : "",
            LiGetLaunchUrlQueryParameters());
   // The PC starts the game before it answers, which can take a while (120 s as moonlight-qt).
-  if ((ret = http_request_timeout(url, data, 120)) == GS_OK)
-    server->currentGame = appId;
-  else
+  if ((ret = http_request_timeout(url, data, 120)) != GS_OK)
     goto cleanup;
 
   if (((ret = xml_status(data->memory, data->size)) != GS_OK))
@@ -863,11 +889,16 @@ int gs_start_app(PSERVER_DATA server, STREAM_CONFIGURATION *config, int appId, b
     ret = GS_FAILED;
     goto cleanup;
   }
+  // Only now: Sunshine refuses inside an HTTP 200 answer (status 400 "An app is
+  // already running", 503 "No running app to resume"), and the game the Vita
+  // believed running decides between launch and resume next time.
+  server->currentGame = appId;
 
   free(result);
   result = NULL;
 
   if (xml_search(data->memory, data->size, "sessionUrl0", &result) == GS_OK) {
+    free((char *)server->serverInfo.rtspSessionUrl);   /* the previous stream's */
     server->serverInfo.rtspSessionUrl = result;
     result = NULL;
   }
@@ -924,6 +955,10 @@ int gs_init(PSERVER_DATA server, char *address, unsigned short httpPort, const c
 
   http_init(keyDirectory, log_level);
 
+  // The strings of the PC opened before (read by libgamestream, so its own)
+  free((char *)server->serverInfo.serverInfoAppVersion);
+  free((char *)server->serverInfo.serverInfoGfeVersion);
+  free((char *)server->serverInfo.rtspSessionUrl);
   LiInitializeServerInformation(&server->serverInfo);
   server->serverInfo.address = address;
   server->unsupported = unsupported;
@@ -934,13 +969,13 @@ int gs_init(PSERVER_DATA server, char *address, unsigned short httpPort, const c
 
 int gs_get_server_mac(PSERVER_DATA server, char *mac, unsigned int size) {
   if (!server || !mac || size == 0) return GS_INVALID;
-  if (!server->mac || !server->mac[0]) {
+  if (!server->mac[0]) {
     // try to update server info if possible
     if (load_serverinfo(server, true) != GS_OK) {
       return GS_INVALID;
     }
   }
-  if (!server->mac || !server->mac[0])
+  if (!server->mac[0])
     return GS_INVALID;
   strncpy(mac, server->mac, size - 1);
   mac[size - 1] = '\0';

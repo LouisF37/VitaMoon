@@ -75,7 +75,21 @@ waits in `ui_launch_app()` while the stream runs, then shows "Connection lost", 
 resumes the game it kept running. An end by the PC or the user (`ML_ERROR_GRACEFUL_TERMINATION`), or a
 problem on the PC that a new stream would meet again (capture, DRM, picture conversion), is not
 reconnected, nor is a stream lost during the pause. Three streams in a row lost within 20 s of starting
-stop the reconnection.
+stop the reconnection, and so does a game closed on the PC meanwhile (read with `gs_update_status()`
+after a refused try).
+
+What runs on the PC (`server.currentGame`) decides between *Play* and *Resume*, and between a
+`launch` and a `resume` request. It is read again from the PC (`gs_update_status()`) each time the
+library opens, and recorded by `gs_start_app()` only once the PC has accepted the request: Sunshine
+refuses inside a normal answer (status 400 or 503 in the XML), which libgamestream used to take for an
+acceptance. A session that is only *ready* (a PC just opened) is marked *paired* by `ui_launch_app()`
+itself. These paths are replayed on a PC by the preview's journeys (`docs/TESTING.md`).
+
+Threads that are not the stream's: the home screen's PC detection (`src/check_host.c`, `hostscan`) and
+the network search (`src/gui/ui_device.c`, `mdns`) both read mDNS answers with
+`third_party/mdnsniff`, so one runs at a time; each is stopped by a flag it checks at every step,
+waited for and deleted. The detection reads the list of PCs under `devices_lock()`, which every change
+of the list takes as well. The PS button is locked and unlocked only by the input thread.
 
 The in-game quick menu (`src/gui/quickmenu.c`) lives inside the stream: the input thread calls
 `quickmenu_handle_input()` with each sample before anything is sent to the PC, which opens the menu on

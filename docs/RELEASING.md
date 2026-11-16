@@ -12,11 +12,11 @@ set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
 set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "0")
-set(VERSION_LABEL "beta.8")        # empty for a final release
+set(VERSION_LABEL "beta.9")        # empty for a final release
 set(VERSION_NAME "Nouvelle Lune")  # milestone name
 ```
 
-From them the build derives the version shown on the home screen (`v1.0.0-beta.8`, followed by the
+From them the build derives the version shown on the home screen (`v1.0.0-beta.9`, followed by the
 branch and commit), the LiveArea text (generated from `sce_sys/livearea/contents/template.xml.in` into
 the build folder) and the `APP_VER` of the VPK (`01.00`).
 

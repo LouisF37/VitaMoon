@@ -47,6 +47,9 @@ typedef struct _SERVER_DATA {
 int gs_init(PSERVER_DATA server, char* address, unsigned short httpPort, const char *keyDirectory, int logLevel, bool unsupported);
 int gs_start_app(PSERVER_DATA server, PSTREAM_CONFIGURATION config, int appId, bool sops, bool localaudio, int gamepad_mask);
 int gs_applist(PSERVER_DATA server, PAPP_LIST *app_list);
+/* Reads again what the PC is doing (pairing, game running: currentGame) over
+ * HTTPS, as gs_init() did. GS_OK when it answered. */
+int gs_update_status(PSERVER_DATA server);
 int gs_app_boxart(PSERVER_DATA server, int appId, char **png, size_t *size);
 int gs_unpair(PSERVER_DATA server);
 /* Pairs with the PIN the user types on the PC. cancel (may be NULL) is asked

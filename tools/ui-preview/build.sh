@@ -11,7 +11,8 @@ mkdir -p "$out/inc"
 for d in psp2 psp2common vitasdk; do ln -sfn "$VITASDK/arm-vita-eabi/include/$d" "$out/inc/$d"; done
 ln -sfn "$VITASDK/arm-vita-eabi/include/vita2d.h" "$out/inc/vita2d.h"
 
-srcs="$here/fake_vita2d.c $here/preview_sys.c $here/preview_main.c
+srcs="$here/fake_vita2d.c $here/preview_sys.c $here/preview_main.c $here/fake_pc.c $here/fake_http.c $here/journeys.c
+  $root/src/connection.c $root/libgamestream/xml.c $root/libgamestream/mkcert.c $root/libgamestream/url.c $root/src/util.c
   $root/src/gui/guilib.c $root/src/gui/theme.c $root/src/gui/ui_settings.c $root/src/gui/ui_library.c
   $root/src/gui/ui.c $root/src/gui/ui_connect.c $root/src/gui/quickmenu.c
   $root/src/i18n.c $root/src/config.c $root/third_party/inih/ini.c"
@@ -22,11 +23,17 @@ san=""
 [ -n "$PREVIEW_SANITIZE" ] && san="-fsanitize=address,undefined -fno-sanitize=shift -fno-omit-frame-pointer -fno-sanitize-recover=undefined"
 # The version shown in the screens comes from CMakeLists.txt.
 version=$(python3 "$root/tools/dev/release_info.py" --field tag 2>/dev/null || echo "v-preview")
-gcc -std=gnu99 -O1 -g -w -fcommon $san -D__vita__ -DUI_PREVIEW -DVERSION_MAJOR=1 -DVERSION_MINOR=0 -DVERSION_PATCH=0 -DVERSION_TEXT=\"$version\" -DBUILD_ID=\"preview\" \
+flags="-std=gnu99 -O1 -g -w -fcommon $san -D__vita__ -DUI_PREVIEW"
+# libgamestream's client.c is the real one, over fake_http.c; only its pairing
+# is replaced (fake_pc.c), so its own is renamed.
+gcc $flags -Dgs_pair=gs_pair_real -I"$here" -I"$out/inc" -I"$root/src" -I"$root/libgamestream" \
+  -I"$root/third_party/moonlight-common-c/src" -I"$root/third_party/libuuid/src" \
+  -c "$root/libgamestream/client.c" -o "$out/client.o"
+gcc $flags -DVERSION_MAJOR=1 -DVERSION_MINOR=0 -DVERSION_PATCH=0 -DVERSION_TEXT=\"$version\" -DBUILD_ID=\"preview\" \
   -DASSET_PREFIX="\"$root/assets/\"" \
   -I"$here" -I"$out/inc" -I"$root/src" -I"$root/src/gui" -I"$root/libgamestream" -I"$root/third_party/inih" \
   -I"$root/third_party/moonlight-common-c/src" -I"$root/third_party/libuuid/src" \
   $(pkg-config --cflags cairo freetype2) \
-  $srcs -o "$out/preview" \
-  $(pkg-config --libs cairo freetype2) -lm
+  $srcs "$out/client.o" -o "$out/preview" \
+  $(pkg-config --libs cairo freetype2) -lssl -lcrypto -lexpat -lm
 echo "built $out/preview"

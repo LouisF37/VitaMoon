@@ -56,7 +56,8 @@ static void XMLCALL _xml_start_applist_element(void *userData, const char *name,
     app->next = (PAPP_LIST) search->data;
     search->data = app;
   } else if (strcmp("ID", name) == 0 || strcmp("AppTitle", name) == 0) {
-    search->memory = malloc(1);
+    free(search->memory);   /* an element left open before (malformed list) */
+    search->memory = calloc(1, 1);   /* "" if the element holds no text */
     search->size = 0;
     search->start = 1;
   }
@@ -70,10 +71,13 @@ static void XMLCALL _xml_end_applist_element(void *userData, const char *name) {
       return;
 
     if (strcmp("ID", name) == 0) {
-        list->id = atoi(search->memory);
+        list->id = search->memory ? atoi(search->memory) : 0;
         free(search->memory);
+        search->memory = NULL;
     } else if (strcmp("AppTitle", name) == 0) {
+        free(list->name);   /* a second title replaces the first */
         list->name = search->memory;
+        search->memory = NULL;
     }
     search->start = 0;
   }
@@ -88,7 +92,8 @@ static void XMLCALL _xml_start_mode_element(void *userData, const char *name, co
       search->data = mode;
     }
   } else if (search->data != NULL && (strcmp("Height", name) == 0 || strcmp("Width", name) == 0 || strcmp("RefreshRate", name) == 0)) {
-    search->memory = malloc(1);
+    free(search->memory);
+    search->memory = calloc(1, 1);
     search->size = 0;
     search->start = 1;
   }
@@ -98,14 +103,16 @@ static void XMLCALL _xml_end_mode_element(void *userData, const char *name) {
   struct xml_query *search = (struct xml_query*) userData;
   if (search->data != NULL && search->start) {
     PDISPLAY_MODE mode = (PDISPLAY_MODE) search->data;
+    int value = search->memory ? atoi(search->memory) : 0;
     if (strcmp("Width", name) == 0)
-      mode->width = atoi(search->memory);
+      mode->width = value;
     else if (strcmp("Height", name) == 0)
-      mode->height = atoi(search->memory);
+      mode->height = value;
     else if (strcmp("RefreshRate", name) == 0)
-      mode->refresh = atoi(search->memory);
+      mode->refresh = value;
 
     free(search->memory);
+    search->memory = NULL;
     search->start = 0;
   }
 }
@@ -116,8 +123,12 @@ static void XMLCALL _xml_start_status_element(void *userData, const char *name, 
     for (int i = 0; atts[i]; i += 2) {
       if (strcmp("status_code", atts[i]) == 0)
         *status = atoi(atts[i + 1]);
-      else if (*status != STATUS_OK && strcmp("status_message", atts[i]) == 0)
-        gs_error = strdup(atts[i + 1]);
+      else if (*status != STATUS_OK && strcmp("status_message", atts[i]) == 0) {
+        /* kept here rather than strdup'd: one copy per refusal was never freed */
+        static char message[256];
+        snprintf(message, sizeof(message), "%s", atts[i + 1]);
+        gs_error = message;
+      }
     }
   }
 }
@@ -166,7 +177,7 @@ int xml_search(char* data, size_t len, char* node, char** result) {
 
 int xml_applist(char* data, size_t len, PAPP_LIST *app_list) {
   struct xml_query query;
-  query.memory = calloc(1, 1);
+  query.memory = NULL;   /* each element's text, owned until its end */
   query.size = 0;
   query.start = 0;
   query.data = NULL;
@@ -178,18 +189,38 @@ int xml_applist(char* data, size_t len, PAPP_LIST *app_list) {
     int code = XML_GetErrorCode(parser);
     gs_error = XML_ErrorString(code);
     XML_ParserFree(parser);
+    free(query.memory);
+    xml_free_applist((PAPP_LIST) query.data);
     return GS_INVALID;
   }
 
   XML_ParserFree(parser);
+  free(query.memory);
   *app_list = (PAPP_LIST) query.data;
 
   return GS_OK;
 }
 
+void xml_free_applist(PAPP_LIST list) {
+  while (list) {
+    PAPP_LIST next = list->next;
+    free(list->name);
+    free(list);
+    list = next;
+  }
+}
+
+void xml_free_modelist(PDISPLAY_MODE list) {
+  while (list) {
+    PDISPLAY_MODE next = list->next;
+    free(list);
+    list = next;
+  }
+}
+
 int xml_modelist(char* data, size_t len, PDISPLAY_MODE *mode_list) {
   struct xml_query query = {0};
-  query.memory = calloc(1, 1);
+  query.memory = NULL;
   XML_Parser parser = XML_ParserCreate("UTF-8");
   XML_SetUserData(parser, &query);
   XML_SetElementHandler(parser, _xml_start_mode_element, _xml_end_mode_element);
@@ -198,10 +229,13 @@ int xml_modelist(char* data, size_t len, PDISPLAY_MODE *mode_list) {
     int code = XML_GetErrorCode(parser);
     gs_error = XML_ErrorString(code);
     XML_ParserFree(parser);
+    free(query.memory);
+    xml_free_modelist((PDISPLAY_MODE) query.data);
     return GS_INVALID;
   }
 
   XML_ParserFree(parser);
+  free(query.memory);
   *mode_list = (PDISPLAY_MODE) query.data;
 
   return GS_OK;

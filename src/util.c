@@ -7,16 +7,13 @@
 #include <stdbool.h>
 
 void swap_app_list_entries(PAPP_LIST a, PAPP_LIST b) {
-    PAPP_LIST tmp = malloc(sizeof(APP_LIST));
-    tmp->id = a->id;
-    tmp->name = a->name;
-
+    // no allocation: a failed malloc here crashed the list sort
+    int id = a->id;
+    char *name = a->name;
     a->id = b->id;
     a->name = b->name;
-    b->id = tmp->id;
-    b->name = tmp->name;
-
-    free(tmp);
+    b->id = id;
+    b->name = name;
 }
 
 void sort_app_list(PAPP_LIST list) {
