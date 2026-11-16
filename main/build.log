@@ -1,9 +1,9 @@
 Submodule 'third_party/enet' (https://github.com/cgutman/enet.git) registered for path 'third_party/enet'
 Submodule 'third_party/inih' (https://github.com/benhoyt/inih.git) registered for path 'third_party/inih'
 Submodule 'third_party/mdnsniff' (https://github.com/AorsiniYT/mdnsniff.git) registered for path 'third_party/mdnsniff'
-Cloning into '/home/runner/work/vita-moonlight/vita-moonlight/third_party/enet'...
-Cloning into '/home/runner/work/vita-moonlight/vita-moonlight/third_party/inih'...
-Cloning into '/home/runner/work/vita-moonlight/vita-moonlight/third_party/mdnsniff'...
+Cloning into '/home/runner/work/VitaMoon/VitaMoon/third_party/enet'...
+Cloning into '/home/runner/work/VitaMoon/VitaMoon/third_party/inih'...
+Cloning into '/home/runner/work/VitaMoon/VitaMoon/third_party/mdnsniff'...
 Submodule path 'third_party/enet': checked out 'dea6fb5414b180908b58c0293c831105b5d124dd'
 Submodule path 'third_party/inih': checked out '8e06f6b77b5d4471bdc6d85ada81b67d37354a5c'
 Submodule path 'third_party/mdnsniff': checked out '6496c321c51860c5b64c308cff076b6087b40be0'
@@ -21,71 +21,71 @@ to suppress it.
 -- The CXX compiler identification is GNU 15.2.0
 -- Detecting C compiler ABI info
 -- Detecting C compiler ABI info - done
--- Check for working C compiler: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/arm-vita-eabi-gcc - skipped
+-- Check for working C compiler: /home/runner/work/VitaMoon/VitaMoon/vitasdk/bin/arm-vita-eabi-gcc - skipped
 -- Detecting C compile features
 -- Detecting C compile features - done
 -- Detecting CXX compiler ABI info
 -- Detecting CXX compiler ABI info - done
--- Check for working CXX compiler: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/arm-vita-eabi-g++ - skipped
+-- Check for working CXX compiler: /home/runner/work/VitaMoon/VitaMoon/vitasdk/bin/arm-vita-eabi-g++ - skipped
 -- Detecting CXX compile features
 -- Detecting CXX compile features - done
--- Configuring done (0.9s)
+-- Configuring done (0.7s)
 -- Generating done (0.0s)
--- Build files have been written to: /home/runner/work/vita-moonlight/vita-moonlight/build
+-- Build files have been written to: /home/runner/work/VitaMoon/VitaMoon/build
 [  1%] Building C object third_party/CMakeFiles/inih.dir/inih/ini.c.obj
-[  3%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/clear.c.obj
+[  2%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/clear.c.obj
 [  3%] Building C object third_party/CMakeFiles/enet.dir/enet/callbacks.c.obj
 [  4%] Building C object third_party/CMakeFiles/mdnsniff.dir/mdnsniff/udp_sniffer_vita.c.obj
 [  5%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/compare.c.obj
 [  6%] Building C object third_party/CMakeFiles/enet.dir/enet/compress.c.obj
 [  7%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/copy.c.obj
 [  8%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/gen_uuid.c.obj
-/home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/gen_uuid.c: In function 'random_get_bytes':
-/home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/gen_uuid.c:97:24: warning: unused variable 'cbuf' [-Wunused-variable]
+/home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/gen_uuid.c: In function 'random_get_bytes':
+/home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/gen_uuid.c:97:24: warning: unused variable 'cbuf' [-Wunused-variable]
    97 |         unsigned char *cbuf = buf;
       |                        ^~~~
-/home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/gen_uuid.c: In function 'get_clock':
-/home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/gen_uuid.c:237:41: warning: unused variable 'len' [-Wunused-variable]
+/home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/gen_uuid.c: In function 'get_clock':
+/home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/gen_uuid.c:237:41: warning: unused variable 'len' [-Wunused-variable]
   237 |         int                             len;
       |                                         ^~~
-/home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/gen_uuid.c:236:41: warning: unused variable 'save_umask' [-Wunused-variable]
+/home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/gen_uuid.c:236:41: warning: unused variable 'save_umask' [-Wunused-variable]
   236 |         mode_t                          save_umask;
       |                                         ^~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/gen_uuid.c:232:42: warning: unused variable 'state_f' [-Wunused-variable]
+/home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/gen_uuid.c:232:42: warning: unused variable 'state_f' [-Wunused-variable]
   232 |         THREAD_LOCAL FILE               *state_f;
       |                                          ^~~~~~~
 [  9%] Linking C static library libinih.a
 [  9%] Built target inih
-[ 10%] Building C object third_party/CMakeFiles/enet.dir/enet/host.c.obj
+[ 10%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_nal.c.obj
 [ 11%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/isnull.c.obj
 [ 12%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/pack.c.obj
-[ 13%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/parse.c.obj
-[ 14%] Linking C static library libmdnsniff.a
-[ 14%] Built target mdnsniff
-[ 15%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unpack.c.obj
-In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/parse.c:37:
-/home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/parse.c: In function 'uuid_parse':
-/home/runner/work/vita-moonlight/vita-moonlight/third_party/libuuid/src/parse.c:62:31: warning: array subscript has type 'char' [-Wchar-subscripts]
+[ 13%] Linking C static library libmdnsniff.a
+[ 13%] Built target mdnsniff
+[ 14%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_sei.c.obj
+[ 15%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/parse.c.obj
+In file included from /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/parse.c:37:
+/home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/parse.c: In function 'uuid_parse':
+/home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/parse.c:62:31: warning: array subscript has type 'char' [-Wchar-subscripts]
    62 |                 if (!isxdigit(*cp))
       |                               ^~~
-[ 16%] Building C object third_party/CMakeFiles/enet.dir/enet/list.c.obj
+[ 16%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unpack.c.obj
 [ 17%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unparse.c.obj
 [ 18%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/uuid_time.c.obj
-[ 19%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_nal.c.obj
-[ 20%] Linking C static library liblibuuid.a
-[ 20%] Built target libuuid
-[ 21%] Building C object third_party/CMakeFiles/enet.dir/enet/packet.c.obj
+[ 19%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_stream.c.obj
+[ 20%] Building C object third_party/CMakeFiles/enet.dir/enet/host.c.obj
+[ 21%] Linking C static library liblibuuid.a
+[ 21%] Built target libuuid
 [ 21%] Built target param.sfo
-[ 22%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_sei.c.obj
-[ 23%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_stream.c.obj
+[ 22%] Building C object third_party/CMakeFiles/enet.dir/enet/list.c.obj
+[ 23%] Building C object third_party/CMakeFiles/enet.dir/enet/packet.c.obj
 [ 24%] Building C object third_party/CMakeFiles/enet.dir/enet/peer.c.obj
 [ 25%] Building C object third_party/CMakeFiles/enet.dir/enet/protocol.c.obj
 [ 26%] Building C object third_party/CMakeFiles/enet.dir/enet/unix.c.obj
 [ 27%] Linking C static library libenet.a
 [ 27%] Built target enet
 [ 28%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/AudioStream.c.obj
-[ 29%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ByteBuffer.c.obj
-[ 30%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Connection.c.obj
+[ 29%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Connection.c.obj
+[ 30%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ByteBuffer.c.obj
 [ 31%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ConnectionTester.c.obj
 [ 32%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ControlStream.c.obj
 [ 33%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/FakeCallbacks.c.obj
@@ -113,8 +113,8 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
 [ 53%] Built target h264bitstream
 [ 54%] Building C object CMakeFiles/vitamoon.elf.dir/src/config.c.obj
 [ 55%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/mapping.c.obj
-[ 56%] Building C object CMakeFiles/vitamoon.elf.dir/src/connection.c.obj
 [ 57%] Building C object CMakeFiles/vitamoon.elf.dir/src/debug.c.obj
+[ 57%] Building C object CMakeFiles/vitamoon.elf.dir/src/connection.c.obj
 [ 58%] Building C object CMakeFiles/vitamoon.elf.dir/src/log.c.obj
 [ 59%] Building C object CMakeFiles/vitamoon.elf.dir/src/log_core.c.obj
 [ 60%] Building C object CMakeFiles/vitamoon.elf.dir/src/main.c.obj
@@ -123,88 +123,88 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/third_part
 [ 63%] Building C object CMakeFiles/vitamoon.elf.dir/src/device.c.obj
 [ 64%] Building C object CMakeFiles/vitamoon.elf.dir/src/check_dir.c.obj
 [ 65%] Building C object CMakeFiles/vitamoon.elf.dir/src/wake_on_lan.c.obj
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c: In function 'remove_device':
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:64:41: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'remove_device':
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:64:41: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
    64 |   snprintf(dir_path, sizeof(dir_path), "%s/%s", config.key_dir, name);
       |                                         ^~      ~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:64:3: note: 'snprintf' output 2 or more bytes (assuming 4097) into a destination of size 512
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:64:3: note: 'snprintf' output 2 or more bytes (assuming 4097) into a destination of size 512
    64 |   snprintf(dir_path, sizeof(dir_path), "%s/%s", config.key_dir, name);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:111:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:111:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
   111 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
       |                       ^~        ~~~~~~~~~~~~~~
 In function 'device_file_path',
-    inlined from 'remove_device' at /home/runner/work/vita-moonlight/vita-moonlight/src/device.c:66:3:
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:111:3: note: 'snprintf' output 12 or more bytes (assuming 4107) into a destination of size 512
+    inlined from 'remove_device' at /home/runner/work/VitaMoon/VitaMoon/src/device.c:66:3:
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:111:3: note: 'snprintf' output 12 or more bytes (assuming 4107) into a destination of size 512
   111 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c: In function 'remove_device':
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:75:50: warning: '%s' directive output may be truncated writing up to 255 bytes into a region of size between 0 and 511 [-Wformat-truncation=]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'remove_device':
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:75:50: warning: '%s' directive output may be truncated writing up to 255 bytes into a region of size between 0 and 511 [-Wformat-truncation=]
    75 |       snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, dirent.d_name);
       |                                                  ^~             ~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:75:7: note: 'snprintf' output between 2 and 768 bytes into a destination of size 512
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:75:7: note: 'snprintf' output between 2 and 768 bytes into a destination of size 512
    75 |       snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, dirent.d_name);
       |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 [ 66%] Building C object CMakeFiles/vitamoon.elf.dir/src/audio/vita.c.obj
 [ 67%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/vita.c.obj
+/home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'device_file_path':
 [ 68%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/pacing.c.obj
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c: In function 'device_file_path':
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:111:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:111:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
   111 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
       |                       ^~        ~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:111:3: note: 'snprintf' output 12 or more bytes (assuming 4107) into a destination of size 512
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:111:3: note: 'snprintf' output 12 or more bytes (assuming 4107) into a destination of size 512
   111 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c: In function 'append_device':
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:165:3: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'append_device':
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:165:3: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
   165 |   strncpy(p->name, info->name, 255);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:167:3: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:167:3: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
   167 |   strncpy(p->internal, info->internal, 255);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:168:3: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:168:3: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
   168 |   strncpy(p->external, info->external, 255);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c: In function 'update_device':
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:187:3: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'update_device':
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:187:3: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
   187 |   strncpy(p->internal, info->internal, 255);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:188:3: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:188:3: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
   188 |   strncpy(p->external, info->external, 255);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c: In function 'load_device_info':
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:111:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'load_device_info':
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:111:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
   111 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
       |                       ^~        ~~~~~~~~~~~~~~
 In function 'device_file_path',
-    inlined from 'load_device_info' at /home/runner/work/vita-moonlight/vita-moonlight/src/device.c:228:3:
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:111:3: note: 'snprintf' output between 12 and 4362 bytes into a destination of size 512
+    inlined from 'load_device_info' at /home/runner/work/VitaMoon/VitaMoon/src/device.c:228:3:
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:111:3: note: 'snprintf' output between 12 and 4362 bytes into a destination of size 512
   111 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c: In function 'load_all_known_devices':
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:215:5: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'load_all_known_devices':
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:215:5: warning: 'strncpy' output may be truncated copying 255 bytes from a string of length 255 [-Wstringop-truncation]
   215 |     strncpy(info.name, ent.d_name, 255);
       |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c: In function 'save_device_info':
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:111:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'save_device_info':
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:111:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
   111 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
       |                       ^~        ~~~~~~~~~~~~~~
 In function 'device_file_path',
-    inlined from 'save_device_info' at /home/runner/work/vita-moonlight/vita-moonlight/src/device.c:251:3:
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:111:3: note: 'snprintf' output between 12 and 4362 bytes into a destination of size 512
+    inlined from 'save_device_info' at /home/runner/work/VitaMoon/VitaMoon/src/device.c:251:3:
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:111:3: note: 'snprintf' output between 12 and 4362 bytes into a destination of size 512
   111 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c: In function 'rename_device':
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:32:39: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'rename_device':
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:32:39: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
    32 |   snprintf(old_dir, sizeof(old_dir), "%s%s", config.key_dir, info->name);
       |                                       ^~     ~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:32:3: note: 'snprintf' output between 1 and 4351 bytes into a destination of size 512
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:32:3: note: 'snprintf' output between 1 and 4351 bytes into a destination of size 512
    32 |   snprintf(old_dir, sizeof(old_dir), "%s%s", config.key_dir, info->name);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:33:39: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:33:39: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
    33 |   snprintf(new_dir, sizeof(new_dir), "%s%s", config.key_dir, new_name);
       |                                       ^~     ~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/device.c:33:3: note: 'snprintf' output 1 or more bytes (assuming 4096) into a destination of size 512
+/home/runner/work/VitaMoon/VitaMoon/src/device.c:33:3: note: 'snprintf' output 1 or more bytes (assuming 4096) into a destination of size 512
    33 |   snprintf(new_dir, sizeof(new_dir), "%s%s", config.key_dir, new_name);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 [ 69%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/stream_stats.c.obj
@@ -223,15 +223,15 @@ In function 'device_file_path',
 [ 82%] Building C object CMakeFiles/vitamoon.elf.dir/src/i18n.c.obj
 [ 83%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ime.c.obj
 [ 84%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui.c.obj
-/home/runner/work/vita-moonlight/vita-moonlight/src/gui/ui.c: In function 'ui_host_manage_menu_loop':
-/home/runner/work/vita-moonlight/vita-moonlight/src/gui/ui.c:124:7: warning: 'strncpy' output may be truncated copying 27 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/gui/ui.c: In function 'ui_host_manage_menu_loop':
+/home/runner/work/VitaMoon/VitaMoon/src/gui/ui.c:124:7: warning: 'strncpy' output may be truncated copying 27 bytes from a string of length 255 [-Wstringop-truncation]
   124 |       strncpy(broadcast, info->internal, sizeof(broadcast) - 5);
       |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/vita.c: In function 'vitainput_config':
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/vita.c:1045:65: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 256 [-Wformat-truncation=]
+/home/runner/work/VitaMoon/VitaMoon/src/input/vita.c: In function 'vitainput_config':
+/home/runner/work/VitaMoon/VitaMoon/src/input/vita.c:1045:65: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 256 [-Wformat-truncation=]
  1045 |         snprintf(mapping_file_path, sizeof(mapping_file_path), "%s/%s", config.key_dir, config.mapping);
       |                                                                 ^~      ~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/input/vita.c:1045:9: note: 'snprintf' output 2 or more bytes (assuming 4097) into a destination of size 256
+/home/runner/work/VitaMoon/VitaMoon/src/input/vita.c:1045:9: note: 'snprintf' output 2 or more bytes (assuming 4097) into a destination of size 256
  1045 |         snprintf(mapping_file_path, sizeof(mapping_file_path), "%s/%s", config.key_dir, config.mapping);
       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 [ 85%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_settings.c.obj
@@ -240,30 +240,30 @@ In function 'device_file_path',
 [ 88%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_check.c.obj
 [ 89%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/client.c.obj
 [ 90%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/http.c.obj
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c: In function 'gs_get_server_mac':
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:919:7: warning: the comparison will always evaluate as 'true' for the address of 'mac' will never be NULL [-Waddress]
+/home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c: In function 'gs_get_server_mac':
+/home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:919:7: warning: the comparison will always evaluate as 'true' for the address of 'mac' will never be NULL [-Waddress]
   919 |   if (!server->mac || !server->mac[0]) {
       |       ^
-In file included from /home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:23:
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.h:42:8: note: 'mac' declared here
+In file included from /home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:23:
+/home/runner/work/VitaMoon/VitaMoon/libgamestream/client.h:42:8: note: 'mac' declared here
    42 |   char mac[18];
       |        ^~~
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:925:7: warning: the comparison will always evaluate as 'true' for the address of 'mac' will never be NULL [-Waddress]
+/home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:925:7: warning: the comparison will always evaluate as 'true' for the address of 'mac' will never be NULL [-Waddress]
   925 |   if (!server->mac || !server->mac[0])
       |       ^
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.h:42:8: note: 'mac' declared here
+/home/runner/work/VitaMoon/VitaMoon/libgamestream/client.h:42:8: note: 'mac' declared here
    42 |   char mac[18];
       |        ^~~
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c: At top level:
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:341:13: warning: 'hex_to_bytes' defined but not used [-Wunused-function]
+/home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c: At top level:
+/home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:341:13: warning: 'hex_to_bytes' defined but not used [-Wunused-function]
   341 | static void hex_to_bytes(const char *in, unsigned char* out, size_t len) {
       |             ^~~~~~~~~~~~
 [ 91%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/mkcert.c.obj
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c: In function 'gs_pair':
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:480:137: warning: '%s' directive output may be truncated writing up to 8191 bytes into a region of size between 4682 and 5025 [-Wformat-truncation=]
+/home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c: In function 'gs_pair':
+/home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:480:137: warning: '%s' directive output may be truncated writing up to 8191 bytes into a region of size between 4682 and 5025 [-Wformat-truncation=]
   480 |   snprintf(url, sizeof(url), "http://%s:%u/pair?uniqueid=%s&uuid=%s&devicename=%s&updateState=1&phrase=getservercert&salt=%s&clientcert=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str, device_name, salt_hex, cert_hex);
       |                                                                                                                                         ^~                                                                                             ~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/libgamestream/client.c:480:3: note: 'snprintf' output 96 or more bytes (assuming 8630) into a destination of size 5120
+/home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:480:3: note: 'snprintf' output 96 or more bytes (assuming 8630) into a destination of size 5120
   480 |   snprintf(url, sizeof(url), "http://%s:%u/pair?uniqueid=%s&uuid=%s&devicename=%s&updateState=1&phrase=getservercert&salt=%s&clientcert=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str, device_name, salt_hex, cert_hex);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 [ 92%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/sps.c.obj
@@ -273,41 +273,41 @@ In file included from /home/runner/work/vita-moonlight/vita-moonlight/libgamestr
 [ 96%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/keyboardkeys.c.obj
 [ 97%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/touchabsolute.c.obj
 [ 98%] Building C object CMakeFiles/vitamoon.elf.dir/src/check_host.c.obj
-/home/runner/work/vita-moonlight/vita-moonlight/src/check_host.c: In function 'host_scan_thread':
-/home/runner/work/vita-moonlight/vita-moonlight/src/check_host.c:132:25: warning: 'strncpy' output may be truncated copying 63 bytes from a string of length 63 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/check_host.c: In function 'host_scan_thread':
+/home/runner/work/VitaMoon/VitaMoon/src/check_host.c:132:25: warning: 'strncpy' output may be truncated copying 63 bytes from a string of length 63 [-Wstringop-truncation]
   132 |                         strncpy(g_host_status[i].current_ip, scan_mdns_found_ip, sizeof(g_host_status[i].current_ip)-1);
       |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/check_host.c:121:25: warning: 'strncpy' output may be truncated copying 63 bytes from a string of length 63 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/check_host.c:121:25: warning: 'strncpy' output may be truncated copying 63 bytes from a string of length 63 [-Wstringop-truncation]
   121 |                         strncpy(g_host_status[i].current_ip, scan_mdns_found_ip, sizeof(g_host_status[i].current_ip)-1);
       |                         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/check_host.c:163:13: warning: 'strncpy' output may be truncated copying 63 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/check_host.c:163:13: warning: 'strncpy' output may be truncated copying 63 bytes from a string of length 255 [-Wstringop-truncation]
   163 |             strncpy(g_host_status[i].current_ip, info->internal, sizeof(g_host_status[i].current_ip)-1);
       |             ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/check_host.c:154:17: warning: 'strncpy' output may be truncated copying 63 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/check_host.c:154:17: warning: 'strncpy' output may be truncated copying 63 bytes from a string of length 255 [-Wstringop-truncation]
   154 |                 strncpy(g_host_status[i].current_ip, info->internal, sizeof(g_host_status[i].current_ip)-1);
       |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/check_host.c: In function 'check_host_status':
-/home/runner/work/vita-moonlight/vita-moonlight/src/check_host.c:279:5: warning: 'strncpy' output may be truncated copying 64 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/check_host.c: In function 'check_host_status':
+/home/runner/work/VitaMoon/VitaMoon/src/check_host.c:279:5: warning: 'strncpy' output may be truncated copying 64 bytes from a string of length 255 [-Wstringop-truncation]
   279 |     strncpy(result.current_ip, info->internal, sizeof(result.current_ip));
       |     ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-/home/runner/work/vita-moonlight/vita-moonlight/src/check_host.c:263:9: warning: 'strncpy' output may be truncated copying 64 bytes from a string of length 255 [-Wstringop-truncation]
+/home/runner/work/VitaMoon/VitaMoon/src/check_host.c:263:9: warning: 'strncpy' output may be truncated copying 64 bytes from a string of length 255 [-Wstringop-truncation]
   263 |         strncpy(result.current_ip, info->internal, sizeof(result.current_ip));
       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 [100%] Linking C executable vitamoon.elf
-/home/runner/work/vita-moonlight/vita-moonlight/vitasdk/arm-vita-eabi/bin/ld: warning: /home/runner/work/vita-moonlight/vita-moonlight/vitasdk/bin/../lib/gcc/arm-vita-eabi/15.2.0/crtn.o: missing .note.GNU-stack section implies executable stack
-/home/runner/work/vita-moonlight/vita-moonlight/vitasdk/arm-vita-eabi/bin/ld: NOTE: This behaviour is deprecated and will be removed in a future version of the linker
+/home/runner/work/VitaMoon/VitaMoon/vitasdk/arm-vita-eabi/bin/ld: warning: /home/runner/work/VitaMoon/VitaMoon/vitasdk/bin/../lib/gcc/arm-vita-eabi/15.2.0/crtn.o: missing .note.GNU-stack section implies executable stack
+/home/runner/work/VitaMoon/VitaMoon/vitasdk/arm-vita-eabi/bin/ld: NOTE: This behaviour is deprecated and will be removed in a future version of the linker
 [100%] Built target vitamoon.elf
 [100%] Built target vitamoon.velf
 [100%] Built target vitamoon.vpk
 total 23M
--rw-r--r-- 1 runner runner  17K Nov 16 09:46 CMakeCache.txt
-drwxr-xr-x 9 runner runner 4.0K Nov 16 09:46 CMakeFiles
--rw-r--r-- 1 runner runner  49K Nov 16 09:46 Makefile
--rw-r--r-- 1 runner runner 2.3K Nov 16 09:46 cmake_install.cmake
--rw-r--r-- 1 runner runner 2.8M Nov 16 09:46 eboot.bin
-drwxr-xr-x 2 runner runner 4.0K Nov 16 09:46 livearea
--rw-r--r-- 1 runner runner  912 Nov 16 09:46 param.sfo
-drwxr-xr-x 3 runner runner 4.0K Nov 16 09:46 third_party
--rwxr-xr-x 1 runner runner 7.4M Nov 16 09:46 vitamoon.elf
--rw-r--r-- 1 runner runner 8.7M Nov 16 09:46 vitamoon.velf
--rw-r--r-- 1 runner runner 3.7M Nov 16 09:46 vitamoon.vpk
+-rw-r--r-- 1 runner runner  17K Nov 16 10:52 CMakeCache.txt
+drwxr-xr-x 9 runner runner 4.0K Nov 16 10:52 CMakeFiles
+-rw-r--r-- 1 runner runner  49K Nov 16 10:52 Makefile
+-rw-r--r-- 1 runner runner 2.3K Nov 16 10:52 cmake_install.cmake
+-rw-r--r-- 1 runner runner 2.8M Nov 16 10:52 eboot.bin
+drwxr-xr-x 2 runner runner 4.0K Nov 16 10:52 livearea
+-rw-r--r-- 1 runner runner  912 Nov 16 10:52 param.sfo
+drwxr-xr-x 3 runner runner 4.0K Nov 16 10:52 third_party
+-rwxr-xr-x 1 runner runner 7.4M Nov 16 10:52 vitamoon.elf
+-rw-r--r-- 1 runner runner 8.7M Nov 16 10:52 vitamoon.velf
+-rw-r--r-- 1 runner runner 3.7M Nov 16 10:52 vitamoon.vpk

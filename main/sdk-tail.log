@@ -2,7 +2,7 @@ Cloning into '/tmp/vdpm'...
   % Total    % Received % Xferd  Average Speed  Time    Time    Time   Current
                                  Dload  Upload  Total   Spent   Left   Speed
   0      0   0      0   0      0      0      0                              0  0      0   0      0   0      0      0      0                              0  0      0   0      0   0      0      0      0                              0
-  0      0   0      0   0      0      0      0                              0100  8.49M 100  8.49M   0      0 26.17M      0                              0100  8.49M 100  8.49M   0      0 26.17M      0                              0100  8.49M 100  8.49M   0      0 26.16M      0                              0
+  0      0   0      0   0      0      0      0                              0100  8.49M 100  8.49M   0      0 29.94M      0                              0100  8.49M 100  8.49M   0      0 29.94M      0                              0100  8.49M 100  8.49M   0      0 29.93M      0                              0
 Installing the supported series 2026.08
 refreshed 2026.08 channel sequence 2026111584
 :: Starting full system upgrade...
@@ -25,8 +25,8 @@ checking for file conflicts...
 :: Processing package changes...
 installing vdpm...
 installing vitasdk-core...
-VitaSDK installed at /home/runner/work/vita-moonlight/vita-moonlight/vitasdk
-export VITASDK=/home/runner/work/vita-moonlight/vita-moonlight/vitasdk
+VitaSDK installed at /home/runner/work/VitaMoon/VitaMoon/vitasdk
+export VITASDK=/home/runner/work/VitaMoon/VitaMoon/vitasdk
 export PATH=$VITASDK/bin:$PATH
 :: VitaSDK 2026.08 (sequence 2026111584)
 resolving dependencies...
