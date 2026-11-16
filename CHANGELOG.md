@@ -3,6 +3,25 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.0.0-beta.5 "Nouvelle Lune" (2026-11-16)
+
+### Fixed
+
+- A PC's name is also the name of the folder holding its pairing keys and settings: it is now checked
+  before that folder is renamed, used or emptied. A PC removed from the list could empty another
+  folder if its name was empty, `.`, `..` or held a path separator; names announced on the network
+  (mDNS) are made plain folder names (forbidden characters become `-`). Inherited from 0.13.2; no
+  such name is known to have occurred.
+- The list of PCs found on the network is bounded (64): more answers wrote past its end.
+
+### Project
+
+- The repository's branch is `main`, from which CI publishes each version; the development build is
+  `vitamoon-main.vpk` ([docs/RELEASING.md](docs/RELEASING.md)).
+- Documentation tidied: a current checkpoint with the full test plan for the Vita
+  ([docs/checkpoints/2026-11-16.md](docs/checkpoints/2026-11-16.md)), the 15 November report kept
+  as it was, editor settings inherited from upstream removed.
+
 ## 1.0.0-beta.4 "Nouvelle Lune" (2026-11-16)
 
 ### Changed

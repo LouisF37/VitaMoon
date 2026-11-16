@@ -27,6 +27,7 @@
 #include "../reconnect.h"
 #include "quickmenu.h"
 #include "moon.h"
+#include "../device_name.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -811,7 +812,7 @@ void ui_connect_manual() {
     return;
   }
   // The name is also a folder name: fall back on the suggestion
-  if (!info.name[0] || strpbrk(info.name, "/\\:*?\"<>|"))
+  if (!device_name_valid(info.name))
     snprintf(info.name, sizeof(info.name), "%s", suggestion);
   info.port = 47989;
   ui_connect_and_pairing(&info);

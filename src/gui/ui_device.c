@@ -6,6 +6,7 @@
 
 #include "../config.h"
 #include "../device.h"
+#include "../device_name.h"
 #include "../connection.h"
 //#include "../debug.h"
 #include "../input/vita.h"
@@ -79,17 +80,26 @@ char* strrstr(const char *str, const char *pat) {
 
 static void moonlight_found_callback(int idx, const char* host, const char* pcname, const char* ip, int port) {
     vita_debug_log("[mDNS] Device found: %s (%s:%d)\n", pcname, ip, port);
+    if (found_device >= (int)(sizeof(devices) / sizeof(devices[0]))) {
+        vita_debug_log("[mDNS] List full, %s ignored\n", pcname);
+        return;
+    }
+    // The name becomes a folder name: keep it a plain one.
+    char name[sizeof(devices[0].name)];
+    strncpy(name, pcname, sizeof(name) - 1);
+    name[sizeof(name) - 1] = '\0';
+    device_name_sanitize(name, sizeof(name), "PC");
     // Skip a device with the same name and IP
     for (int i = 0; i < found_device; i++) {
-        if (strncmp(devices[i].name, pcname, sizeof(devices[i].name)) == 0 &&
+        if (strncmp(devices[i].name, name, sizeof(devices[i].name)) == 0 &&
             strncmp(devices[i].internal, ip, sizeof(devices[i].internal)) == 0) {
-            vita_debug_log("[mDNS] Duplicate device ignored: %s (%s)\n", pcname, ip);
+            vita_debug_log("[mDNS] Duplicate device ignored: %s (%s)\n", name, ip);
             return;
         }
     }
     // Same name but a different IP is added
     memset(&devices[found_device], 0, sizeof(device_info_t));
-    strncpy(devices[found_device].name, pcname, sizeof(devices[found_device].name)-1);
+    snprintf(devices[found_device].name, sizeof(devices[found_device].name), "%s", name);
     strncpy(devices[found_device].internal, ip, sizeof(devices[found_device].internal)-1);
     devices[found_device].port = port;
     found_device++;

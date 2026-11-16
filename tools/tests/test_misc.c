@@ -7,11 +7,12 @@
 #include "url.h"
 #include "histogram.h"
 #include "reconnect.h"
+#include "device_name.h"
 
 #include <string.h>
 
 int main(void) {
-  TEST_BEGIN("url, percentiles and reconnection");
+  TEST_BEGIN("url, percentiles, reconnection and PC names");
 
   char out[64];
   gs_url_encode("PS Vita", out, sizeof(out));
@@ -65,5 +66,17 @@ int main(void) {
   CHECK(reconnect_should_retry(&quick, RECONNECT_QUICK_LOSS_MS) && quick == 0,
         "a stream that held 20 s resets the count");
 
+  /* PC names are folder names (device_name.h). */
+  CHECK(device_name_valid("MINI-PC") && device_name_valid("Salon PC 2"), "plain names accepted");
+  CHECK(!device_name_valid("") && !device_name_valid(".") && !device_name_valid(".."),
+        "empty, . and .. refused");
+  CHECK(!device_name_valid("a/b") && !device_name_valid("..\\x") && !device_name_valid("pc:1"),
+        "path separators and drive colons refused");
+  char name[16] = "my/pc:*";
+  device_name_sanitize(name, sizeof(name), "PC");
+  CHECK(strcmp(name, "my-pc--") == 0, "announced name: forbidden characters become '-'");
+  char dots[16] = "..";
+  device_name_sanitize(dots, sizeof(dots), "PC");
+  CHECK(strcmp(dots, "PC") == 0, "announced name '..' replaced");
   return TEST_END();
 }

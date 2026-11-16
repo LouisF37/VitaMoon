@@ -10,6 +10,7 @@
 #include "wake_on_lan.h"
 
 #include "device.h"
+#include "device_name.h"
 #include "debug.h"
 #include "config.h"
 
@@ -25,8 +26,7 @@
 // Renames a PC: its folder (keys, settings) follows the new name. Names that
 // are not plain folder names (a path separator, "." or "..") are refused.
 bool rename_device(device_info_t *info, const char *new_name) {
-  if (!new_name[0] || strpbrk(new_name, "/\\:*?\"<>|") || !strcmp(new_name, ".") ||
-      !strcmp(new_name, "..") || find_device(new_name))
+  if (!device_name_valid(new_name) || find_device(new_name))
     return false;
   char old_dir[512], new_dir[512];
   snprintf(old_dir, sizeof(old_dir), "%s%s", config.key_dir, info->name);
@@ -42,6 +42,9 @@ bool rename_device(device_info_t *info, const char *new_name) {
 }
 
 bool remove_device(const char *name) {
+  // Its folder is emptied below: never for a name that would point elsewhere.
+  if (!device_name_valid(name))
+    return false;
   int idx = -1;
   for (int i = 0; i < known_devices.count; i++) {
     if (!strcmp(known_devices.devices[i].name, name)) {

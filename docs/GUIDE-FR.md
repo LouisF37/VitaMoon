@@ -1,6 +1,6 @@
 # VitaMoon : guide d'utilisation et de test
 
-VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 4 « Nouvelle Lune ». Jusqu'à la
+VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 5 « Nouvelle Lune ». Jusqu'à la
 bêta 1, le projet s'appelait Lune.
 
 Téléchargement :
@@ -8,7 +8,7 @@ Téléchargement :
 - dernière compilation de la branche `main` :
   https://github.com/LouisF37/VitaMoon/releases/download/build-main/vitamoon-main.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.4  main-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.5  main-xxxxxxx`.
 
 **Installation à côté de Moonlight.** VitaMoon a son propre identifiant (`VMOON0001`), sa propre bulle et
 son propre dossier (`ux0:data/vitamoon`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc
@@ -20,7 +20,7 @@ d'essai précédente de ce projet y est peut-être installée.
 `ux0:data/vitamoon` : les PC appairés, les réglages, les statistiques et les journaux suivent, sans
 nouvel appairage. La bulle Lune peut ensuite être supprimée.
 
-**État des vérifications.** Le code compile pour la Vita, les 221 vérifications des tests sur PC
+**État des vérifications.** Le code compile pour la Vita, les 226 vérifications des tests sur PC
 passent (affichage cadencé simulé, fichier de réglages, réécriture du SPS, menu rapide, journal,
 reconnexion, police des titres et lune d'attente), tous les écrans ont été rendus hors console
 (outil `tools/ui-preview`) en anglais, français et espagnol, et le code a été audité (voir
