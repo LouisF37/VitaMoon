@@ -8,7 +8,7 @@ Téléchargement :
 - dernière compilation de la branche `main` :
   https://github.com/LouisF37/VitaMoon/releases/download/build-main/vitamoon-main.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.10  main-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.11  main-xxxxxxx`.
 
 **Installation à côté de Moonlight.** VitaMoon a son propre identifiant (`VMOON0001`), sa propre bulle et
 son propre dossier (`ux0:data/vitamoon`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc
@@ -48,8 +48,15 @@ le détail du PC sélectionné : adresse, appairage, réveil à distance, flux d
 Rond annule l'attente. Sunshine garde une demande 5 minutes : après une annulation, supprimez-la sur sa
 page PIN avant de réessayer (sinon il refuse une nouvelle demande de la même Vita jusque-là).
 
-**Bibliothèque.** Après la connexion, les jeux s'affichent en rangée de jaquettes, avec les chiffres de
-la dernière session du jeu sélectionné.
+**Bibliothèque.** Après la connexion, les jeux s'affichent en rangée de jaquettes. Sous le titre du jeu
+sélectionné : « Dernière partie : aujourd'hui à 19:46 · 7 min » (hier, il y a 2 à 6 jours, puis la date),
+ou « Jamais lancé depuis cette Vita ».
+- Ordre : les favoris d'abord, puis les jeux joués du plus récent au plus ancien, puis ceux jamais lancés
+  depuis cette Vita, dans l'ordre de Sunshine.
+- SELECT : ajoute le jeu aux favoris (étoile sur la jaquette) ou l'en retire. Les favoris sont gardés par
+  jeu (`ux0:data/vitamoon/favorites.txt`).
+- Les chiffres de la dernière session (images affichées, délai, images perdues) sont une option :
+  Réglages → Général → Statistiques dans la bibliothèque (désactivée par défaut).
 - ✕ jouer ou reprendre, □ quitter le jeu en cours sur le PC, △ ancien menu, START réglages, ○ retour.
 - Croix directionnelle ou écran tactile pour choisir ; L et R avancent de 5 jeux.
 
@@ -96,6 +103,19 @@ affiché dans la liste des appareils de Sunshine. Les appairages existants garde
 - Langue : English, Français, Español (rubrique Général).
 - Thème : Nuit, Aube, Aurore, Crépuscule, Éclipse (rubrique Général) ; appliqué tout de suite, avec son
   propre ciel lunaire (étoiles et grand croissant ; Éclipse : disque sombre et sa couronne).
+- Étoiles scintillantes (Général, activé par défaut) : chaque petite étoile du fond s'éclaire doucement
+  une fois toutes les 2,5 à 6 secondes, chacune à son moment.
+- Ciel en mouvement (Général, Non par défaut) : les étoiles tournent autour de la lune, un tour en
+  32 min (Très lent), 16 min (Lent), 8 min (Moyen) ou 4 min (Rapide). Sens de rotation : Horaire (elles
+  montent en bas à gauche et passent en haut vers la droite) ou Antihoraire. Changer la vitesse ou le sens
+  ne fait pas sauter les étoiles ; le ciel ne tourne que dans les menus, rien n'est dessiné pendant un
+  stream. Le scintillement s'y ajoute s'il est activé.
+- Appui pour cliquer (Tactile, en mode Pavé tactile) : un toucher relâché avant 100, 150, 200 ou 250 ms
+  (250 par défaut) sans bouger de plus de 20 pixels est un clic ; au-delà, ou dès que le doigt bouge
+  davantage, le pointeur suit le doigt. Plus long : on clique plus facilement ; plus court : moins de
+  clics involontaires.
+- Touche PS envoyée au PC (Commandes) : un appui va au PC (le menu de Steam, par exemple), deux
+  appuis rapprochés ramènent à l'écran d'accueil de la Vita.
 
 ## Performance (Réglages → Performance)
 

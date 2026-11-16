@@ -42,6 +42,7 @@
 #include <pthread.h>
 #include "mapping.h"
 #include "swap_shoulder_buttons.h"
+#include "tap.h"
 #include "../keyboardsystem.h"
 
 
@@ -95,9 +96,9 @@ static bool mouse_left_down = false;
 static bool mouse_right_down = false;
 static bool touchzone_mouse_suppressed = false;
 
-#define PSBTN_DOUBLETAP_DELAY 250000 // 100ms
+#define PSBTN_DOUBLETAP_DELAY 250000 // 250 ms between the two presses
 
-#define MOUSE_ACTION_DELAY 100000 // 100ms
+#define MOUSE_ACTION_DELAY 100000 // how long a tap holds the click (100 ms)
 #define MOTION_ACTION_DELAY 200000 // 200ms
 
 inline bool mouse_click(short finger_count, bool press) {
@@ -176,6 +177,9 @@ SceTouchData front, back;
 SceMotionState motionState;
 
 int front_state = NO_TOUCH_ACTION;
+/* Where and when the current trackpad touch began (input/tap.h). */
+static SceRtcTick tap_start;
+static int tap_x0, tap_y0, tap_dx, tap_dy;
 short finger_count = 0;
 SceRtcTick current, until;
 
@@ -749,27 +753,40 @@ void process_touch() {
         if (touch.finger > 0) {
           front_state = ON_SCREEN_TOUCH;
           finger_count = touch.finger;
-          sceRtcTickAddMicroseconds(&until, &current, MOUSE_ACTION_DELAY);
+          tap_start = current;
+          tap_x0 = touch.points[0].x;
+          tap_y0 = touch.points[0].y;
+          tap_dx = tap_dy = 0;
         }
         break;
-      case ON_SCREEN_TOUCH:
-        if (sceRtcCompareTick(&current, &until) < 0) {
-          if (touch.finger < finger_count) {
-            // TAP
+      case ON_SCREEN_TOUCH: {
+        // A click or a swipe (input/tap.h): the movement is that of the last
+        // sample with a finger down, the lift itself reports no point.
+        if (touch.finger > 0) {
+          tap_dx = touch.points[0].x - tap_x0;
+          tap_dy = touch.points[0].y - tap_y0;
+        }
+        bool lifted = touch.finger < finger_count;
+        if (touch.finger > finger_count)
+          finger_count = touch.finger;   // a second finger: a two-finger tap or swipe
+        uint64_t elapsed = current.tick >= tap_start.tick ? current.tick - tap_start.tick : 0;
+        switch (tap_judge(elapsed, (unsigned int)config.tap_time_ms, tap_dx, tap_dy, lifted)) {
+          case TAP_CLICK:
             if (mouse_click(finger_count, true)) {
               front_state = SCREEN_TAP;
-              sceRtcTickAddMicroseconds(&until, &current, MOUSE_ACTION_DELAY);
+              sceRtcTickAddMicroseconds(&until, &current, MOUSE_ACTION_DELAY);   // held this long
             } else {
               front_state = NO_TOUCH_ACTION;
             }
-          } else if (touch.finger > finger_count) {
-            // finger count changed
-            finger_count = touch.finger;
-          }
-        } else {
-          front_state = SWIPE_START;
+            break;
+          case TAP_SWIPE:
+            front_state = SWIPE_START;
+            break;
+          case TAP_UNDECIDED:
+            break;
         }
         break;
+      }
       case SCREEN_TAP:
         if (sceRtcCompareTick(&current, &until) >= 0) {
           mouse_click(finger_count, false);

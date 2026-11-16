@@ -192,6 +192,16 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->controller_type = INT(value);
     } else if (strcmp(name, "swap_shoulder_buttons") == 0) {
       config->swap_shoulder_buttons = BOOL(value);
+    } else if (strcmp(name, "library_stats") == 0) {
+      config->library_stats = BOOL(value);
+    } else if (strcmp(name, "twinkle_stars") == 0) {
+      config->twinkle_stars = BOOL(value);
+    } else if (strcmp(name, "sky_speed") == 0) {
+      config->sky_speed = INT(value);
+    } else if (strcmp(name, "sky_anticlockwise") == 0) {
+      config->sky_anticlockwise = BOOL(value);
+    } else if (strcmp(name, "tap_time_ms") == 0) {
+      config->tap_time_ms = INT(value);
     }
   }
   return 0;
@@ -224,8 +234,13 @@ void config_sanitize(PCONFIGURATION config) {
     config->touchscreen_mode = 0;
   if (config->controller_type < 1 || config->controller_type > 4)
     config->controller_type = 2;
-  if (config->mouse_acceleration < 15 || config->mouse_acceleration > 300)
+  // 0 is "off" in the settings: it used to be reset to 150 at the next start.
+  if (config->mouse_acceleration < 0 || config->mouse_acceleration > 300)
     config->mouse_acceleration = 150;
+  if (config->tap_time_ms < TAP_TIME_MIN || config->tap_time_ms > TAP_TIME_MAX)
+    config->tap_time_ms = TAP_TIME_DEFAULT;
+  if (config->sky_speed < SKY_STILL || config->sky_speed >= SKY_SPEED_COUNT)
+    config->sky_speed = SKY_STILL;
   if (!(config->motion_controls_scalar_x >= 0.1f && config->motion_controls_scalar_x <= 5.0f))
     config->motion_controls_scalar_x = 1.2f;
   if (!(config->motion_controls_scalar_y >= 0.1f && config->motion_controls_scalar_y <= 5.0f))
@@ -308,6 +323,11 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_int(fd, "theme", config->theme);
   write_config_int(fd, "touchscreen_mode", config->touchscreen_mode);
   write_config_bool(fd, "swap_shoulder_buttons", config->swap_shoulder_buttons); // top level
+  write_config_bool(fd, "library_stats", config->library_stats);
+  write_config_bool(fd, "twinkle_stars", config->twinkle_stars);
+  write_config_int(fd, "sky_speed", config->sky_speed);
+  write_config_bool(fd, "sky_anticlockwise", config->sky_anticlockwise);
+  write_config_int(fd, "tap_time_ms", config->tap_time_ms);
   write_config_int(fd, "controller_type", config->controller_type); // top level
   
 
@@ -438,6 +458,13 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->keyboard_layout = CONFIG_KEYBOARD_TEXT;
   config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;
+  // A trackpad tap may last 250 ms, as in Moonlight for Android
+  // (RelativeTouchContext.TAP_TIME_THRESHOLD); it was 100 ms.
+  config->tap_time_ms = TAP_TIME_DEFAULT;
+  config->library_stats = false;
+  config->twinkle_stars = true;
+  config->sky_speed = SKY_STILL;
+  config->sky_anticlockwise = false;
 
   config->double_tap_sprint_step_time = 200;
 

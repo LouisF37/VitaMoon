@@ -115,7 +115,23 @@ typedef struct _CONFIGURATION {
   int touchscreen_mode; // 0=off, 1=DS4, 2=Mouse absoluto, 3=Tableta multitouch
   int controller_type; // 1: Xbox, 2: PS (default), 3: Nintendo, 4: Generic
   bool swap_shoulder_buttons; // swap R1/L1 <-> R2/L2
+  bool library_stats;   // the library shows the figures of each game's last session
+  bool twinkle_stars;   // the stars of the menus' background twinkle
+  int sky_speed;        // the stars of the menus' background turn around the moon: SKY_STILL or a speed
+  bool sky_anticlockwise;   // ... the other way round
+  int tap_time_ms;      // trackpad: longest touch that is a click (TAP_TIME_MIN..MAX)
 } CONFIGURATION, *PCONFIGURATION;
+
+/* Trackpad tap: the settings offer 100 to 250 ms in steps of 50. */
+#define TAP_TIME_MIN 100
+#define TAP_TIME_MAX 250
+#define TAP_TIME_STEP 50
+#define TAP_TIME_DEFAULT 250
+
+/* Moving sky: SKY_STILL, then from the slowest turn to the fastest
+ * (src/gui/orbit.h gives each its time for one turn). */
+#define SKY_STILL 0
+#define SKY_SPEED_COUNT 5
 
 extern CONFIGURATION config;
 

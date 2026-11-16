@@ -34,7 +34,7 @@ what was measured by whom, is listed in [docs/design/performance.md](docs/design
 
 <div align="center">
   <img src="docs/screenshots/home_1_host_online.png" alt="Home: computers and their state" width="48%"/>
-  <img src="docs/screenshots/library_1_stats.png" alt="Library: games with the last session's figures" width="48%"/>
+  <img src="docs/screenshots/library_1.png" alt="Library: games with cover art, when each was last played" width="48%"/>
   <img src="docs/screenshots/settings_profile_smooth.png" alt="Settings: performance profiles" width="48%"/>
   <img src="docs/screenshots/pairing_code.png" alt="Pairing: code to type in Sunshine" width="48%"/>
   <img src="docs/screenshots/quickmenu.png" alt="In-game quick menu over the game" width="48%"/>
@@ -58,10 +58,11 @@ measurements).</sub>
   measured by juanjsebgarcia).
 - **Statistics**: an overlay during play, and per session a CSV (one line per second) plus a summary
   with percentiles, to compare settings on your own setup.
-- **Interface**: computers with their state, a game library with cover art, two-pane settings with
-  help for every option, pairing with a code to type in Sunshine, English, French and Spanish, five
-  colour themes over a lunar sky (Night, Dawn, Aurora, Twilight, Eclipse), titles in Poppins and text in
-  Inter, a moon that fills at each step while a stream starts or reconnects.
+- **Interface**: computers with their state, a game library with cover art (favourites first, then
+  the games last played, with when), two-pane settings with help for every option, pairing with a
+  code to type in Sunshine, English, French and Spanish, five colour themes over a lunar sky (Night,
+  Dawn, Aurora, Twilight, Eclipse) whose stars can twinkle and turn around the moon, titles in Poppins
+  and text in Inter, a moon that fills at each step while a stream starts or reconnects.
 - **In-game quick menu** (L + R + SELECT): statistics on or off, keyboard, pause or quit the game,
   with the battery and the clock, without leaving the game.
 - **Controls**: Xbox or PlayStation layout, rear touch, front touch as DS4 touchpad, mouse or tablet,

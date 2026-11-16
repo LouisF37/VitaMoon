@@ -4,6 +4,7 @@
 #include "theme.h"
 
 #include "guilib.h"
+#include "orbit.h"
 #include "ime.h"
 
 #include "../config.h"
@@ -484,13 +485,14 @@ static const char *k_categories[CAT_COUNT] = {
 typedef enum { ROW_CHOICE, ROW_TOGGLE, ROW_ACTION } row_type;
 
 enum {
-  S_LANGUAGE, S_THEME, S_SHOW_STATS, S_SWAP_XO, S_KEEP_AWAKE, S_AUTO_RECONNECT, S_DEBUG_LOG,
+  S_LANGUAGE, S_THEME, S_TWINKLE, S_MOVING_SKY, S_SKY_DIRECTION, S_SHOW_STATS, S_LIBRARY_STATS, S_SWAP_XO, S_KEEP_AWAKE, S_AUTO_RECONNECT,
+  S_DEBUG_LOG,
   S_RESOLUTION, S_FPS, S_BITRATE, S_CROP, S_LOCAL_AUDIO,
   S_PROFILE, S_DISPLAY_MODE, S_LL_AUDIO, S_CATCHUP, S_YUV, S_REORDER, S_BOOST, S_MATCH_REFRESH,
   S_PACKET_SIZE,
   S_CONTROLLER_TYPE, S_INPUT_SYNC, S_SWAP_SHOULDER, S_MAPPING, S_PS_CAPTURE, S_DOUBLE_TAP_SPRINT, S_SPRINT_TIME,
   S_MOTION, S_MOTION_X, S_MOTION_Y, S_KEYBOARD_LAYOUT,
-  S_TOUCH_MODE, S_MOUSE_ACCEL, S_SPECIAL_KEYS, S_SPECIAL_KEYS_SETUP, S_DEADZONE,
+  S_TOUCH_MODE, S_TAP_TIME, S_MOUSE_ACCEL, S_SPECIAL_KEYS, S_SPECIAL_KEYS_SETUP, S_DEADZONE,
   S_REMOTE, S_RFI, S_SOPS, S_FRAME_PACER, S_VBLANK, S_PINNING, S_KEEPALIVE, S_MSAA
 };
 
@@ -508,8 +510,16 @@ static const setting_row k_rows[] = {
    N_("Interface language. Takes effect immediately.")},
   {S_THEME, CAT_GENERAL, ROW_CHOICE, N_("Theme"),
    N_("Colours and background of the menus. Takes effect immediately.")},
+  {S_TWINKLE, CAT_GENERAL, ROW_TOGGLE, N_("Twinkling stars"),
+   N_("The small stars of the menus' background twinkle gently.")},
+  {S_MOVING_SKY, CAT_GENERAL, ROW_CHOICE, N_("Moving sky"),
+   N_("The stars of the menus' background turn around the moon: one turn in 32, 16, 8 or 4 minutes, from very slow to fast.")},
+  {S_SKY_DIRECTION, CAT_GENERAL, ROW_CHOICE, N_("Turning direction"),
+   N_("Which way the stars of the moving sky turn around the moon.")},
   {S_SHOW_STATS, CAT_GENERAL, ROW_TOGGLE, N_("Statistics while streaming"),
    N_("Frames, delay, network and sound at the top of the screen, updated every second.")},
+  {S_LIBRARY_STATS, CAT_GENERAL, ROW_TOGGLE, N_("Statistics in the library"),
+   N_("Under each game, the figures of its last session: frames shown, delay, frames lost.")},
   {S_SWAP_XO, CAT_GENERAL, ROW_TOGGLE, N_("Swap X and O in the menus"),
    N_("O confirms and X goes back, as on Japanese consoles.")},
   {S_KEEP_AWAKE, CAT_GENERAL, ROW_TOGGLE, N_("Keep the Vita awake"),
@@ -561,7 +571,7 @@ static const setting_row k_rows[] = {
   {S_MAPPING, CAT_CONTROLS, ROW_TOGGLE, N_("Button mapping file"),
    N_("Uses mappings/vita.conf from VitaMoon's folder. Turns the swap above off.")},
   {S_PS_CAPTURE, CAT_CONTROLS, ROW_TOGGLE, N_("PS button sent to the PC"),
-   N_("The PS button is sent to the game instead of opening the Vita home screen.")},
+   N_("One press goes to the PC (Steam's menu, for example). Press twice quickly for the Vita home screen.")},
   {S_DOUBLE_TAP_SPRINT, CAT_CONTROLS, ROW_TOGGLE, N_("Double tap to sprint"),
    N_("Pushing the left stick twice in a row holds the sprint button.")},
   {S_SPRINT_TIME, CAT_CONTROLS, ROW_CHOICE, N_("Double tap delay"),
@@ -578,6 +588,8 @@ static const setting_row k_rows[] = {
   /* Touch */
   {S_TOUCH_MODE, CAT_TOUCH, ROW_CHOICE, N_("Front touch screen"),
    N_("Trackpad: swipe moves the pointer, tap clicks. Or a PlayStation touch pad, direct pointing, a pen tablet (Sunshine).")},
+  {S_TAP_TIME, CAT_TOUCH, ROW_CHOICE, N_("Tap to click"),
+   N_("Trackpad mode: longest touch that still clicks. Longer clicks more easily, shorter less by accident.")},
   {S_MOUSE_ACCEL, CAT_TOUCH, ROW_CHOICE, N_("Pointer acceleration"),
    N_("Trackpad mode: the pointer travels further for the same swipe. 0: off.")},
   {S_SPECIAL_KEYS, CAT_TOUCH, ROW_TOGGLE, N_("Corner shortcuts"),
@@ -619,6 +631,9 @@ static const int k_packet_values[] = {1024, 1200, 1392};
 static const int k_reorder_values[] = {0, 10, 20, 30};
 /* 0 is the original behaviour: the screen works like a laptop trackpad */
 static const char *k_touch_names[] = {N_("Trackpad"), N_("PS touch pad"), N_("Direct pointing"), N_("Pen tablet")};
+/* Moving sky, by config.sky_speed (orbit.h gives each its time for one turn). */
+static const char *k_sky_speed_names[SKY_SPEED_COUNT] = {N_("Off"), N_("Very slow"), N_("Slow"), N_("Medium"), N_("Fast")};
+_Static_assert(SKY_SPEED_COUNT == ORBIT_SPEEDS, "one time for one turn per speed of the moving sky");
 static const char *k_keyboard_names[] = {N_("English (US)"), N_("Spanish (Spain)"), N_("Spanish (Latin America)"),
                                           N_("Text, any PC layout")};
 
@@ -755,6 +770,8 @@ static bool row_enabled(int id) {
     case S_MOTION_X:
     case S_MOTION_Y: return config.enable_motion_controls;
     case S_MOUSE_ACCEL: return config.touchscreen_mode == 0;
+    case S_TAP_TIME: return config.touchscreen_mode == 0;
+    case S_SKY_DIRECTION: return config.sky_speed != SKY_STILL;
     case S_SPECIAL_KEYS_SETUP: return config.enable_front_touchzones;
     case S_FRAME_PACER:
     case S_VBLANK: return config.display_mode == DISPLAY_MODE_DIRECT;
@@ -765,6 +782,8 @@ static bool row_enabled(int id) {
 static bool row_is_on(int id) {
   switch (id) {
     case S_SHOW_STATS: return config.show_fps;
+    case S_LIBRARY_STATS: return config.library_stats;
+    case S_TWINKLE: return config.twinkle_stars;
     case S_SWAP_XO: return config.jp_layout;
     case S_KEEP_AWAKE: return config.disable_powersave;
     case S_AUTO_RECONNECT: return config.auto_reconnect;
@@ -856,6 +875,19 @@ static void row_value(int id, char *out, size_t n) {
     case S_MOUSE_ACCEL:
       snprintf(out, n, "%d", config.mouse_acceleration);
       break;
+    case S_TAP_TIME:
+      snprintf(out, n, "%d ms", config.tap_time_ms);
+      break;
+    case S_MOVING_SKY:
+      if (config.sky_speed <= SKY_STILL || config.sky_speed >= SKY_SPEED_COUNT)
+        snprintf(out, n, "%s", tr("Off"));
+      else
+        snprintf(out, n, "%s · %u min", tr(k_sky_speed_names[config.sky_speed]),
+                 (unsigned int)(k_orbit_turn_s[config.sky_speed] / 60));
+      break;
+    case S_SKY_DIRECTION:
+      snprintf(out, n, "%s", config.sky_anticlockwise ? tr("Anticlockwise") : tr("Clockwise"));
+      break;
   }
 }
 
@@ -877,6 +909,8 @@ static bool row_change(int id, int dir) {
   switch (id) {
     /* ---- toggles ---- */
     case S_SHOW_STATS: config.show_fps = !config.show_fps; return true;
+    case S_LIBRARY_STATS: config.library_stats = !config.library_stats; return true;
+    case S_TWINKLE: config.twinkle_stars = !config.twinkle_stars; return true;
     case S_SWAP_XO:
       config.jp_layout = !config.jp_layout;
       update_layout();
@@ -934,6 +968,13 @@ static bool row_change(int id, int dir) {
     case S_THEME:
       config.theme = (config.theme + THEME_COUNT + (step ? step : 1)) % THEME_COUNT;
       theme_select(config.theme);
+      return true;
+    case S_MOVING_SKY:
+      config.sky_speed = (config.sky_speed + SKY_SPEED_COUNT + (step ? step : 1)) % SKY_SPEED_COUNT;
+      theme_select(config.theme);   /* still: the picture with its stars; moving: without */
+      return true;
+    case S_SKY_DIRECTION:
+      config.sky_anticlockwise = !config.sky_anticlockwise;
       return true;
     case S_RESOLUTION: {
       int pos = resolution_position();
@@ -1064,6 +1105,15 @@ static bool row_change(int id, int dir) {
       // touchabsolute only in the direct pointing mode
       touchabsolute_enable(config.touchscreen_mode == 2);
       return true;
+    case S_TAP_TIME: {
+      int value = config.tap_time_ms + step * TAP_TIME_STEP;
+      if (value < TAP_TIME_MIN) value = TAP_TIME_MIN;
+      if (value > TAP_TIME_MAX) value = TAP_TIME_MAX;
+      if (value == config.tap_time_ms)
+        return false;
+      config.tap_time_ms = value;
+      return true;
+    }
     case S_MOUSE_ACCEL: {
       int value = config.mouse_acceleration + step * 15;
       if (value < 0) value = 0;
@@ -1098,8 +1148,10 @@ static const char *row_blocked_reason(int id) {
     case S_SPRINT_TIME: return tr("Turn on Double tap to sprint first.");
     case S_MOTION_X:
     case S_MOTION_Y: return tr("Turn on Motion sensors first.");
-    case S_MOUSE_ACCEL: return tr("Only used when the front touch screen is a trackpad.");
+    case S_MOUSE_ACCEL:
+    case S_TAP_TIME: return tr("Only used when the front touch screen is a trackpad.");
     case S_SPECIAL_KEYS_SETUP: return tr("Turn on Corner shortcuts first.");
+    case S_SKY_DIRECTION: return tr("Turn on Moving sky first.");
     case S_FRAME_PACER:
     case S_VBLANK: return tr("Only used by the Direct display.");
     default: return "";

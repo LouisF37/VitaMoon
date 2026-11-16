@@ -48,6 +48,11 @@ static CONFIGURATION sample(void) {
   c.save_debug_log = true;
   c.enable_front_touchzones = true;
   c.mouse_acceleration = 175;
+  c.library_stats = true;
+  c.twinkle_stars = false;
+  c.sky_speed = 3;
+  c.sky_anticlockwise = true;
+  c.tap_time_ms = 150;
   c.enable_ref_frame_invalidation = true;
   c.stream.streamingRemotely = 1;
   c.enable_vita_vblank_wait = true;
@@ -99,6 +104,7 @@ int main(void) {
   config_file_parse((char *)k_file, &b);
 
 #define SAME(field) CHECK(a.field == b.field, "round trip: " #field)
+  SAME(library_stats); SAME(twinkle_stars); SAME(sky_speed); SAME(sky_anticlockwise); SAME(tap_time_ms);
   SAME(stream.width); SAME(stream.height); SAME(stream.fps); SAME(stream.bitrate);
   SAME(auto_bitrate); SAME(stream.packetSize); SAME(sops); SAME(localaudio);
   SAME(enable_frame_pacer); SAME(center_region_only); SAME(disable_powersave); SAME(jp_layout);
@@ -147,7 +153,7 @@ int main(void) {
              "touchscreen_mode = -2\ncontroller_type = 0\nmouse_acceleration = 4000\n"
              "motion_controls_scalar_x = nan\nmotion_controls_scalar_y = 99\n"
              "double_tap_sprint_step_time = 5\nlanguage = 7\npacket_size = 1300\ntheme = 9\n"
-             "keyboard_layout = 12\n");
+             "keyboard_layout = 12\ntap_time_ms = 30\nsky_speed = 9\n");
   config_file_parse((char *)k_file, &c);
   config_sanitize(&c);
   CHECK(c.stream.width == 960 && c.stream.height == 544, "sanitize: resolution back to 960x544");
@@ -156,6 +162,8 @@ int main(void) {
   CHECK(c.display_mode == DISPLAY_MODE_SMOOTH, "sanitize: unknown display mode back to Smooth");
   CHECK(c.touchscreen_mode == 0 && c.controller_type == 2, "sanitize: touch mode and controller type");
   CHECK(c.mouse_acceleration == 150, "sanitize: mouse acceleration");
+  CHECK(c.tap_time_ms == TAP_TIME_DEFAULT, "sanitize: tap time out of 100..250 back to 250");
+  CHECK(c.sky_speed == SKY_STILL, "sanitize: unknown sky speed back to a still sky");
   CHECK(c.motion_controls_scalar_x > 1.19f && c.motion_controls_scalar_x < 1.21f, "sanitize: NaN motion scale");
   CHECK(c.motion_controls_scalar_y > 0.79f && c.motion_controls_scalar_y < 0.81f, "sanitize: huge motion scale");
   CHECK(c.double_tap_sprint_step_time == 200, "sanitize: sprint tap time");
@@ -163,6 +171,14 @@ int main(void) {
   CHECK(c.theme == 0, "sanitize: unknown theme back to Night");
   CHECK(c.keyboard_layout == CONFIG_KEYBOARD_TEXT, "sanitize: unknown keyboard layout back to text");
   CHECK(c.stream.packetSize == 1300, "sanitize: a valid packet size is kept");
+  /* Pointer acceleration 0 is "off" in the settings: it survives a restart. */
+  memset(&c, 0, sizeof(c));
+  write_text("mouse_acceleration = 0\ntap_time_ms = 100\nsky_speed = 4\n");
+  config_file_parse((char *)k_file, &c);
+  config_sanitize(&c);
+  CHECK(c.mouse_acceleration == 0, "sanitize: acceleration 0 (off) is kept");
+  CHECK(c.tap_time_ms == 100, "sanitize: a tap time of 100 ms is kept");
+  CHECK(c.sky_speed == SKY_SPEED_COUNT - 1, "sanitize: the fastest sky is kept");
   CONFIGURATION good = sample();
   CONFIGURATION copy = good;
   config_sanitize(&copy);

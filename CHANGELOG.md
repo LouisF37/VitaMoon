@@ -3,6 +3,57 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.0.0-beta.11 "Nouvelle Lune" (2026-11-16)
+
+From the first sessions on a Vita: the library, the trackpad and the menus' sky.
+
+### Added
+
+- **Library: when each game was last played.** Under the title: "Last played today at 19:46 · 7 min"
+  (yesterday, 2 to 6 days ago, then the date), or "Never started from this Vita". It replaces the
+  figures of the last session, now an option: Settings > General > *Statistics in the library* (off).
+- **Library order and favourites.** Favourites first, then the games played from this Vita, the
+  most recent first, then the others in the PC's order. SELECT makes the focused game a favourite
+  (a star on its cover) or no longer one; favourites are kept by game in `<data>/favorites.txt`.
+- **Twinkling stars** (Settings > General, on): each small star of the menus' background brightens
+  gently once every 2.5 to 6 s, at its own moment, never all at once and never from one frame to
+  the next.
+- **Moving sky** (Settings > General, off): the stars turn around the moon, one turn in 32, 16, 8
+  or 4 minutes (*Very slow* to *Fast*), clockwise or anticlockwise (*Turning direction*). The
+  theme's picture is then drawn without its stars (`assets/bg_<theme>_sky.png`, by
+  `tools/make_background.py`) and the app draws them turning: as many and as bright as in the still
+  picture at every moment, fewer and dimmer towards the horizon, none over the moon or behind the top
+  bar's text. Changing the speed or the direction does not make them jump; the sky only turns while
+  the menus are shown and nothing of it is drawn during a stream.
+- **Tap to click** (Settings > Touch, trackpad mode): the longest touch that still clicks, 100 to
+  250 ms by 50 (250 by default).
+
+### Changed
+
+- **Trackpad: tap and swipe** follow Moonlight for Android (250 ms, 20 pixels): a touch lifted in time
+  without moving more than 20 pixels clicks; a touch that moves further moves the pointer at once.
+  VitaMoon counted only the time, 100 ms, too short for many taps, and a swipe could not move the
+  pointer before it had passed.
+- The PS button's description says what it does: one press goes to the PC (Steam's menu, for
+  example), two quick presses go to the Vita's home screen.
+
+### Fixed
+
+- **Pointer acceleration 0** ("off" in Settings) went back to 150 at the next start.
+
+### Tests
+
+- `test_library`: the "last played" wording (today, yesterday, days, dates across a new year, a clock
+  set back), the library order, the twinkle (bounded, smooth, its own moment for each star), the moving
+  sky (its speeds and directions, no jump on a change or after a stream, never over the moon, as much
+  light as the still picture at every moment, no star popping in or out) and the tap rule.
+  `test_config`: the new settings round trip and are sanitized. 344 PC checks.
+- The preview renders the library (scenarios `library`, `library_stats`) and the sky settings
+  (`sky_setting`); scenario `sky` with `PREVIEW_SKY_SPEED`, `PREVIEW_SKY_ANTICLOCKWISE` and
+  `PREVIEW_TIME_SCALE` (time n times faster) gives videos of the moving sky.
+- The journeys follow the new library order (the game last played comes first; the classic menu keeps
+  the PC's order), and every preview run starts without favourites.
+
 ## 1.0.0-beta.10 "Nouvelle Lune" (2026-11-16)
 
 From the first sessions on a Vita: the start of the app and the first opening of Settings.

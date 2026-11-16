@@ -109,6 +109,17 @@ Colour themes: `src/gui/theme.c` holds five palettes (`k_themes`); `theme_select
 any picture). Colours that carry a meaning (OK, warning, error, the PlayStation symbols) are the same
 in every theme.
 
+Stars of the background: `tools/make_background.py --stars` writes `src/gui/stars.h`, where the stars
+of each picture are and, for the moving sky, a ring of stars around the moon (offset from its centre,
+size, brightness and the height below which each one sets). With *Twinkling stars*, `theme.c` draws a
+soft dot over each still star (`twinkle.h`: when and how much). With *Moving sky*, `theme_select()`
+loads the picture without its stars (`assets/bg_<theme>_sky.png`) and `theme.c` draws the ring turned
+by one angle, which `orbit_advance()` (`orbit.h`) moves on each frame from where it was, at the speed
+and in the direction chosen: changing either does not make the stars jump, and the sky does not move
+while no menu is drawn. Only the stars on the screen are drawn (about as many as the still picture
+has); the horizon and the top bar are applied where each star is at the time. The dot is one 16 × 16
+texture made at start-up.
+
 Type: Inter for the text (Regular up to 16 px, Light above), Poppins, the logo's typeface, for the
 titles (22 px and above). Each size has its own vita2d font instance, its glyphs prepared at start-up.
 
@@ -151,7 +162,8 @@ Moonlight, which keeps `ux0:data/moonlight`.
 | `vitamoon.conf` | settings (`src/config.c`); unknown keys are ignored, out-of-range values reset |
 | `<PC name>/` | per PC: client certificate and key, unique ID, `device.ini` (addresses, MAC, paired) |
 | `stats/session-<date>.csv`, `.txt` | per stream: one line per second, settings and percentiles |
-| `stats/last_<app>.txt` | figures of the last session of each game, for the library |
+| `stats/last_<app>.txt` | figures of the last session of each game, for the library (when it was last played, its order, its figures) |
+| `favorites.txt` | the library's favourites, one app id per line |
 | `boxart/<PC>/<app>.cover` | cover art, resized for the library |
 | `vitamoon.log`, `vitamoon.1.log` .. `vitamoon.4.log` | the log of this run and of the four before (`src/log.c`) |
 

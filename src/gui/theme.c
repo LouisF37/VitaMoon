@@ -13,6 +13,9 @@
 #include "guilib.h"
 #include "text_cover.h"
 #include "title_font_cover.h"
+#include "stars.h"
+#include "twinkle.h"
+#include "orbit.h"
 #include "../config.h"
 #include "../app_info.h"
 #include "../i18n.h"
@@ -70,6 +73,12 @@ static th_face faces[] = {
 #define FACE_COUNT ((int)(sizeof(faces) / sizeof(faces[0])))
 
 static vita2d_texture *background = NULL;
+/* With "Moving sky", the picture without its stars (bg_<slug>_sky.png), over
+ * which theme.c draws them turning. background_sky says which one is loaded;
+ * background_asked what theme_select() last asked for, so that a missing sky
+ * picture is not looked for again at every call. */
+static bool background_sky = false;
+static bool background_asked = false;
 /* Backgrounds replaced during a frame: that frame may already have drawn them,
  * and the GPU reads them only once the frame is submitted, so they are freed
  * by theme_end_frame(), after ui_end() has waited for the GPU. */
@@ -130,12 +139,23 @@ void theme_select(int index) {
   if (index < 0 || index >= THEME_COUNT)
     index = THEME_NIGHT;
   th_pal = k_themes[index].pal;
-  if (index == current_theme && background)
+  bool sky = config.sky_speed != SKY_STILL;
+  if (index == current_theme && background && sky == background_asked)
     return;
   current_theme = index;
+  background_asked = sky;
   char path[96];
-  snprintf(path, sizeof(path), ASSET_PREFIX "bg_%s.png", k_themes[index].slug);
-  vita2d_texture *picture = vita2d_load_PNG_file(path);
+  vita2d_texture *picture = NULL;
+  bool got_sky = false;
+  if (sky) {
+    snprintf(path, sizeof(path), ASSET_PREFIX "bg_%s_sky.png", k_themes[index].slug);
+    picture = vita2d_load_PNG_file(path);
+    got_sky = picture != NULL;
+  }
+  if (!picture) {   /* still sky, or its picture is missing: the stars stay still */
+    snprintf(path, sizeof(path), ASSET_PREFIX "bg_%s.png", k_themes[index].slug);
+    picture = vita2d_load_PNG_file(path);
+  }
   if (!picture)
     return;   /* keep the previous picture, or the plain gradient */
   if (background) {
@@ -151,6 +171,7 @@ void theme_select(int index) {
     retired[retired_count++] = background;
   }
   background = picture;
+  background_sky = got_sky;
 }
 
 void theme_end_frame(void) {
@@ -175,7 +196,9 @@ static void *read_file(const char *path, unsigned int *size) {
   return buf;
 }
 
-/* What the first frame needs: the background picture and the mark. */
+static void make_star_dot(void);
+
+/* What the first frame needs: the background picture, the mark, the star dot. */
 void theme_init_display(void) {
   static bool done = false;
   if (done)
@@ -183,6 +206,7 @@ void theme_init_display(void) {
   done = true;
   theme_select(config.theme);
   logo_mark = vita2d_load_PNG_file(ASSET_PREFIX "logo_mark.png");
+  make_star_dot();
 }
 
 void theme_load_fonts(void) {
@@ -414,11 +438,103 @@ int theme_wrap(int size, const char *text, int max_w, char lines[][256], int max
 
 /* ---------------- shapes ---------------- */
 
+_Static_assert(sizeof(k_theme_star_count) / sizeof(k_theme_star_count[0]) == THEME_COUNT,
+               "stars.h has one list per theme (tools/make_background.py --stars)");
+_Static_assert(sizeof(k_theme_orbit_count) / sizeof(k_theme_orbit_count[0]) == THEME_COUNT,
+               "stars.h has one turning sky per theme (tools/make_background.py --stars)");
+
+/* A soft white dot, made once: drawn over the stars of the picture to make them
+ * twinkle (twinkle.h). Gaussian of STAR_DOT_SIGMA pixels at the texture's size. */
+#define STAR_DOT_SIZE 16
+#define STAR_DOT_SIGMA 3.0f
+static vita2d_texture *star_dot = NULL;
+
+static void make_star_dot(void) {
+  star_dot = vita2d_create_empty_texture(STAR_DOT_SIZE, STAR_DOT_SIZE);
+  if (!star_dot)
+    return;
+  unsigned char *data = vita2d_texture_get_datap(star_dot);
+  unsigned int stride = vita2d_texture_get_stride(star_dot);
+  const float c = STAR_DOT_SIZE / 2.0f;
+  for (int y = 0; y < STAR_DOT_SIZE; y++) {
+    for (int x = 0; x < STAR_DOT_SIZE; x++) {
+      float dx = x + 0.5f - c, dy = y + 0.5f - c;
+      float a = expf(-(dx * dx + dy * dy) / (2.0f * STAR_DOT_SIGMA * STAR_DOT_SIGMA));
+      unsigned char *p = data + y * stride + x * 4;
+      p[0] = p[1] = p[2] = 255;
+      p[3] = (unsigned char)(a * 255.0f + 0.5f);
+    }
+  }
+  vita2d_texture_set_filters(star_dot, SCE_GXM_TEXTURE_FILTER_LINEAR, SCE_GXM_TEXTURE_FILTER_LINEAR);
+}
+
+static void draw_dot(float x, float y, float spread, float alpha, unsigned int rgb);
+
+static void draw_stars(void) {
+  if (!config.twinkle_stars || !background || !star_dot || current_theme < 0 || current_theme >= THEME_COUNT)
+    return;
+  SceUInt64 now = sceKernelGetProcessTimeWide();
+  const bg_star *stars = k_theme_stars[current_theme];
+  for (int i = 0; i < k_theme_star_count[current_theme]; i++) {
+    /* the dot's spread a little wider than the star's, centred on it */
+    draw_dot(stars[i].x, stars[i].y, stars[i].size * 1.3f,
+             twinkle_alpha((uint32_t)i, stars[i].bright, now), RGBA8(255, 255, 255, 0));
+  }
+}
+
+/* The soft dot at (x, y), of spread `spread` px (its gaussian's sigma). */
+static void draw_dot(float x, float y, float spread, float alpha, unsigned int rgb) {
+  if (alpha < 0.01f)
+    return;
+  if (alpha > 1.0f)
+    alpha = 1.0f;
+  float scale = spread / STAR_DOT_SIGMA;
+  float half = STAR_DOT_SIZE / 2.0f * scale;
+  vita2d_draw_texture_tint_scale(star_dot, x - half, y - half, scale, scale,
+                                 rgb | ((unsigned int)(alpha * 255.0f + 0.5f) << 24));
+}
+
+/* Moving sky: every star of the ring turned by the same angle (orbit.h); only
+ * those on the screen are drawn, about as many as the still picture has. The
+ * light is that of make_background.py (white 0.92, 0.95, 1); twinkling, when
+ * on, adds the same brightening as over the still stars. */
+#define ORBIT_TWINKLE_SEED 4096u   /* other moments than the still stars' */
+static void draw_orbit(void) {
+  if (!star_dot || current_theme < 0 || current_theme >= THEME_COUNT)
+    return;
+  /* the angle moves on from where it was: changing the speed or the
+   * direction does not make the stars jump */
+  static double angle = 0.0;
+  static SceUInt64 last = 0;
+  SceUInt64 now = sceKernelGetProcessTimeWide();
+  angle = orbit_advance(angle, last && now > last ? now - last : 0, config.sky_speed, config.sky_anticlockwise);
+  last = now;
+  float c = cosf((float)angle), s = sinf((float)angle);
+  const orbit_star *stars = k_theme_orbit[current_theme];
+  const unsigned int star_rgb = RGBA8(235, 242, 255, 0);
+  for (int i = 0; i < k_theme_orbit_count[current_theme]; i++) {
+    float x, y;
+    orbit_place(ORBIT_CX, ORBIT_CY, stars[i].dx, stars[i].dy, c, s, &x, &y);
+    float light = orbit_light(x, y, stars[i].bright, stars[i].depth);
+    if (light < 1.0f)
+      continue;
+    draw_dot(x, y, orbit_spread(stars[i].size), orbit_alpha(stars[i].size, light), star_rgb);
+    if (config.twinkle_stars)
+      draw_dot(x, y, orbit_spread(stars[i].size * 1.3f),
+               twinkle_alpha(ORBIT_TWINKLE_SEED + (uint32_t)i, light, now), RGBA8(255, 255, 255, 0));
+  }
+}
+
 void theme_draw_background(void) {
-  if (background)
+  if (background) {
     vita2d_draw_texture(background, 0, 0);
-  else
+    if (background_sky)
+      draw_orbit();
+    else
+      draw_stars();
+  } else {
     theme_vgradient(0, 0, WIDTH, HEIGHT, th_pal.sky_top, th_pal.sky_bottom);
+  }
 }
 
 void theme_rect(float x, float y, float w, float h, unsigned int color) {

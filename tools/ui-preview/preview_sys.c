@@ -183,7 +183,17 @@ int sceTouchPeek(SceUInt32 port, SceTouchData *data, SceUInt32 count) {
 }
 int sceTouchSetSamplingState(SceUInt32 port, SceTouchSamplingState state) { return 0; }
 
-SceUInt64 sceKernelGetProcessTimeWide(void) { return (SceUInt64)frame * 16683 + slept_us; }
+/* PREVIEW_TIME_SCALE=<n>: time runs n times faster (a sped-up video of a slow
+ * animation, such as the moving sky). */
+static SceUInt64 time_scale(void) {
+  static SceUInt64 scale = 0;
+  if (!scale) {
+    const char *v = getenv("PREVIEW_TIME_SCALE");
+    scale = v && atoi(v) > 0 ? (SceUInt64)atoi(v) : 1;
+  }
+  return scale;
+}
+SceUInt64 sceKernelGetProcessTimeWide(void) { return ((SceUInt64)frame * 16683 + slept_us) * time_scale(); }
 unsigned int preview_glyph_cost_us = 0;
 void preview_spend(unsigned int us) {
   slept_us += us;

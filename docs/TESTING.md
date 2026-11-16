@@ -21,6 +21,7 @@ by CI on every push.
 | `test_log.c` | the log's ring (order, wrap-around, whole lines refused when full), its token buckets (burst, refill, report of the lines left out) and the folding of repeated lines |
 | `test_ui.c` | which texts the title font can draw (Latin and its accents yes; Greek, Cyrillic, Japanese and malformed UTF-8 fall back to Inter), the picture of the waiting moon for each step and over the minute of reconnection, the interval between two pictures, every character of the translations among those rendered at start-up (`src/gui/prewarm.h`) |
 | `test_splash.c` | the start-up screen's timeline (`src/gui/splash_logic.h`): the moon never goes back nor skips its phases after a long step, the mark comes only once everything is loaded, the move ends exactly on the top bar's mark and name (`theme.h`), and the name never covers the mark on the way, for names narrower and wider than "VitaMoon" |
+| `test_library.c` | the library (`src/gui/library_logic.h`): "last played" (today, yesterday, days ago, dates across a new year and a clock set back) and the order (favourites, last played, the PC's order); the twinkle (`twinkle.h`): bounded, smooth from frame to frame, each star at its own moment; the moving sky (`orbit.h`, `stars.h`): four speeds, both directions, no jump on a change or after a stream, never over the moon, as much light as the still picture at every moment, no star popping in or out at the fastest speed; the trackpad's tap (`src/input/tap.h`): click, swipe, the tap time |
 | `test_mdns.c` | the network search's mDNS reader (`third_party/mdnsniff`): a Sunshine answer is understood (name, address, port); a name pointing to itself, two names pointing to each other, every cut of an answer, a record longer than its packet and 20000 random or damaged packets neither hang nor crash it |
 
 ## Interface preview (`tools/ui-preview`)
@@ -51,6 +52,10 @@ the start-up renders costs 0.5 ms of the virtual clock instead, about a Vita's p
 ```sh
 PREVIEW_FRAMES=/tmp/frames /tmp/screens/preview splash fr /tmp/screens/fr
 ```
+
+The `sky` scenario shows 12 s of the moving sky on the home screen (Slow, clockwise;
+`PREVIEW_SKY_SPEED=1..4`, `PREVIEW_SKY_ANTICLOCKWISE=1`). `PREVIEW_TIME_SCALE=<n>` makes time run
+n times faster, to see the stars' path in a short video (twinkling is then turned off).
 
 ### Journeys
 

@@ -96,15 +96,24 @@ int sceDisplayGetRefreshRate(float *fps) { *fps = 59.94f; return 0; }
 void LiInitializeStreamConfiguration(PSTREAM_CONFIGURATION c) { memset(c, 0, sizeof(*c)); }
 void boxart_prefetch(PSERVER_DATA server, PAPP_LIST apps) {}
 vita2d_texture *boxart_load_texture(PSERVER_DATA server, int app_id) { return NULL; }
+/* Sessions already played, for the library (the preview's clock says
+ * 2026-11-15 21:42): Final Fantasy IX today, Chrono Cross yesterday, Hollow
+ * Knight five days ago. */
 bool stream_stats_read_last(int app_id, stream_last_session *out) {
-  if (app_id != 1000 && app_id != 1002)
-    return false;
+  const char *when;
+  unsigned int seconds;
+  switch (app_id) {
+    case 1000: when = "2026-11-15 19:46"; seconds = 390; break;
+    case 1002: when = "2026-11-14 21:10"; seconds = 72 * 60; break;
+    case 1006: when = "2026-11-10 18:05"; seconds = 41 * 60; break;
+    default: return false;
+  }
   memset(out, 0, sizeof(*out));
-  out->shown_fps_x10 = 599;
-  out->r2p_ms_x10 = 142;
+  out->shown_fps_x10 = 580;
+  out->r2p_ms_x10 = 996;
   out->lost = app_id == 1002 ? 3 : 0;
-  out->seconds = 72 * 60;
-  snprintf(out->when, sizeof(out->when), "2026-11-14 21:10");
+  out->seconds = seconds;
+  snprintf(out->when, sizeof(out->when), "%s", when);
   return true;
 }
 
@@ -125,6 +134,63 @@ static void fake_hosts(void) {
   g_host_status[1].status = HOST_OFFLINE;
   g_host_status[2].status = HOST_IP_CHANGED;
   snprintf(g_host_status[2].current_ip, sizeof(g_host_status[2].current_ip), "192.168.1.90");
+}
+
+/* Five seconds of the home screen left alone: the stars twinkle
+ * (PREVIEW_FRAMES=<folder> to see every frame). */
+static void scenario_stars(void) {
+  fake_hosts();
+  preview_wait(150);
+  preview_snap("stars_1");
+  preview_wait(150);
+  preview_snap("stars_2");
+  ui_main_menu();
+}
+
+/* The moving sky (Settings > General), 12 s on the home screen: the stars turn
+ * around the moon (PREVIEW_FRAMES=<folder> for a video, PREVIEW_TIME_SCALE to
+ * see their path faster, PREVIEW_SKY_SPEED=1..4 and PREVIEW_SKY_ANTICLOCKWISE=1
+ * for the other speeds and the other way; Slow and clockwise otherwise). */
+static void scenario_sky(void) {
+  const char *speed = getenv("PREVIEW_SKY_SPEED");
+  config.sky_speed = speed && atoi(speed) > SKY_STILL && atoi(speed) < SKY_SPEED_COUNT ? atoi(speed) : 2;
+  config.sky_anticlockwise = getenv("PREVIEW_SKY_ANTICLOCKWISE") != NULL;
+  if (getenv("PREVIEW_TIME_SCALE"))
+    config.twinkle_stars = false;   /* sped up, it would flicker: the path only */
+  theme_select(config.theme);
+  fake_hosts();
+  preview_wait(12);
+  preview_snap("sky_1");
+  preview_wait(708);
+  preview_snap("sky_2");
+  ui_main_menu();
+}
+
+/* The moving sky in Settings > General: its speeds, then its direction. */
+static void scenario_sky_setting(void) {
+  preview_wait(12);
+  preview_press(SCE_CTRL_RIGHT);
+  for (int i = 0; i < 3; i++) preview_press(SCE_CTRL_DOWN);
+  preview_snap("sky_setting_1_off");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("sky_setting_2_direction_blocked");
+  preview_press(SCE_CTRL_UP);
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("sky_setting_3_very_slow");
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("sky_setting_4_slow");
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("sky_setting_5_medium");
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("sky_setting_6_fast");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("sky_setting_7_clockwise");
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("sky_setting_8_anticlockwise");
+  preview_press(SCE_CTRL_UP);
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("sky_setting_9_off_again");
+  ui_settings_menu();
 }
 
 static void scenario_home(void) {
@@ -243,7 +309,7 @@ static void scenario_settings_pages(void) {
   preview_wait(12);
   for (int i = 0; i < 4; i++) preview_press(SCE_CTRL_RTRIGGER);
   preview_press(SCE_CTRL_RIGHT);
-  for (int i = 0; i < 4; i++) preview_press(SCE_CTRL_DOWN);
+  for (int i = 0; i < 5; i++) preview_press(SCE_CTRL_DOWN);   /* to the rear dead zone */
   preview_press(SCE_CTRL_CROSS);
   preview_snap("settings_page_dead_zone");
   preview_press(SCE_CTRL_DOWN);
@@ -267,13 +333,36 @@ static void scenario_library(void) {
   gs_init(&server, "192.168.1.24", 47989, PREVIEW_KEY_DIR "/MINI-PC", 0, true);
   gs_applist(&server, &apps);
   preview_wait(12);
-  preview_snap("library_1_stats");
+  preview_snap("library_1_today");
   preview_press(SCE_CTRL_RIGHT);
-  preview_snap("library_2_never_played");
+  preview_snap("library_2_yesterday");
   preview_press(SCE_CTRL_RIGHT);
-  preview_snap("library_3_losses");
+  preview_snap("library_3_days_ago");
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("library_4_never_played");
+  preview_press(SCE_CTRL_SELECT);   /* favourite: it moves to the front */
+  preview_wait(10);
+  preview_snap("library_5_favourite");
   for (int i = 0; i < 5; i++) preview_press(SCE_CTRL_RIGHT);
-  preview_snap("library_4_end_of_shelf");
+  preview_snap("library_6_end_of_shelf");
+  preview_wait(4);
+  connection_reset();
+  connection_paired();
+  ui_library(&server, apps, "MINI-PC", &app_id);
+}
+
+/* The same with "Statistics in the library" on. */
+static void scenario_library_stats(void) {
+  static SERVER_DATA server;
+  static PAPP_LIST apps;
+  int app_id = 0;
+  config.library_stats = true;
+  gs_init(&server, "192.168.1.24", 47989, PREVIEW_KEY_DIR "/MINI-PC", 0, true);
+  gs_applist(&server, &apps);
+  preview_wait(12);
+  preview_snap("library_stats_1");
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("library_stats_2_losses");
   preview_wait(4);
   connection_reset();
   connection_paired();
@@ -440,6 +529,8 @@ int main(int argc, char **argv) {
   config_parse(1, no_args, &config);
   /* the pairing keys of the fake PCs (libgamestream makes them the first time) */
   snprintf(config.key_dir, sizeof(config.key_dir), "%s", PREVIEW_KEY_DIR);
+  /* every run starts without the favourites an earlier one left (library order) */
+  remove(PREVIEW_KEY_DIR "/favorites.txt");
   int lang = !strcmp(argv[2], "fr") ? LANG_FR : (!strcmp(argv[2], "es") ? LANG_ES : LANG_EN);
   config.language = lang;
   i18n_set_language(lang);
@@ -458,6 +549,9 @@ int main(int argc, char **argv) {
   gui_init();
 
   if (!strcmp(s, "home")) scenario_home();
+  else if (!strcmp(s, "stars")) scenario_stars();
+  else if (!strcmp(s, "sky")) scenario_sky();
+  else if (!strcmp(s, "sky_setting")) scenario_sky_setting();
   else if (!strcmp(s, "home_empty")) scenario_home_empty();
   else if (!strcmp(s, "home_wifi")) scenario_home_wifi();
   else if (!strcmp(s, "home_bt")) scenario_home_bt();
@@ -467,6 +561,7 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "settings_change")) scenario_settings_change();
   else if (!strcmp(s, "library")) scenario_library();
   else if (!strcmp(s, "library_running")) scenario_library_running();
+  else if (!strcmp(s, "library_stats")) scenario_library_stats();
   else if (journey_run(s)) {}
   else if (!strcmp(s, "dialogs")) scenario_dialogs();
   else if (!strcmp(s, "restart")) scenario_restart();

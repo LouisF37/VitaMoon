@@ -785,6 +785,7 @@ void guilib_load_icons(void) {
     // display thread the first time the Wi-Fi weakens.
     vita2d_font_text_width(font, 64, ICON_NETWORK);
     vita2d_font_text_width(font, 48, ICON_SPRINTING);
+    vita2d_font_text_width(font, ICON_STAR_SIZE, ICON_STAR);   // the library's favourites
   }
 }
 

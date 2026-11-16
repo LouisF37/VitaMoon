@@ -9,9 +9,14 @@
  * Library screen; see ui_library.h.
  *
  * Layout (960x544): top bar, a "hero" block for the selected game (title,
- * last-session figures, actions), a shelf of covers at the bottom and the
- * hint row. Covers come from the box-art cache (boxart.c); until a cover is
+ * when it was last played, actions; the last session's figures with the
+ * setting "Statistics in the library"), a shelf of covers at the bottom and
+ * the hint row. Covers come from the box-art cache (boxart.c); until a cover is
  * downloaded a coloured tile with the game's initials stands in for it.
+ *
+ * Order of the shelf (library_logic.h): favourites first (SELECT, kept in
+ * <data folder>/favorites.txt), then the most recently played, then the games
+ * never played from this Vita in the PC's order.
  */
 #include "ui_library.h"
 #include "preview_hooks.h"
@@ -21,8 +26,11 @@
 #include "../config.h"
 #include "../connection.h"
 #include "../video/stream_stats.h"
+#include "../log.h"
+#include "library_logic.h"
 
 #include <psp2/ctrl.h>
+#include <psp2/rtc.h>
 #include <psp2/touch.h>
 
 #include <ctype.h>
@@ -44,6 +52,7 @@
 #define HERO_META_Y 140
 #define HERO_CHIPS_Y 156
 #define ACTION_H 38
+#define LIB_STAR_COLOR RGBA8(0xF5, 0xC5, 0x42, 0xFF)   /* favourite star, every theme */
 
 typedef struct {
   int id;
@@ -53,8 +62,10 @@ typedef struct {
   vita2d_texture *tex;
   int retry_in;               /* frames before looking for the cover again */
   float focus;                /* 0..1, animated */
-  bool stats_loaded, has_stats;
+  bool has_stats;
   stream_last_session last;
+  bool favourite;
+  int pc_order;               /* position in the PC's list (Sunshine's order) */
 } lib_item;
 
 static lib_item items[MAX_ITEMS];
@@ -84,7 +95,104 @@ static void make_initials(const char *name, char out[4]) {
   out[n] = 0;
 }
 
+/* ---------------- favourites ---------------- */
+
+/* App ids, one per line in <data folder>/favorites.txt. Like the last-session
+ * files (stats/last_<id>.txt) they are kept by app id, whatever the PC. */
+#define MAX_FAVOURITES 256
+static int favourites[MAX_FAVOURITES];
+static int favourite_count = 0;
+
+static void favourites_path(char *out, size_t n) {
+  snprintf(out, n, "%.400s/favorites.txt", config.key_dir);
+}
+
+static void favourites_load(void) {
+  char path[512];
+  favourites_path(path, sizeof(path));
+  favourite_count = 0;
+  FILE *f = fopen(path, "r");
+  if (!f)
+    return;
+  int id;
+  while (favourite_count < MAX_FAVOURITES && fscanf(f, "%d", &id) == 1)
+    favourites[favourite_count++] = id;
+  fclose(f);
+}
+
+static void favourites_save(void) {
+  char path[512];
+  favourites_path(path, sizeof(path));
+  FILE *f = fopen(path, "w");
+  if (!f) {
+    LOGW("library", "favourites not saved: %s cannot be written", path);
+    return;
+  }
+  for (int i = 0; i < favourite_count; i++)
+    fprintf(f, "%d\n", favourites[i]);
+  fclose(f);
+}
+
+static bool is_favourite(int id) {
+  for (int i = 0; i < favourite_count; i++)
+    if (favourites[i] == id)
+      return true;
+  return false;
+}
+
+static void set_favourite(int id, bool on) {
+  for (int i = 0; i < favourite_count; i++) {
+    if (favourites[i] == id) {
+      if (!on) {
+        favourites[i] = favourites[--favourite_count];
+        favourites_save();
+      }
+      return;
+    }
+  }
+  if (on && favourite_count < MAX_FAVOURITES) {
+    favourites[favourite_count++] = id;
+    favourites_save();
+  }
+}
+
+/* ---------------- the shelf ---------------- */
+
+static lib_sort_key sort_key(const lib_item *it) {
+  lib_sort_key k = {it->favourite, it->has_stats ? it->last.when : "", it->pc_order};
+  return k;
+}
+
+/* Stable insertion sort: a few dozen games at most, already almost in order. */
+static void sort_items(void) {
+  for (int i = 1; i < item_count; i++) {
+    lib_item moving = items[i];
+    lib_sort_key key = sort_key(&moving);
+    int j = i - 1;
+    while (j >= 0) {
+      lib_sort_key other = sort_key(&items[j]);
+      if (lib_compare(&other, &key) <= 0)
+        break;
+      items[j + 1] = items[j];
+      j--;
+    }
+    items[j + 1] = moving;
+  }
+}
+
+static int index_of(int id) {
+  for (int i = 0; i < item_count; i++)
+    if (items[i].id == id)
+      return i;
+  return 0;
+}
+
 static void load_items(PAPP_LIST apps) {
+  favourites_load();
+  /* libgamestream links the apps in reverse: count them to number them as the PC lists them */
+  int total = 0;
+  for (PAPP_LIST a = apps; a && total < MAX_ITEMS; a = a->next)
+    total++;
   item_count = 0;
   for (PAPP_LIST a = apps; a && item_count < MAX_ITEMS; a = a->next) {
     lib_item *it = &items[item_count];
@@ -93,8 +201,46 @@ static void load_items(PAPP_LIST apps) {
     snprintf(it->name, sizeof(it->name), "%s", a->name ? a->name : "?");
     make_initials(it->name, it->initials);
     it->tint = tints[(unsigned)a->id % (sizeof(tints) / sizeof(tints[0]))];
+    it->has_stats = stream_stats_read_last(it->id, &it->last);
+    it->favourite = is_favourite(it->id);
+    it->pc_order = total - 1 - item_count;
     item_count++;
   }
+  sort_items();
+}
+
+/* "today at 19:46 · 6 min", "3 days ago · 1 h 12"... for the hero's line. */
+static void describe_last_session(const lib_item *it, char *out, size_t n) {
+  char when[64], length[32];
+  lib_moment then, today;
+  SceDateTime now;
+  if (lib_parse_moment(it->last.when, &then) && sceRtcGetCurrentClockLocalTime(&now) >= 0) {
+    today = (lib_moment){now.year, now.month, now.day, now.hour, now.minute};
+    int days = 0;
+    switch (lib_when(&then, &today, &days)) {
+      case LIB_WHEN_TODAY:
+        snprintf(when, sizeof(when), tr("today at %02d:%02d"), then.hour, then.minute);
+        break;
+      case LIB_WHEN_YESTERDAY:
+        snprintf(when, sizeof(when), tr("yesterday at %02d:%02d"), then.hour, then.minute);
+        break;
+      case LIB_WHEN_DAYS_AGO:
+        snprintf(when, sizeof(when), tr("%d days ago"), days);
+        break;
+      default:
+        snprintf(when, sizeof(when), tr("on %02d/%02d/%04d"), then.day, then.month, then.year);
+        break;
+    }
+  } else {
+    snprintf(when, sizeof(when), "%s", it->last.when);
+  }
+  unsigned int hours, minutes;
+  lib_duration_parts(it->last.seconds, &hours, &minutes);
+  if (hours)
+    snprintf(length, sizeof(length), tr("%u h %02u"), hours, minutes);
+  else
+    snprintf(length, sizeof(length), tr("%u min"), minutes);
+  snprintf(out, n, tr("Last played %s · %s"), when, length);
 }
 
 static void free_items(void) {
@@ -152,6 +298,14 @@ static void draw_cover(lib_item *it, float x, float bottom, float w, float h, bo
     theme_rounded_rect(x + 8, y + 8, bw, 20, 10, TH_OK);
     theme_text(x + 16, y + 22, TH_INK, TS_MICRO, label);
   }
+  if (it->favourite && font) {
+    /* a star in a dark disc, top right */
+    float cx = x + w - 17, cy = y + 17;
+    theme_circle(cx, cy, 12, theme_alpha(TH_INK, 170));
+    int sw = vita2d_font_text_width(font, ICON_STAR_SIZE, ICON_STAR);
+    vita2d_font_draw_text(font, (int)(cx - sw / 2.0f + 0.5f), (int)(cy + ICON_STAR_SIZE * 0.36f + 0.5f),
+                          theme_color(LIB_STAR_COLOR), ICON_STAR_SIZE, ICON_STAR);
+  }
   if (focused) {
     float r = it->tex ? 4 : 11;
     theme_rounded_outline(x - 2, y - 2, w + 4, h + 4, r, TH_TEXT);
@@ -165,22 +319,17 @@ static struct { int x, y, w; } play_button, quit_button;
 static void draw_hero(lib_item *it, bool running, bool other_running) {
   theme_text_fit(HERO_X, HERO_TITLE_Y, TH_TEXT, TS_HERO, it->name, HERO_MAX_W);
 
-  if (!it->stats_loaded) {
-    it->has_stats = stream_stats_read_last(it->id, &it->last);
-    it->stats_loaded = true;
-  }
-
-  char meta[160];
+  char meta[200];
   if (running)
     snprintf(meta, sizeof(meta), "%s", tr("Running on the PC: pick up where you left off"));
   else if (it->has_stats)
-    snprintf(meta, sizeof(meta), tr("Last session: %s, %u min"), it->last.when, (it->last.seconds + 59) / 60);
+    describe_last_session(it, meta, sizeof(meta));
   else
     snprintf(meta, sizeof(meta), "%s", tr("Never played from this Vita"));
   theme_text_fit(HERO_X, HERO_META_Y, TH_TEXT3, TS_HINT, meta, HERO_MAX_W);
 
   int ay = HERO_CHIPS_Y + 4;
-  if (it->has_stats) {
+  if (it->has_stats && config.library_stats) {
     char v[32];
     int x = HERO_X;
     snprintf(v, sizeof(v), tr("%d.%d"), it->last.shown_fps_x10 / 10, it->last.shown_fps_x10 % 10);
@@ -218,14 +367,9 @@ int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *
   if (item_count == 0)
     return LIBRARY_OPTIONS;
 
-  int focus = 0;
+  /* the running game, else the one focused last time, else the first of the shelf */
   int wanted = server->currentGame ? server->currentGame : last_focus_id;
-  for (int i = 0; i < item_count; i++) {
-    if (items[i].id == wanted) {
-      focus = i;
-      break;
-    }
-  }
+  int focus = index_of(wanted);
   items[focus].focus = 1.0f;
 
   float scroll = 0.0f;
@@ -307,6 +451,13 @@ int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *
     } else if ((((buttons & SCE_CTRL_SQUARE) && !hold) || tap_quit) && running_id != 0) {
       result = LIBRARY_QUIT_APP;
       break;
+    } else if ((buttons & SCE_CTRL_SELECT) && !hold) {
+      /* favourite or not: the shelf takes its new order, the focus stays on the game */
+      int id = cur->id;
+      cur->favourite = !cur->favourite;
+      set_favourite(id, cur->favourite);
+      sort_items();
+      focus = index_of(id);
     } else if ((buttons & SCE_CTRL_TRIANGLE) && !hold) {
       result = LIBRARY_OPTIONS;
       break;
@@ -379,7 +530,7 @@ int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *
     draw_cover(cur, x, SHELF_BOTTOM, COVER_W + (COVER_FW - COVER_W) * cur->focus,
                COVER_H + (COVER_FH - COVER_H) * cur->focus, true, running);
 
-    theme_hint_item hints[5];
+    theme_hint_item hints[6];
     int n = 0;
     if (other_running) {
       hints[n++] = (theme_hint_item){GLYPH_SQUARE, tr("Quit running game")};
@@ -388,6 +539,7 @@ int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *
       if (running)
         hints[n++] = (theme_hint_item){GLYPH_SQUARE, tr("Quit game")};
     }
+    hints[n++] = (theme_hint_item){GLYPH_SELECT, cur->favourite ? tr("Unfavourite") : tr("Favourite")};
     hints[n++] = (theme_hint_item){GLYPH_TRIANGLE, tr("Options")};
     hints[n++] = (theme_hint_item){GLYPH_START, tr("Settings")};
     hints[n++] = (theme_hint_item){theme_cancel_glyph(), tr("Back")};

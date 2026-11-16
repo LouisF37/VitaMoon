@@ -78,6 +78,9 @@ typedef struct {
   const char *expect[MAX_ITEMS];   /* log lines in order; "text*" matches a start */
 } journey;
 
+/* The library opens on the game last played from this Vita (preview_main.c
+ * gives 1000, 1002 and 1006 a last session, in that order), or on the game
+ * running on the PC: 1000 in both cases, 1002 next to it. */
 #define PC_IDLE    {.answers = true, .paired = true, .pair_result = GS_OK}
 #define PC_RUNNING {.answers = true, .paired = true, .running = 1000, .pair_result = GS_OK}
 
@@ -85,45 +88,45 @@ static const journey k_journeys[] = {
   {"j_play", PC_IDLE, true, 1,
    {{"library", {X}}},
    {{AT_PLAYING, 5000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007", "connect", "stop", "home"}},
+   {"open*", "library", "launch 1000", "connect", "stop", "home"}},
 
   {"j_pause_resume_quit", PC_IDLE, true, 1,
    {{"library", {X}}, {"library", {X}}, {"library", {SQ}}, {"library", {O}}},
    {{AT_PLAYING, 3000, DO_PAUSE}, {AT_PLAYING, 3000, DO_PAUSE}},
-   {"open*", "library", "launch 1007", "connect", "library", "library", "stop", "quit 1007", "library",
+   {"open*", "library", "launch 1000", "connect", "library", "library", "stop", "quit 1000", "library",
     "home"}},
 
   {"j_quickmenu_quit", PC_IDLE, true, 1,
    {{"library", {X}}, {"library", {O}}},
    {{AT_PLAYING, 3000, DO_QUIT}},
-   {"open*", "library", "launch 1007", "connect", "stop", "quit 1007", "library", "home"}},
+   {"open*", "library", "launch 1000", "connect", "stop", "quit 1000", "library", "home"}},
 
   {"j_lost_reconnect", PC_IDLE, true, 1,
    {{"library", {X}}},
    {{AT_PLAYING, 30000, DO_LOSE, -1}, {AT_PLAYING, 5000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007", "connect", "stop", "resume 1007", "connect", "stop", "home"}},
+   {"open*", "library", "launch 1000", "connect", "stop", "resume 1000", "connect", "stop", "home"}},
 
   {"j_lost_cancel", PC_IDLE, true, 1,
    {{"library", {X}}},
    {{AT_PLAYING, 30000, DO_LOSE, -1}, {AT_RECONNECTING, 300, DO_CANCEL}},
-   {"open*", "library", "launch 1007", "connect", "stop", "home"}},
+   {"open*", "library", "launch 1000", "connect", "stop", "home"}},
 
   {"j_lost_gives_up", PC_IDLE, true, 1,
    {{"library", {X}}, {"alert", {X}}},
    {{AT_PLAYING, 30000, DO_LOSE, -1, 1000}},
-   {"open*", "library", "launch 1007", "connect", "stop", "resume 1007 refused", "alert: Could not reconnect*",
+   {"open*", "library", "launch 1000", "connect", "stop", "resume 1000 refused", "alert: Could not reconnect*",
     "home"}},
 
   {"j_lost_quickly_three_times", PC_IDLE, true, 1,
    {{"library", {X}}, {"alert", {X}}},
    {{AT_PLAYING, 2000, DO_LOSE, -1}, {AT_PLAYING, 2000, DO_LOSE, -1}, {AT_PLAYING, 2000, DO_LOSE, -1}},
-   {"open*", "library", "launch 1007", "connect", "stop", "resume 1007", "connect", "stop", "resume 1007",
+   {"open*", "library", "launch 1000", "connect", "stop", "resume 1000", "connect", "stop", "resume 1000",
     "connect", "stop", "alert: The connection keeps dropping*", "home"}},
 
   {"j_switch_game", PC_RUNNING, true, 1,
    {{"library", {RT, X}}, {"confirm", {X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "confirm: *", "quit 1000", "launch 1001", "connect", "stop", "home"}},
+   {"open*", "library", "confirm: *", "quit 1000", "launch 1002", "connect", "stop", "home"}},
 
   {"j_resume_running_game", PC_RUNNING, true, 1,
    {{"library", {X}}},
@@ -133,59 +136,60 @@ static const journey k_journeys[] = {
   {"j_classic_menu_launch", PC_IDLE, true, 1,
    {{"library", {TRI}}, {"menu", {DN, X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
+   /* the classic menu keeps the PC's order: its first game is 1007 */
    {"open*", "library", "menu", "launch 1007", "connect", "stop", "home"}},
 
   {"j_settings_during_pause_restart", PC_IDLE, true, 1,
    {{"library", {X}}, {"library", {ST}}, {"settings", {RTR, RT, DN, DN, RT, O, O}}, {"library", {X}},
     {"confirm", {X}}},
    {{AT_PLAYING, 3000, DO_PAUSE}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007", "connect", "library", "settings", "library", "confirm: *", "stop",
-    "resume 1007", "connect", "stop", "home"}},
+   {"open*", "library", "launch 1000", "connect", "library", "settings", "library", "confirm: *", "stop",
+    "resume 1000", "connect", "stop", "home"}},
 
   {"j_connect_fails_then_works", {.answers = true, .paired = true, .fail_connect = 1}, true, 1,
    {{"library", {X}}, {"alert", {X}}, {"library", {X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007", "connect failed", "alert: *", "library", "resume 1007", "connect", "stop",
+   {"open*", "library", "launch 1000", "connect failed", "alert: *", "library", "resume 1000", "connect", "stop",
     "home"}},
 
   {"j_pc_refuses_then_works", {.answers = true, .paired = true, .refuse_start = 1}, true, 1,
    {{"library", {X}}, {"alert", {X}}, {"library", {X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007 refused", "alert: *", "library", "launch 1007", "connect", "stop", "home"}},
+   {"open*", "library", "launch 1000 refused", "alert: *", "library", "launch 1000", "connect", "stop", "home"}},
 
   {"j_back_and_reopen", PC_IDLE, true, 2,
    {{"library", {O}}, {"library", {X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "home", "open*", "library", "launch 1007", "connect", "stop", "home"}},
+   {"open*", "library", "home", "open*", "library", "launch 1000", "connect", "stop", "home"}},
 
   {"j_pc_ends_then_reopen", PC_IDLE, true, 2,
    {{"library", {X}}, {"library", {X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 1}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007", "connect", "stop", "home", "open*", "library", "launch 1007", "connect",
+   {"open*", "library", "launch 1000", "connect", "stop", "home", "open*", "library", "launch 1000", "connect",
     "stop", "home"}},
 
   {"j_stream_ends_without_quitting_the_game", PC_IDLE, true, 2,
    {{"library", {X}}, {"library", {X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 0}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007", "connect", "stop", "home", "open*", "library", "resume 1007", "connect",
+   {"open*", "library", "launch 1000", "connect", "stop", "home", "open*", "library", "resume 1000", "connect",
     "stop", "home"}},
 
   {"j_pause_then_pc_ends", PC_IDLE, true, 2,
    {{"library", {X}}, {"library", {}}, {"library", {X}}},
    {{AT_PLAYING, 3000, DO_PAUSE}, {AT_PAUSED, 2000, DO_PC_ENDS, 1}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007", "connect", "library", "stop", "home", "open*", "library", "launch 1007",
+   {"open*", "library", "launch 1000", "connect", "library", "stop", "home", "open*", "library", "launch 1000",
     "connect", "stop", "home"}},
 
   {"j_lost_during_pause", PC_IDLE, true, 2,
    {{"library", {X}}, {"library", {}}, {"library", {X}}},
    {{AT_PLAYING, 3000, DO_PAUSE}, {AT_PAUSED, 2000, DO_LOSE, -1}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007", "connect", "library", "stop", "home", "open*", "library", "resume 1007",
+   {"open*", "library", "launch 1000", "connect", "library", "stop", "home", "open*", "library", "resume 1000",
     "connect", "stop", "home"}},
 
   {"j_pc_forgot_the_vita", {.answers = true, .paired = false, .pair_result = GS_OK}, true, 1,
    {{"menu", {X}}, {"library", {X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "menu", "pair", "notice: *", "library", "launch 1007", "connect", "stop", "home"}},
+   {"open*", "menu", "pair", "notice: *", "library", "launch 1000", "connect", "stop", "home"}},
 
   {"j_pairing_cancelled", {.answers = true, .paired = false, .pair_result = GS_CANCELLED}, true, 1,
    {{"menu", {X, O}}},
@@ -206,14 +210,14 @@ static const journey k_journeys[] = {
   {"j_lost_and_game_closed_meanwhile", PC_IDLE, true, 1,
    {{"library", {X}}, {"alert", {X}}},
    {{AT_PLAYING, 30000, DO_LOSE_CLOSED, -1}},
-   {"open*", "library", "launch 1007", "connect", "stop", "resume 1007 refused",
+   {"open*", "library", "launch 1000", "connect", "stop", "resume 1000 refused",
     "alert: The game is no longer running on the PC*", "home"}},
 
   {"j_settings_during_pause_no_restart", PC_IDLE, true, 1,
    {{"library", {X}}, {"library", {ST}}, {"settings", {RTR, RT, DN, DN, RT, O, O}}, {"library", {X}},
     {"confirm", {O}}},
    {{AT_PLAYING, 3000, DO_PAUSE}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007", "connect", "library", "settings", "library", "confirm: *", "stop",
+   {"open*", "library", "launch 1000", "connect", "library", "settings", "library", "confirm: *", "stop",
     "home"}},
 
   {"j_switch_game_declined", PC_RUNNING, true, 1,
@@ -234,7 +238,7 @@ static const journey k_journeys[] = {
   {"j_classic_menu_resume_paused", PC_IDLE, true, 1,
    {{"library", {X}}, {"library", {TRI}}, {"menu", {X}}},
    {{AT_PLAYING, 3000, DO_PAUSE}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1007", "connect", "library", "menu", "stop", "home"}},
+   {"open*", "library", "launch 1000", "connect", "library", "menu", "stop", "home"}},
 
   {"j_pc_does_not_answer", {.answers = false}, true, 1,
    {{"alert", {X}}},

@@ -25,7 +25,7 @@ set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
 set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "0")
-set(VERSION_LABEL "beta.10")        # empty for a final release
+set(VERSION_LABEL "beta.11")        # empty for a final release
 set(VERSION_NAME "Nouvelle Lune")  # milestone name, shown in the docs
 if(VERSION_LABEL)
 	set(VERSION_TEXT "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_LABEL}")
@@ -223,6 +223,11 @@ add_custom_target(${PROJECT_NAME}.vpk ALL
 			--add ../assets/bg_aurora.png=assets/bg_aurora.png
 			--add ../assets/bg_twilight.png=assets/bg_twilight.png
 			--add ../assets/bg_eclipse.png=assets/bg_eclipse.png
+			--add ../assets/bg_night_sky.png=assets/bg_night_sky.png
+			--add ../assets/bg_dawn_sky.png=assets/bg_dawn_sky.png
+			--add ../assets/bg_aurora_sky.png=assets/bg_aurora_sky.png
+			--add ../assets/bg_twilight_sky.png=assets/bg_twilight_sky.png
+			--add ../assets/bg_eclipse_sky.png=assets/bg_eclipse_sky.png
 			--add ../assets/logo_mark.png=assets/logo_mark.png
 			--add ../assets/moon.png=assets/moon.png
 			${PROJECT_NAME}.vpk

@@ -11,6 +11,8 @@
 #define ICON_LEFT_RIGHT_ARROWS ICON_LEFT_ARROW ICON_RIGHT_ARROW
 #define ICON_NETWORK      "\xef\xa6\x8c"
 #define ICON_SPRINTING    "\xeF\xa5\xaD"
+#define ICON_STAR         "\xef\x80\x85"   /* U+F005, favourite games */
+#define ICON_STAR_SIZE    22
 
 
 typedef struct menu_entry {

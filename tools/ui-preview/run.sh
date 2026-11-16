@@ -8,7 +8,7 @@ out="${1:-$here/out}"
 : > "$out/report.txt"
 for lang in en fr es; do
   mkdir -p "$out/$lang"
-  for scenario in splash home home_empty home_wifi home_bt settings settings_change settings_pages library library_running dialogs restart connecting reconnect quickmenu pairing; do
+  for scenario in splash home home_empty home_wifi home_bt settings settings_change settings_pages sky_setting library library_stats library_running dialogs restart connecting reconnect quickmenu pairing; do
     "$out/preview" "$scenario" "$lang" "$out/$lang" 2>> "$out/report.$lang.tmp" || echo "$lang/$scenario: exit $?" >> "$out/report.txt"
   done
   sort -u "$out/report.$lang.tmp" | sed "s/^/[$lang] /" >> "$out/report.txt"
@@ -28,7 +28,7 @@ themes="night dawn aurora twilight eclipse"
 i=0
 for theme in $themes; do
   mkdir -p "$out/themes/$theme"
-  for scenario in home library settings quickmenu; do
+  for scenario in home library settings quickmenu sky; do
     PREVIEW_THEME=$i "$out/preview" "$scenario" fr "$out/themes/$theme" 2>/dev/null || echo "themes/$theme/$scenario: exit $?" >> "$out/report.txt"
   done
   i=$((i + 1))
