@@ -8,6 +8,10 @@ void preview_tap(int x, int y);
 void preview_snap(const char *name);
 /* Lets the preview run this many frames past the end of the script. */
 void preview_idle_tail(int frames);
+/* Time each glyph measured costs (virtual clock), to play the start-up screen at
+ * about a Vita's pace: 0 elsewhere. */
+extern unsigned int preview_glyph_cost_us;
+void preview_spend(unsigned int us);
 
 #include <stdbool.h>
 

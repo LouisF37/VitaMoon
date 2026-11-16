@@ -9,7 +9,7 @@ Embedded.
 
 | Folder | Content |
 |---|---|
-| `src/main.c` | start-up: data folder, log, settings, pairing name, network, then the menus |
+| `src/main.c` | start-up: data folder, log and settings, then the steps run behind the start-up screen (network, controls, decoder probe, PCs), then the menus |
 | `src/log.c`, `src/log_core.c` | the log: levels, ring, writer thread, budgets (pure part tested on a PC) |
 | `src/app_info.h` | name of the app and of its data folder (package identity: top of `CMakeLists.txt`) |
 | `src/config.c` | settings file `vitamoon.conf`: defaults, reading, sanitising, writing |
@@ -50,6 +50,8 @@ them. Priorities: smaller is more urgent; 64 is the highest for applications, 16
 | `frame_pacer` | video/vita.c | 0, as in the original code | any | original frame pacer: in direct display mode with *Frame pacer* on, drops frames above the stream rate |
 | `boxart` (pthread) | gui/boxart.c | 176 | any | cover art download, paused while streaming |
 | `log_writer` | log.c | 191 | any | writes the log ring to the memory card, once a second or sooner |
+| `startup` | gui/splash.c | default | any | at start-up only: the steps of `main.c` (network, controls, PCs) while the menu thread renders the fonts |
+| `decoder_probe` | gui/ui_settings.c | 191 | any | from the start-up: which stream sizes the decoder accepts; Settings and the start of a stream wait for its end |
 
 moonlight-common-c calls `LiVitaThreadStarted()` (patch 0003) from each thread it starts, which sets
 the priority and core by thread name (`src/thread_policy.c`). Threads that call into
@@ -109,6 +111,15 @@ in every theme.
 
 Type: Inter for the text (Regular up to 16 px, Light above), Poppins, the logo's typeface, for the
 titles (22 px and above). Each size has its own vita2d font instance, its glyphs prepared at start-up.
+
+Start-up screen (`src/gui/splash.c`, timeline in `splash_logic.h`): `main.c` reads the settings, then
+`splash_run()` brings vita2d up and draws the theme's sky and the moon from the first frame. The steps
+of `main.c`, which draw nothing, run on the `startup` thread while the menu thread loads the fonts and
+renders their characters a slice per frame (`theme_prewarm()`), so the two loads overlap and the moon
+keeps moving. The moon waxes with the loading and becomes the mark (the last picture of
+`assets/moon.png`, the same drawing as `logo_mark.png`) once both are done; the mark and the name then
+move to where `theme_topbar()` draws them, the rest of the top bar fading in, and the home screen's
+first opening fades in under it (`menu_options.intro`). vita2d calls stay on the menu thread.
 Poppins has Latin only: a title with a character it lacks is drawn with an Inter Light instance of the
 same size, made the first time one is needed (`face_font()`, with the table
 `src/gui/title_font_cover.h` and `text_cover.h`).

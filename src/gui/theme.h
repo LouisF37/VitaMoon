@@ -22,6 +22,7 @@
 
 #include <stdbool.h>
 #include <vita2d.h>
+#include <psp2/types.h>
 
 /* ---- colour themes ---- */
 enum { THEME_NIGHT, THEME_DAWN, THEME_AURORA, THEME_TWILIGHT, THEME_ECLIPSE, THEME_COUNT };
@@ -82,6 +83,11 @@ unsigned int theme_alpha(unsigned int color, unsigned int alpha);
 #define TH_CONTENT_Y0    72    /* first row of a page without a title */
 #define TH_CONTENT_END   476   /* content never goes below this line */
 #define TH_HINTS_Y       524   /* baseline of the hint row */
+/* The top bar's mark (a square picture) and the name after it. */
+#define TH_MARK_X        (TH_MARGIN - 3)
+#define TH_MARK_Y        (TH_TOPBAR_BASE - 23)
+#define TH_MARK_SIZE     28.0f
+#define TH_NAME_X        (TH_MARGIN + 30)
 
 /* ---- type scale: use only these sizes ---- */
 #define TS_MICRO   12
@@ -103,7 +109,15 @@ typedef struct {
   const char *label;
 } theme_hint_item;
 
+/* Everything at once (the start-up screen does the same in steps): */
 void theme_init(void);
+/* What the first frame needs: the colour theme, its background, the mark. */
+void theme_init_display(void);
+/* The fonts, one instance per size, nothing rendered yet. */
+void theme_load_fonts(void);
+/* Renders the characters every screen may use (prewarm.h), in every size, for
+ * about budget_us at most: true once all are. part: how much is done, 0 to 1. */
+bool theme_prewarm(SceUInt64 budget_us, float *part);
 
 /* Global opacity for everything drawn through theme_*(), for fades. */
 void theme_set_alpha(float alpha);
@@ -123,6 +137,10 @@ void theme_text_fit_right(float right, float y, unsigned int color, int size, co
 /* Centred on cx, cut with an ellipsis if wider than max_w. */
 void theme_text_fit_center(float cx, float y, unsigned int color, int size, const char *text, int max_w);
 int theme_text_width(int size, const char *text);
+/* Text of the size-`face_size` font drawn at another size (scaled, for a
+ * movement: never rendered again at that size). */
+void theme_text_scaled(float x, float y, unsigned int color, int face_size, float size, const char *text);
+int theme_text_width_scaled(int face_size, float size, const char *text);
 /* Gets text ready to be drawn at `size` (its glyphs rasterised, the title
  * fallback font made if it needs one): for text that another thread will draw
  * later, so that nothing is prepared while a game is streaming. */
@@ -169,5 +187,9 @@ int theme_cancel_glyph(void);
 /* Top bar: the app name + optional section on the left; Wi-Fi, battery and
  * clock on the right. */
 void theme_topbar(const char *section);
+/* The same without the mark and the name (the start-up screen moves them there). */
+void theme_topbar_status(void);
+/* Whether the top bar has its mark (assets/logo_mark.png loaded). */
+bool theme_has_mark(void);
 /* Page title with a back chevron and the divider under it. */
 void theme_header(const char *title);

@@ -1,6 +1,7 @@
 #include "ui.h"
 
 #include "guilib.h"
+#include "splash.h"
 #include "theme.h"
 #include "ime.h"
 
@@ -573,6 +574,7 @@ int ui_main_menu() {
   options.has_focus = home_has_focus;
   options.focus_id = home_focus_id;
   options.instant = opened_before;
+  options.intro = !opened_before && splash_take_intro();
   options.hints_for = home_hints;
   gui_set_next_options(&options);
   opened_before = true;

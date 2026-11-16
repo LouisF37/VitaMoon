@@ -32,6 +32,7 @@ int ui_main_menu(void);
 #include "gui/ui_library.h"
 #include "gui/ui_connect.h"
 #include "gui/moon.h"
+#include "gui/splash.h"
 #include "reconnect.h"
 #include "gui/boxart.h"
 #include "video/stream_stats.h"
@@ -386,6 +387,42 @@ static void scenario_connecting(void) {
     ui_connect_preview_moon("MINI-PC", stages[i]);
 }
 
+/* The start-up screen, from its first frame to Home. The steps of main.c run
+ * on a thread of their own on the Vita, alongside the fonts; here threads run
+ * when started, so they take no time, and each glyph rendered costs 0.5 ms of
+ * the virtual clock, to play the screen at about a Vita's pace. */
+static const char *splash_fake_network(void) { return NULL; }
+static const char *splash_fake_controls(void) { return NULL; }
+static const char *splash_fake_probe(void) { ui_settings_probe_start(); return NULL; }
+static const char *splash_fake_hosts(void) { return NULL; }
+
+static void scenario_splash(void) {
+  static const int at[] = {0, 3, 12, 24, 36, 50, 56, 62, 68, 76, 92};
+  static const char *names[] = {"splash_00_first_frame", "splash_01_name", "splash_02_waxing", "splash_03_waxing",
+                                "splash_04_full", "splash_05_glide", "splash_06_glide", "splash_07_glide",
+                                "splash_08_top_bar", "splash_09_home", "splash_10_home_settled"};
+  int frame = 0;
+  for (int i = 0; i < (int)(sizeof(at) / sizeof(at[0])); i++) {
+    preview_wait(at[i] - frame);
+    preview_snap(names[i]);
+    frame = at[i] + 1;
+  }
+  static const splash_step steps[] = {
+    {"network", splash_fake_network, 3},
+    {"controls", splash_fake_controls, 1},
+    {"decoder probe", splash_fake_probe, 0},
+    {"hosts", splash_fake_hosts, 1},
+  };
+  preview_glyph_cost_us = 500;
+  const char *error = splash_run(steps, sizeof(steps) / sizeof(steps[0]));
+  preview_glyph_cost_us = 0;
+  if (error)
+    fprintf(stderr, "splash: %s\n", error);
+  extern void gui_init(void);
+  gui_init();
+  ui_main_menu();
+}
+
 static void scenario_pairing(void) {
   preview_snap("pairing_code");   /* the screen is drawn once: capture that frame */
   flash_pairing_code("MINI-PC", "4821", "https://192.168.1.24:47990");
@@ -413,9 +450,13 @@ int main(int argc, char **argv) {
 
   extern void gui_init(void);
   extern int ui_main_menu(void);
+  const char *s = argv[1];
+  if (!strcmp(s, "splash")) {   /* it brings the menus up itself */
+    scenario_splash();
+    return 0;
+  }
   gui_init();
 
-  const char *s = argv[1];
   if (!strcmp(s, "home")) scenario_home();
   else if (!strcmp(s, "home_empty")) scenario_home_empty();
   else if (!strcmp(s, "home_wifi")) scenario_home_wifi();

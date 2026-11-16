@@ -26,6 +26,8 @@
 #include <psp2/rtc.h>
 #include <psp2/touch.h>
 #include <psp2/videodec.h>
+#include <psp2/kernel/threadmgr.h>
+#include <psp2/kernel/processmgr.h>
 #include <vita2d.h>
 #include <Limelight.h>
 extern char* strdup(const char*);
@@ -656,10 +658,15 @@ static void apply_profile(int profile) {
   config.video_reorder_wait_ms = on ? REORDER_DEFAULT_MS : 0;
 }
 
-/* Resolutions the hardware decoder accepts, probed once. */
+/* Resolutions the hardware decoder accepts, probed once: one start and stop of
+ * the decoder per size, which takes long enough to be felt (the first opening
+ * of Settings used to wait for it). It now runs in the background from the
+ * start-up (ui_settings_probe_start); Settings and the start of a stream wait
+ * for it to end. */
 static void probe_resolutions(void) {
   if (support_resolution_count || vitavideo_initialized())
     return;
+  SceUInt64 start = sceKernelGetProcessTimeWide();
   for (int i = 0; i < MAX_RESOLUTION; i++) {
     SceVideodecQueryInitInfoHwAvcdec dec;
     dec.size = sizeof(SceVideodecQueryInitInfoHwAvcdec);
@@ -673,6 +680,43 @@ static void probe_resolutions(void) {
       continue; // unsupported resolution
     support_resolution_idx[support_resolution_count++] = i;
   }
+  LOGI("settings", "decoder sizes probed in %u ms: %d of %d accepted",
+       (unsigned int)((sceKernelGetProcessTimeWide() - start) / 1000), support_resolution_count, MAX_RESOLUTION);
+}
+
+static SceUID probe_thread = -1;
+
+static int probe_thread_main(SceSize args, void *argp) {
+  (void)args;
+  (void)argp;
+  probe_resolutions();
+  return 0;
+}
+
+void ui_settings_probe_start(void) {
+  if (probe_thread >= 0 || support_resolution_count)
+    return;
+  /* below the menu thread's priority: the start-up screen keeps moving */
+  SceUID thid = sceKernelCreateThread("decoder_probe", probe_thread_main, 191, 0x8000, 0, 0, NULL);
+  if (thid < 0) {
+    LOGW("settings", "decoder probe thread not created (0x%08X): probed when Settings opens", (unsigned int)thid);
+    return;
+  }
+  if (sceKernelStartThread(thid, 0, NULL) < 0) {
+    sceKernelDeleteThread(thid);
+    LOGW("settings", "decoder probe thread not started: probed when Settings opens");
+    return;
+  }
+  probe_thread = thid;
+}
+
+void ui_settings_probe_wait(void) {
+  if (probe_thread >= 0) {
+    sceKernelWaitThreadEnd(probe_thread, NULL, NULL);
+    sceKernelDeleteThread(probe_thread);
+    probe_thread = -1;
+  }
+  probe_resolutions();   /* nothing if done; probes now if the thread could not run */
 }
 
 static int resolution_position(void) {
@@ -1220,7 +1264,7 @@ int ui_settings_menu() {
   PREVIEW_SCREEN("settings");
   ui_end();
   gui_touch_reset();
-  probe_resolutions();
+  ui_settings_probe_wait();
 
   static int last_category = CAT_GENERAL;   /* reopen where the user left */
   settings_view v = {0};

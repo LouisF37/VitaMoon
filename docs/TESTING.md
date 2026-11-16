@@ -20,6 +20,7 @@ by CI on every push.
 | `test_quickmenu.c` | the in-game quick menu: what opens it, moves in it, acts and closes it, when the game gets its buttons back |
 | `test_log.c` | the log's ring (order, wrap-around, whole lines refused when full), its token buckets (burst, refill, report of the lines left out) and the folding of repeated lines |
 | `test_ui.c` | which texts the title font can draw (Latin and its accents yes; Greek, Cyrillic, Japanese and malformed UTF-8 fall back to Inter), the picture of the waiting moon for each step and over the minute of reconnection, the interval between two pictures, every character of the translations among those rendered at start-up (`src/gui/prewarm.h`) |
+| `test_splash.c` | the start-up screen's timeline (`src/gui/splash_logic.h`): the moon never goes back nor skips its phases after a long step, the mark comes only once everything is loaded, the move ends exactly on the top bar's mark and name (`theme.h`), and the name never covers the mark on the way, for names narrower and wider than "VitaMoon" |
 | `test_mdns.c` | the network search's mDNS reader (`third_party/mdnsniff`): a Sunshine answer is understood (name, address, port); a name pointing to itself, two names pointing to each other, every cut of an answer, a record longer than its packet and 20000 random or damaged packets neither hang nor crash it |
 
 ## Interface preview (`tools/ui-preview`)
@@ -41,6 +42,15 @@ drew it. The theme change in the `settings_change` scenario covers the case that
 It also counts what each frame takes from vita2d's vertex pool (1 MiB), with the sizes of vita2d's
 own drawing calls: vita2d does not check that pool. More than half of it is reported, all of it
 stops the preview; `PREVIEW_POOL_REPORT=1` prints the peak (9% on 16 November, the settings screen).
+
+The `splash` scenario plays the start-up screen (`src/gui/splash.c`) up to the home screen. Threads
+run to their end as soon as they start here, so the steps of `main.c` take no time; each character
+the start-up renders costs 0.5 ms of the virtual clock instead, about a Vita's pace. With
+`PREVIEW_FRAMES=<folder>` every frame is written, numbered, to make a video of it:
+
+```sh
+PREVIEW_FRAMES=/tmp/frames /tmp/screens/preview splash fr /tmp/screens/fr
+```
 
 ### Journeys
 

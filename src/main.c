@@ -34,6 +34,7 @@
 #include <Limelight.h>
 
 #include <stdio.h>
+#include <time.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <string.h>
@@ -65,6 +66,8 @@
 #include "graphics.h"
 #include "device.h"
 #include "gui/ui.h"
+#include "gui/splash.h"
+#include "gui/ui_settings.h"
 #include "util.h"
 #include "power/vita.h"
 #include "input/motion.h"
@@ -96,7 +99,16 @@ void loop_forever(void) {
     sceKernelDelayThread(1000 * 1000);
 }
 
-static void vita_init() {
+/* The text screen of graphics.c is only for this: it replaces the start-up
+ * screen (once the frames sent to it are shown) with the message. */
+static void startup_failed(const char *message) {
+  splash_abort();
+  psvDebugScreenInit();
+  printf("%s\n", message);
+  loop_forever();
+}
+
+static const char *start_network(void) {
   sceShellUtilInitEvents(0);
 
   // Seed OpenSSL with Sony-grade random number generator
@@ -108,41 +120,22 @@ static void vita_init() {
   // This is only used for PIN codes, doesn't really matter
   srand(time(NULL));
 
-  #ifdef __vita__
-  printf(APP_NAME " " VERSION_TEXT " (%s)\n", COMPILE_OPTIONS);
-  #endif
-
-  int ret;
-
-  // Load Vita network 
+  // Load Vita network
   net_param.memory = net_memory;
- 
-  ret = sceSysmoduleLoadModule(SCE_SYSMODULE_NET);
-  if (ret < 0) {
-    printf("Net module was unable to load!");
-    loop_forever();
-  }
 
-  ret = sceNetInit(&net_param);
-  if (ret < 0) {
-    printf("Net init failed!");
-    loop_forever();
-  }
-  
-  ret = sceNetCtlInit();
-  if (ret < 0) {
-    printf("Net Ctl init failed!");
-    loop_forever();
-  }
-
-  ret = curl_global_init(CURL_GLOBAL_ALL);
-  if (ret < 0) {
-    printf("CURL init failed!");
-    loop_forever();
-  }
-
+  if (sceSysmoduleLoadModule(SCE_SYSMODULE_NET) < 0)
+    return "Net module was unable to load!";
+  if (sceNetInit(&net_param) < 0)
+    return "Net init failed!";
+  if (sceNetCtlInit() < 0)
+    return "Net Ctl init failed!";
+  // Its result was never acted on (the test was "< 0" on a code that is 0 or
+  // positive): a failure is recorded, and the start goes on as before.
+  CURLcode curl = curl_global_init(CURL_GLOBAL_ALL);
+  if (curl != CURLE_OK)
+    LOGW("app", "curl_global_init: %d", (int)curl);
+  return NULL;
 }
-
 
 /* Pair under the Vita's own nickname (its user name), so the PC's
  * list of paired devices shows it instead of "roth" (juanjsebgarcia/
@@ -162,25 +155,40 @@ static void set_pairing_device_name(void) {
   gs_set_device_name((const char *)nickname);
 }
 
+static const char *start_controls(void) {
+  if (!vitapower_init())
+    return "Failed to init power!";
+  if (!vitainput_init())
+    return "Failed to init input!";
+  if (!vita_motion_init())
+    return "Failed to init motion input!";
+
+  // Restore the absolute touch state at startup
+  touchabsolute_enable(config.touchscreen_mode == 2);
+  // Apply the saved keyboard layout after loading the config
+  keyboardsystem_set_layout((KeyboardLayout)config.keyboard_layout);
+  vitapower_config(config);
+  vitainput_config(config);
+  return NULL;
+}
+
+/* The decoder sizes for Settings, found in the background (ui_settings.c). */
+static const char *start_decoder_probe(void) {
+  ui_settings_probe_start();
+  return NULL;
+}
+
+static const char *start_hosts(void) {
+  set_pairing_device_name();
+  load_all_known_devices();
+  return NULL;
+}
+
 int main(int argc, char* argv[]) {
-  psvDebugScreenInit();
-  vita_init();
-
-  if (!vitapower_init()) {
-    printf("Failed to init power!");
-    loop_forever();
-  }
-
-  if (!vitainput_init()) {
-    printf("Failed to init input!");
-    loop_forever();
-  }
-
-  if (!vita_motion_init()) {
-    printf("Failed to init motion input!");
-    loop_forever();
-  }
-
+  /* Before the first frame, only what it needs: the data folder, the log and
+   * the settings (colour theme, multisampling, language). The rest loads
+   * behind the start-up screen (gui/splash.c), which used to be a text screen
+   * with the version on black. */
   char out_path[MOONLIGHT_PATH_MAX] = {0};
   char out_key_dir[MOONLIGHT_PATH_MAX] = {0};
   check_and_create_data_dir(out_path, out_key_dir);
@@ -209,18 +217,19 @@ int main(int argc, char* argv[]) {
   // Interface language (English unless the user picked another one in Settings).
   i18n_set_language(config.language);
 
-  // Restore the absolute touch state at startup
-  touchabsolute_enable(config.touchscreen_mode == 2);
+  static const splash_step steps[] = {
+    {"network", start_network, 3},
+    {"controls", start_controls, 1},
+    {"decoder probe", start_decoder_probe, 0},
+    {"hosts", start_hosts, 1},
+  };
+  // Loaded at full speed (the clock boost used while connecting).
+  vitapower_busy_begin();
+  const char *error = splash_run(steps, sizeof(steps) / sizeof(steps[0]));
+  vitapower_busy_end();
+  if (error)
+    startup_failed(error);
 
-  // Apply the saved keyboard layout after loading the config
-  keyboardsystem_set_layout((KeyboardLayout)config.keyboard_layout);
-
-  vitapower_config(config);
-  vitainput_config(config);
-
-  set_pairing_device_name();
-
-  load_all_known_devices();
   log_system_state("start-up");
 
   gui_loop();

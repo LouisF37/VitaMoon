@@ -3,6 +3,41 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.0.0-beta.10 "Nouvelle Lune" (2026-11-16)
+
+From the first sessions on a Vita: the start of the app and the first opening of Settings.
+
+### Changed
+
+- **Start-up screen.** VitaMoon opened on a black text screen showing its version for about two
+  seconds, then the menus. It now shows the theme's sky from the first frame vita2d can draw, with
+  the moon waxing as VitaMoon loads; once everything is loaded the moon becomes the VitaMoon mark,
+  which then moves with the name into the top bar of the home screen, where the menus fade in.
+  The idea of a start-up animation comes from VitaRPS5 (its logo assembles from particles while it
+  loads); the moon, its phases and the move to the top bar are VitaMoon's own.
+- **Faster loading.** What loaded one thing after another now overlaps: the network, the controls
+  and the PCs are set up on a thread of their own while the menu thread renders the fonts, a slice
+  per frame so that the moon keeps moving; the start runs at the clock speeds used while connecting.
+  The log records how long each part took and when the home screen appeared
+  (`start-up: first frame ... ms after launch; ...`).
+
+### Fixed
+
+- **Settings took a moment to open the first time.** It started and stopped the Vita's video decoder
+  for each of the 9 stream sizes, to list those it accepts. This now runs in the background from the
+  start of the app; Settings, and the start of a stream (which uses the decoder too), wait for it to
+  end. The log records how long it took.
+
+### Tests
+
+- `test_splash`: when the moon changes, that the mark only comes once everything is loaded, that a
+  long wait does not make the moon skip its phases, that the mark ends exactly over the top bar's and
+  the name where the top bar draws it, and that the name never covers the mark on the way (it did in
+  a first version: the test fails on it). 280 PC checks.
+- The preview renders the start-up screen from its first frame to the home screen (scenario
+  `splash`; `PREVIEW_FRAMES=<folder>` writes every frame, for a video). Every other screen renders
+  exactly as in beta.9 (pixel comparison of the 60 French pictures).
+
 ## 1.0.0-beta.9 "Nouvelle Lune" (2026-11-16)
 
 A full review after the first tests on a Vita: every journey of a user replayed on a PC through

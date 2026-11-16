@@ -57,6 +57,7 @@ void ui_end(void);
 int read_buttons(void);
 
 #include "theme.h"
+#include "moon.h"
 
 /* Options for the next display_menu() call (used once, then cleared). */
 typedef struct menu_options {
@@ -64,6 +65,7 @@ typedef struct menu_options {
   bool has_focus;                 /* start on the entry whose id is focus_id */
   int focus_id;
   bool instant;                   /* no opening animation (menu rebuilt in place) */
+  bool intro;                     /* first menu after the start-up screen: all of it fades in */
   const theme_hint_item *hints;   /* hint row; NULL for "Select / Back" */
   int hint_count;
   /* Optional, replaces hints: fills the hint row for the focused entry and
@@ -112,6 +114,13 @@ void flash_moon(int phase, const char *title, const char *caption, bool cancel);
 void flash_moon_release(void);
 
 void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw_cb);
+/* The same in parts, for the start-up screen (splash.c): vita2d and what the
+ * first frame needs, then the icon font. guilib_init() skips what is done. */
+void guilib_init_display(void);
+bool guilib_display_ready(void);
+void guilib_load_icons(void);
+/* One picture of the moon (moon.h): top-left corner, scale, opacity. */
+void guilib_draw_moon(int phase, float x, float y, float scale, float alpha);
 
 // display_confirm, used across the UI
 int display_confirm(const char* message);

@@ -1,6 +1,6 @@
 # VitaMoon : guide d'utilisation et de test
 
-VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 9 « Nouvelle Lune ». Jusqu'à la
+VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 10 « Nouvelle Lune ». Jusqu'à la
 bêta 1, le projet s'appelait Lune.
 
 Téléchargement :
@@ -8,7 +8,7 @@ Téléchargement :
 - dernière compilation de la branche `main` :
   https://github.com/LouisF37/VitaMoon/releases/download/build-main/vitamoon-main.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.9  main-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.10  main-xxxxxxx`.
 
 **Installation à côté de Moonlight.** VitaMoon a son propre identifiant (`VMOON0001`), sa propre bulle et
 son propre dossier (`ux0:data/vitamoon`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc
@@ -20,9 +20,9 @@ d'essai précédente de ce projet y est peut-être installée.
 `ux0:data/vitamoon` : les PC appairés, les réglages, les statistiques et les journaux suivent, sans
 nouvel appairage. La bulle Lune peut ensuite être supprimée.
 
-**État des vérifications.** Le code compile pour la Vita, les 240 vérifications des tests sur PC
+**État des vérifications.** Le code compile pour la Vita, les 280 vérifications des tests sur PC
 passent (affichage cadencé simulé, fichier de réglages, réécriture du SPS, menu rapide, journal,
-reconnexion, police des titres, lune d'attente, recherche des PC sur le réseau), tous les écrans ont
+reconnexion, police des titres, lune d'attente, recherche des PC sur le réseau, écran de démarrage), tous les écrans ont
 été rendus hors console (outil `tools/ui-preview`) en anglais, français et espagnol, et 29 parcours
 complets (ouvrir le PC, jouer, pause, reprise, perte du Wi-Fi, changement de jeu, réglages,
 appairage) passent sur PC avec le vrai code de connexion face à une imitation de Sunshine. Le code a
@@ -65,6 +65,14 @@ tout ce qui était maintenu (boutons, sticks, clic souris, doigts sur l'écran t
 s'appliquent qu'au démarrage d'un stream ont été modifiés pendant la pause (définition, débit, affichage,
 options de la rubrique Performance...), la reprise propose de relancer le stream : le jeu continue sur le PC,
 seul le flux est recommencé.
+
+**Démarrage.** Dès la première image, VitaMoon affiche le ciel du thème choisi et une lune qui croît pendant
+le chargement ; une fois tout chargé, elle devient le logo, qui rejoint avec le nom la barre du haut de
+l'écran d'accueil, puis les menus apparaissent. Le réseau, les commandes et la liste des PC se préparent en
+parallèle des polices. Le journal indique la durée de chaque étape et le moment où l'accueil est apparu
+(`start-up: first frame ... ms after launch; ... Home at ... ms after launch`). Les définitions acceptées
+par le décodeur de la Vita sont recherchées en arrière-plan dès le démarrage : les Réglages s'ouvrent sans
+attendre (`decoder sizes probed in ... ms` dans le journal).
 
 **Lune d'attente.** Pendant la connexion à un PC et le démarrage d'un stream, une lune se remplit à chaque
 étape (préparation, recherche du PC, son, accord sur le stream, commandes, vidéo), avec l'étape écrite

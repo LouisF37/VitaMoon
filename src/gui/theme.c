@@ -175,7 +175,21 @@ static void *read_file(const char *path, unsigned int *size) {
   return buf;
 }
 
-void theme_init(void) {
+/* What the first frame needs: the background picture and the mark. */
+void theme_init_display(void) {
+  static bool done = false;
+  if (done)
+    return;
+  done = true;
+  theme_select(config.theme);
+  logo_mark = vita2d_load_PNG_file(ASSET_PREFIX "logo_mark.png");
+}
+
+void theme_load_fonts(void) {
+  static bool done = false;
+  if (done)
+    return;
+  done = true;
   /* The font files are read once and kept: every size shares the same data. */
   for (int i = 0; i < FONT_FILES; i++)
     font_data[i] = read_file(k_font_files[i], &font_size[i]);
@@ -183,11 +197,57 @@ void theme_init(void) {
     int file = font_data[faces[i].file] ? faces[i].file : FONT_TEXT;
     if (font_data[file])
       faces[i].font = vita2d_load_font_mem(font_data[file], font_size[file]);
-    if (faces[i].font)
-      vita2d_font_text_width(faces[i].font, faces[i].size, k_prewarm);
   }
-  theme_select(config.theme);
-  logo_mark = vita2d_load_PNG_file(ASSET_PREFIX "logo_mark.png");
+}
+
+/* Next character of k_prewarm to render, in each face in turn. */
+static int prewarm_face = 0;
+static int prewarm_pos = 0;
+
+static int utf8_length(unsigned char lead) {
+  return lead < 0x80 ? 1 : (lead >= 0xF0 ? 4 : (lead >= 0xE0 ? 3 : (lead >= 0xC0 ? 2 : 1)));
+}
+
+static int prewarm_total(void) {
+  int chars = 0;
+  for (int pos = 0; k_prewarm[pos]; pos += utf8_length((unsigned char)k_prewarm[pos]))
+    chars++;
+  return chars * FACE_COUNT;
+}
+
+bool theme_prewarm(SceUInt64 budget_us, float *part) {
+  static int total = 0, done_count = 0;
+  if (!total)
+    total = prewarm_total();
+  SceUInt64 start = sceKernelGetProcessTimeWide();
+  while (prewarm_face < FACE_COUNT) {
+    if (!faces[prewarm_face].font || !k_prewarm[prewarm_pos]) {
+      if (!faces[prewarm_face].font)
+        done_count += total / FACE_COUNT;   /* nothing to render in a face that is missing */
+      prewarm_face++;
+      prewarm_pos = 0;
+      continue;
+    }
+    char one[5] = {0};
+    int len = utf8_length((unsigned char)k_prewarm[prewarm_pos]);
+    memcpy(one, k_prewarm + prewarm_pos, len);
+    prewarm_pos += len;
+    vita2d_font_text_width(faces[prewarm_face].font, faces[prewarm_face].size, one);
+    done_count++;
+    if (sceKernelGetProcessTimeWide() - start >= budget_us)
+      break;
+  }
+  bool finished = prewarm_face >= FACE_COUNT;
+  if (part)
+    *part = finished || total <= 0 ? 1.0f : (float)done_count / (float)total;
+  return finished;
+}
+
+void theme_init(void) {
+  theme_init_display();
+  theme_load_fonts();
+  while (!theme_prewarm((SceUInt64)-1, NULL))
+    ;
 }
 
 static th_face *face_for(int size) {
@@ -256,6 +316,21 @@ void theme_text(float x, float y, unsigned int color, int size, const char *text
     return;
   th_face *f = face_for(size);
   vita2d_font_draw_text(face_font(f, text), (int)(x + 0.5f), (int)(y + 0.5f), theme_color(color), f->size, text);
+}
+
+void theme_text_scaled(float x, float y, unsigned int color, int face_size, float size, const char *text) {
+  if (!text || !*text || size < 1.0f)
+    return;
+  th_face *f = face_for(face_size);
+  vita2d_font_draw_text(face_font(f, text), (int)(x + 0.5f), (int)(y + 0.5f), theme_color(color),
+                        (unsigned int)(size + 0.5f), text);
+}
+
+int theme_text_width_scaled(int face_size, float size, const char *text) {
+  if (!text || !*text || size < 1.0f)
+    return 0;
+  th_face *f = face_for(face_size);
+  return vita2d_font_text_width(face_font(f, text), (unsigned int)(size + 0.5f), text);
 }
 
 void theme_text_right(float right, float y, unsigned int color, int size, const char *text) {
@@ -596,7 +671,7 @@ int theme_cancel_glyph(void) {
   return config.jp_layout ? GLYPH_CROSS : GLYPH_CIRCLE;
 }
 
-void theme_topbar(const char *section) {
+static void topbar(const char *section, bool brand) {
   static int battery = -1;
   static bool charging = false;
   static int signal = -1;
@@ -616,16 +691,17 @@ void theme_topbar(const char *section) {
   theme_vgradient(0, 0, WIDTH, 64, theme_alpha(TH_INK, 120), theme_alpha(TH_INK, 0));
 
   /* left: mark, name and section */
-  int name_x = TH_MARGIN;
-  if (logo_mark) {
-    const float size = 28.0f;   /* the disc is 68 % of the picture: about the name's height */
-    vita2d_draw_texture_scale(logo_mark, TH_MARGIN - 3, TH_TOPBAR_BASE - 23,
-                              size / vita2d_texture_get_width(logo_mark),
-                              size / vita2d_texture_get_height(logo_mark));
-    name_x += 30;
+  int name_x = logo_mark ? TH_NAME_X : TH_MARGIN;
+  if (brand && logo_mark) {
+    /* the disc is 68 % of the picture: about the name's height */
+    vita2d_draw_texture_tint_scale(logo_mark, TH_MARK_X, TH_MARK_Y,
+                                   TH_MARK_SIZE / vita2d_texture_get_width(logo_mark),
+                                   TH_MARK_SIZE / vita2d_texture_get_height(logo_mark),
+                                   theme_color(0xFFFFFFFF));
   }
-  theme_text(name_x, TH_TOPBAR_BASE, TH_TEXT, TS_LEAD, APP_NAME);
-  if (section && *section) {
+  if (brand)
+    theme_text(name_x, TH_TOPBAR_BASE, TH_TEXT, TS_LEAD, APP_NAME);
+  if (brand && section && *section) {
     int x = name_x + theme_text_width(TS_LEAD, APP_NAME) + 16;
     int w = theme_text_width(TS_SMALL, section);
     theme_rounded_rect(x, 21, w + 24, 26, 13, TH_FILL_FOCUS);
@@ -656,6 +732,18 @@ void theme_topbar(const char *section) {
 
   int bars = signal < 0 ? 0 : (signal >= 75 ? 4 : signal >= 50 ? 3 : signal >= 25 ? 2 : 1);
   theme_signal(x - 18, 39, bars, signal < 0 ? TH_ERR : TH_TEXT);
+}
+
+void theme_topbar(const char *section) {
+  topbar(section, true);
+}
+
+void theme_topbar_status(void) {
+  topbar(NULL, false);
+}
+
+bool theme_has_mark(void) {
+  return logo_mark != NULL;
 }
 
 void theme_header(const char *title) {

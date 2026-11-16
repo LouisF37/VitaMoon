@@ -10,6 +10,8 @@
 #include <stdint.h>
 
 #define MOON_PHASES 12
+/* Side of one picture in assets/moon.png (the pictures are side by side). */
+#define MOON_CELL 112
 
 /* Least time between two pictures drawn during a connection: each one is a
  * full menu frame on the thread that runs the connection. */

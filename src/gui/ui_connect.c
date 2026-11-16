@@ -309,6 +309,8 @@ static int start_stream(int appId, bool report_errors) {
   // is for a start asked by the user.
   if (report_errors)
     connection_set_stage_hook(moon_stage);
+  // The decoder probe of the start-up (ui_settings.c) uses the decoder too.
+  ui_settings_probe_wait();
   ret = LiStartConnection(&server.serverInfo, &config.stream, &connection_callbacks,
                           video_callback, platform_get_audio(system),
                           NULL, drFlags, NULL, 0);

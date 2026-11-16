@@ -340,6 +340,8 @@ int display_menu(menu_entry menu[], int total_elements, menu_geom *geom_ptr,
   view.hints_for = options.hints_for;
   view.floating = geom_ptr != NULL && !geom_ptr->page;
   view.appear = options.instant ? 1.0f : 0.0f;
+  /* After the start-up screen, everything below the top bar fades in, a little slower. */
+  const float appear_step = options.intro ? 0.08f : 0.2f;
 
   menu_geom geom;
   if (!geom_ptr) {
@@ -413,11 +415,14 @@ int display_menu(menu_entry menu[], int total_elements, menu_geom *geom_ptr,
       view.scroll = theme_approach(view.scroll, target_scroll);
       view.focus_y = theme_approach(view.focus_y, geom.y + row_top);
     }
-    view.appear = view.appear + 0.2f > 1.0f ? 1.0f : view.appear + 0.2f;
+    view.appear = view.appear + appear_step > 1.0f ? 1.0f : view.appear + appear_step;
 
     ui_start();
     if (draw_callback) {
+      if (options.intro)
+        theme_set_alpha(view.appear);
       draw_callback();
+      theme_set_alpha(1.0f);
     }
     if (gui_global_draw_callback) {
       gui_global_draw_callback();
@@ -625,8 +630,19 @@ void flash_message(char *format, ...) {
 
 /* ---------------- the waiting moon ---------------- */
 
-#define MOON_CELL 112           /* side of one picture in assets/moon.png */
 static vita2d_texture *moon_sheet = NULL;
+
+/* One picture of the moon (moon.h), its top-left corner at (x, y), scaled and
+ * faded: the start-up screen's moon. */
+void guilib_draw_moon(int phase, float x, float y, float scale, float alpha) {
+  if (!moon_sheet)
+    moon_sheet = vita2d_load_PNG_file(ASSET_PREFIX "moon.png");
+  if (!moon_sheet || phase < 0 || phase > MOON_PHASES - 1 || alpha <= 0.0f)
+    return;
+  unsigned int a = alpha >= 1.0f ? 255u : (unsigned int)(alpha * 255.0f + 0.5f);
+  vita2d_draw_texture_tint_part_scale(moon_sheet, x, y, phase * MOON_CELL, 0, MOON_CELL, MOON_CELL,
+                                      scale, scale, RGBA8(255, 255, 255, a));
+}
 
 /* One frame of a wait: the moon at `phase` (0, new, to MOON_PHASES - 1, full:
  * see moon.h), a title and a line under it, and a Cancel hint when the caller
@@ -738,7 +754,12 @@ int display_confirm(const char* message) {
     }
 }
 
-void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw_cb) {
+static bool display_ready = false;
+
+void guilib_init_display(void) {
+  if (display_ready)
+    return;
+  display_ready = true;
   /* 4x multisampling smooths rounded shapes and diagonal strokes (VitaRPS5
    * initialises vita2d the same way). It also applies to the stream, which is
    * drawn with the same context, hence the setting to turn it off. */
@@ -746,6 +767,18 @@ void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw
   vita2d_init_advanced_with_msaa(1 * 1024 * 1024,
                                  msaa_active ? SCE_GXM_MULTISAMPLE_4X : SCE_GXM_MULTISAMPLE_NONE);
   vita2d_set_clear_color(0xff000000);
+  theme_init_display();
+}
+
+bool guilib_display_ready(void) {
+  return display_ready;
+}
+
+void guilib_load_icons(void) {
+  static bool done = false;
+  if (done)
+    return;
+  done = true;
   font = vita2d_load_font_file(ASSET_PREFIX "nerdfont.ttf");
   if (font) {
     // The stream's two icons (draw_indicators), rendered now rather than by the
@@ -753,7 +786,16 @@ void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw
     vita2d_font_text_width(font, 64, ICON_NETWORK);
     vita2d_font_text_width(font, 48, ICON_SPRINTING);
   }
-  theme_init();
+}
+
+/* Everything at once; the start-up screen (splash.c) does the same in steps
+ * first, and then this only sets the callbacks. */
+void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw_cb) {
+  guilib_init_display();
+  guilib_load_icons();
+  theme_load_fonts();
+  while (!theme_prewarm((SceUInt64)-1, NULL))
+    ;
 
   gui_global_draw_callback = global_draw_cb;
   gui_global_loop_callback = global_loop_cb;

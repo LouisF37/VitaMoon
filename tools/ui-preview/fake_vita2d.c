@@ -28,6 +28,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include "preview.h"
 
 #define W 960
 #define H 544
@@ -310,6 +311,10 @@ static cairo_surface_t *tex_surface(fake_tex *t, int *owned) {
   return s;
 }
 
+/* Tinted drawing: the tint's alpha fades the picture (the app only tints with
+ * white, so the colour part is not applied). */
+static double draw_alpha = 1.0;
+
 void vita2d_draw_texture_part_scale(const vita2d_texture *texture, float x, float y, float tex_x, float tex_y,
                                     float tex_w, float tex_h, float x_scale, float y_scale) {
   fake_tex *t = (fake_tex *)texture;
@@ -325,9 +330,20 @@ void vita2d_draw_texture_part_scale(const vita2d_texture *texture, float x, floa
   cairo_scale(cr, x_scale, y_scale);
   cairo_set_source_surface(cr, s, -tex_x, -tex_y);
   cairo_pattern_set_filter(cairo_get_source(cr), CAIRO_FILTER_BILINEAR);
-  cairo_paint(cr);
+  cairo_paint_with_alpha(cr, draw_alpha);
   cairo_restore(cr);
   if (owned) cairo_surface_destroy(s);
+}
+void vita2d_draw_texture_tint_part_scale(const vita2d_texture *texture, float x, float y, float tex_x, float tex_y,
+                                         float tex_w, float tex_h, float x_scale, float y_scale, unsigned int color) {
+  draw_alpha = ((color >> 24) & 0xFF) / 255.0;
+  vita2d_draw_texture_part_scale(texture, x, y, tex_x, tex_y, tex_w, tex_h, x_scale, y_scale);
+  draw_alpha = 1.0;
+}
+void vita2d_draw_texture_tint_scale(const vita2d_texture *texture, float x, float y, float x_scale, float y_scale,
+                                    unsigned int color) {
+  fake_tex *t = (fake_tex *)texture;
+  if (t) vita2d_draw_texture_tint_part_scale(texture, x, y, 0, 0, t->w, t->h, x_scale, y_scale, color);
 }
 void vita2d_draw_texture(const vita2d_texture *texture, float x, float y) {
   fake_tex *t = (fake_tex *)texture;
@@ -420,6 +436,9 @@ int vita2d_font_draw_text(vita2d_font *font, int x, int y, unsigned int color, u
   return font_text(font, 1, x, y, color, size, text);
 }
 int vita2d_font_text_width(vita2d_font *font, unsigned int size, const char *text) {
+  /* the start-up prewarm measures one character at a time; layout never does */
+  if (preview_glyph_cost_us && text[0] && !text[utf8_next(text, &(unsigned int){0})])
+    preview_spend(preview_glyph_cost_us);
   return font_text(font, 0, 0, 0, 0, size, text);
 }
 int vita2d_common_dialog_update(void) { return 0; }

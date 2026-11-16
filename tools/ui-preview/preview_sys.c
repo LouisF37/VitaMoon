@@ -148,6 +148,13 @@ void preview_frame_done(cairo_surface_t *surface) {
     snprintf(path, sizeof(path), "%s/%s.png", out_dir, s->snapshot);
     cairo_surface_write_to_png(surface, path);
   }
+  /* Every frame, numbered, for a video of an animation. */
+  const char *all = getenv("PREVIEW_FRAMES");
+  if (all && *all) {
+    char path[700];
+    snprintf(path, sizeof(path), "%s/%04d.png", all, frame);
+    cairo_surface_write_to_png(surface, path);
+  }
   frame++;
   if (frame >= step_count + idle_tail)
     exit(0);   /* script finished */
@@ -177,6 +184,11 @@ int sceTouchPeek(SceUInt32 port, SceTouchData *data, SceUInt32 count) {
 int sceTouchSetSamplingState(SceUInt32 port, SceTouchSamplingState state) { return 0; }
 
 SceUInt64 sceKernelGetProcessTimeWide(void) { return (SceUInt64)frame * 16683 + slept_us; }
+unsigned int preview_glyph_cost_us = 0;
+void preview_spend(unsigned int us) {
+  slept_us += us;
+}
+
 int sceKernelDelayThread(SceUInt delay) {
   slept_us += delay;
   slept_since_frame_us += delay;
@@ -214,6 +226,35 @@ int sceVideodecInitLibrary(SceVideodecType type, const SceVideodecQueryInitInfoH
   return info->horizontal <= 1280 && info->vertical <= 720 ? 0 : -1;
 }
 int sceVideodecTermLibrary(SceVideodecType type) { return 0; }
+
+/* Threads of the menus (the decoder probe): run to the end when started. */
+#define FAKE_THREADS 8
+static struct { SceKernelThreadEntry entry; bool used; } fake_threads[FAKE_THREADS];
+SceUID sceKernelCreateThread(const char *name, SceKernelThreadEntry entry, int initPriority, SceSize stackSize,
+                             SceUInt attr, int cpuAffinityMask, const SceKernelThreadOptParam *option) {
+  for (int i = 0; i < FAKE_THREADS; i++) {
+    if (!fake_threads[i].used) {
+      fake_threads[i].used = true;
+      fake_threads[i].entry = entry;
+      return 0x4000 + i;
+    }
+  }
+  return -1;
+}
+int sceKernelStartThread(SceUID thid, SceSize arglen, void *argp) {
+  int i = thid - 0x4000;
+  if (i < 0 || i >= FAKE_THREADS || !fake_threads[i].used)
+    return -1;
+  fake_threads[i].entry(arglen, argp);
+  return 0;
+}
+int sceKernelWaitThreadEnd(SceUID thid, int *stat, SceUInt *timeout) { return 0; }
+int sceKernelDeleteThread(SceUID thid) {
+  int i = thid - 0x4000;
+  if (i >= 0 && i < FAKE_THREADS)
+    fake_threads[i].used = false;
+  return 0;
+}
 
 int sceClibPrintf(const char *fmt, ...) { return 0; }
 

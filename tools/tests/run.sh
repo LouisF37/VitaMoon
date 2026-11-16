@@ -1,7 +1,8 @@
 #!/bin/bash
 # PC-side tests of the parts of the app that do not need a Vita: pacing of
 # the "Paced" display, settings file, SPS rewrite, URL encoding, session
-# percentiles, quick menu, log ring, title font coverage and waiting moon.
+# percentiles, quick menu, log ring, title font coverage, waiting moon and
+# start-up screen.
 # Built with AddressSanitizer and UBSan.
 #   VITASDK=/path/to/vitasdk tools/tests/run.sh
 set -e
@@ -12,6 +13,7 @@ out="${1:-$here/out}"
 mkdir -p "$out/inc"
 # Only the Vita-specific headers: the SDK's C library headers must not shadow the PC's.
 for d in psp2 psp2common vitasdk; do ln -sfn "$VITASDK/arm-vita-eabi/include/$d" "$out/inc/$d"; done
+ln -sfn "$VITASDK/arm-vita-eabi/include/vita2d.h" "$out/inc/vita2d.h"
 
 cc="gcc -std=gnu99 -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare
     -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer
@@ -30,6 +32,7 @@ $cc -D__vita__ -I"$here" -I"$out/inc" -I"$root/third_party/mdnsniff" "$here/test
     "$root/third_party/mdnsniff/udp_sniffer_vita.c" -o "$out/test_mdns"
 $cc -I"$here" -I"$root/src/gui" -I"$root/src" -I"$root/third_party/moonlight-common-c/src" \
     "$here/test_ui.c" -o "$out/test_ui"
+$cc -I"$here" -I"$out/inc" -I"$root/src/gui" "$here/test_splash.c" -o "$out/test_splash" -lm
 
 hb="$root/third_party/h264bitstream"
 $cc -w -I"$here" -I"$root/libgamestream" -I"$hb" -I"$root/third_party/moonlight-common-c/src" \
@@ -37,7 +40,7 @@ $cc -w -I"$here" -I"$root/libgamestream" -I"$hb" -I"$root/third_party/moonlight-
     -o "$out/test_sps"
 
 status=0
-for t in test_pacing test_misc test_config test_sps test_quickmenu test_log test_ui test_mdns; do
+for t in test_pacing test_misc test_config test_sps test_quickmenu test_log test_ui test_mdns test_splash; do
   "$out/$t" || status=1
 done
 if [ $status -eq 0 ]; then echo "all tests passed"; else echo "SOME TESTS FAILED"; fi
