@@ -69,6 +69,12 @@ static th_face faces[] = {
 #define FACE_COUNT ((int)(sizeof(faces) / sizeof(faces[0])))
 
 static vita2d_texture *background = NULL;
+/* Backgrounds replaced during a frame: that frame may already have drawn them,
+ * and the GPU reads them only once the frame is submitted, so they are freed
+ * by theme_end_frame(), after ui_end() has waited for the GPU. */
+#define RETIRED_MAX 4
+static vita2d_texture *retired[RETIRED_MAX];
+static int retired_count = 0;
 static float g_alpha = 1.0f;
 
 /* ---------------- colour themes ---------------- */
@@ -132,10 +138,23 @@ void theme_select(int index) {
   if (!picture)
     return;   /* keep the previous picture, or the plain gradient */
   if (background) {
-    vita2d_wait_rendering_done();   /* the GPU may still read the old one */
-    vita2d_free_texture(background);
+    /* Called from the settings screen in the middle of a frame that has
+     * already drawn the old picture: freeing it now, or waiting for the GPU
+     * with the frame still open, froze the Vita. It goes at the end of the
+     * frame. More than RETIRED_MAX changes in one frame cannot come from the
+     * menus; if they did, the new picture (not drawn yet) is dropped instead. */
+    if (retired_count == RETIRED_MAX) {
+      vita2d_free_texture(picture);
+      return;
+    }
+    retired[retired_count++] = background;
   }
   background = picture;
+}
+
+void theme_end_frame(void) {
+  while (retired_count > 0)
+    vita2d_free_texture(retired[--retired_count]);
 }
 
 /* Characters drawn once at start-up so that no glyph has to be rasterised in

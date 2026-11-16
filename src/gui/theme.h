@@ -39,6 +39,9 @@ extern theme_palette th_pal;
 
 /* Applies a theme (THEME_*): its colours and its background picture. */
 void theme_select(int index);
+/* Frees what theme_select() replaced; ui_end() calls it once the GPU has
+ * finished the frame. */
+void theme_end_frame(void);
 /* English name of a theme, to translate with tr(). */
 const char *theme_name(int index);
 /* The same colour with another opacity (0-255). */

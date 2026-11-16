@@ -3,6 +3,25 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.0.0-beta.6 "Nouvelle Lune" (2026-11-16)
+
+### Fixed
+
+- Changing the theme in *Settings > General* froze the Vita (seen on the first test on a Vita). The
+  setting is applied in the middle of a frame that has already drawn the old background: the old
+  picture was freed, after a wait for the GPU, while that frame was still open and about to use it.
+  It is now freed at the end of the frame, once the GPU has finished with it (`theme_end_frame()`).
+  Present since themes came in, 1.0.0-beta.2; the PC preview could not show it, its drawing being
+  immediate.
+- A settings file that could not be written closed the app at once (inherited from upstream). The
+  error is now logged and the app goes on with the settings in memory.
+
+### Tests
+
+- The PC preview's fake vita2d now checks two rules of the Vita's GPU: no wait for the GPU while a
+  frame is open, no texture freed before the GPU has finished the frames that drew it. The settings
+  scenario changes the theme; beta.5's code fails there. 227 PC checks.
+
 ## 1.0.0-beta.5 "Nouvelle Lune" (2026-11-16)
 
 ### Fixed

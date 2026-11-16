@@ -14,7 +14,7 @@ by CI on every push.
 | Test | What it checks |
 |---|---|
 | `test_pacing.c` | the *Paced* display against simulated streams: steady, 0-15 ms jitter, PC clock 200 ppm and 0.1 % off both ways, a matched 59.94 fps stream, 30 fps, a 3 s pause; frames shown in order, drops and repeated frames, bounded wait |
-| `test_config.c` | every setting survives a save and a load; old keys ignored, out-of-range values reset; automatic bitrate |
+| `test_config.c` | every setting survives a save and a load; old keys ignored, out-of-range values reset; automatic bitrate; a file that cannot be written is logged and the app goes on |
 | `test_sps.c` | the SPS rewrite sets the low-latency hints, stays within the room the renderer keeps, passes anything it cannot parse through unchanged |
 | `test_misc.c` | URL encoding of the pairing name, percentiles of the session summary, the decisions of the automatic reconnection, PC names checked before they are used as folder names |
 | `test_quickmenu.c` | the in-game quick menu: what opens it, moves in it, acts and closes it, when the game gets its buttons back |
@@ -32,6 +32,11 @@ presses and writes every screen as a PNG in English, French and Spanish, a few s
 theme (`themes/`), then lists any text that does not fit its box. Needs gcc and the cairo and freetype development packages.
 `PREVIEW_SANITIZE=1` builds it with AddressSanitizer and UBSan, which then checks the menus for
 memory errors and leaks as well.
+
+The fake vita2d draws at once, while the Vita's GPU reads textures only after a frame is submitted.
+It therefore checks two rules of the console and stops with a message when one is broken: no wait
+for the GPU while a frame is open, and no texture freed before the GPU has finished every frame that
+drew it. The theme change in the `settings_change` scenario covers the case that froze beta.5.
 
 ## Static analysis
 

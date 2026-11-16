@@ -5,12 +5,19 @@
  */
 #include "test.h"
 #include "config.h"
+#include "log.h"
 
 #include <stdlib.h>
 #include <string.h>
 
 /* What config.c needs from the rest of the app. */
 void vita_debug_log(const char *s, ...) { (void)s; }
+static int errors_logged = 0;
+void log_write(log_level level, const char *tag, const char *fmt, ...) {
+  (void)tag; (void)fmt;
+  if (level == LOG_ERROR)
+    errors_logged++;
+}
 int sceKernelGetModelForCDialog(void) { return 0; }
 void LiInitializeStreamConfiguration(PSTREAM_CONFIGURATION c) { memset(c, 0, sizeof(*c)); }
 
@@ -169,6 +176,10 @@ int main(void) {
   CHECK(b544 > 0 && b544 <= b720, "auto bitrate grows with the resolution");
   CHECK(b720_30 <= b720, "auto bitrate lower at 30 fps");
   CHECK(b720 <= 20000, "auto bitrate stays within 20 Mbps");
+
+  /* A settings file that cannot be written is logged, and the app goes on. */
+  config_save("/nonexistent-folder/vitamoon.conf", &a);
+  CHECK(errors_logged == 1, "settings file that cannot be written: logged, app keeps running");
 
   remove(k_file);
   return TEST_END();

@@ -28,6 +28,7 @@
 #include <ini.h>
 #include "input/vita.h"
 #include "debug.h"
+#include "log.h"
 
 extern char* strdup(const char*);
 
@@ -242,8 +243,10 @@ void config_sanitize(PCONFIGURATION config) {
 void config_save(const char* filename, PCONFIGURATION config) {
   FILE* fd = fopen(filename, "w");
   if (fd == NULL) {
-    fprintf(stderr, "Can't open configuration file: %s\n", filename);
-    exit(EXIT_FAILURE);
+    /* The settings stay as they are in memory; closing the app over a file
+     * that cannot be written lost what was on screen, a stream included. */
+    LOGE("config", "cannot write the settings file %s", filename);
+    return;
   }
 
   if (config->address)

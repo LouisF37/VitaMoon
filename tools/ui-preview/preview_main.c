@@ -260,6 +260,18 @@ static void scenario_settings_change(void) {
   preview_press(SCE_CTRL_RIGHT);
   preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN);
   preview_snap("settings_advanced_direct_rows");
+  /* General: change the theme twice. The setting is applied in the middle of a
+   * frame that has already drawn the old background (it froze beta.5 on a
+   * Vita); fake_vita2d.c breaks the preview if that background is freed too
+   * early. */
+  preview_press(SCE_CTRL_CIRCLE);
+  for (int i = 0; i < 5; i++) preview_press(SCE_CTRL_LTRIGGER);
+  preview_press(SCE_CTRL_RIGHT);
+  preview_press(SCE_CTRL_DOWN);
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("settings_theme_changed");
+  preview_press(SCE_CTRL_LEFT);
+  preview_snap("settings_theme_back");
   preview_wait(4);
   ui_settings_menu();
 }

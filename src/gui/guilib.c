@@ -150,6 +150,7 @@ void ui_end(void) {
   frame_open = false;
   vita2d_end_drawing();
   vita2d_wait_rendering_done();
+  theme_end_frame();   // textures the frame used can go now
   vita2d_swap_buffers();
 }
 

@@ -5,6 +5,12 @@
  * Text follows vita2d's own layout rules (glyphs rendered at the pixel size,
  * pen advanced by whole pixels), so widths and alignment match the console
  * closely. Colours, shapes and textures cover what src/gui uses.
+ *
+ * Drawing here is immediate, but on the Vita the GPU reads a texture only after
+ * the frame is submitted. Two rules of the console are therefore checked, and
+ * break the preview with a message: no wait for the GPU while a frame is open
+ * (vita2d_wait_rendering_done between start and end drawing), and no texture
+ * freed while a frame that drew it has not been waited for.
  */
 #include <vita2d.h>
 
@@ -29,6 +35,7 @@ typedef struct {
   int w, h, stride;
   unsigned char *rgba;   /* Vita layout: R, G, B, A bytes */
   cairo_surface_t *png;  /* set for textures loaded from a PNG */
+  unsigned int drawn_in; /* last frame that drew it (0: never) */
 } fake_tex;
 
 static cairo_surface_t *screen;
@@ -36,6 +43,15 @@ static cairo_t *cr;
 static FT_Library ft;
 static unsigned int clear_color = 0xff000000;
 static int clip_on, clip_x0, clip_y0, clip_x1, clip_y1;
+/* GPU model: frames are numbered from 1; a frame is finished for the GPU once
+ * vita2d_wait_rendering_done() has been called after it was ended. */
+static unsigned int frame_id = 0, frame_done = 0;
+static int frame_open = 0;
+
+static void gpu_rule_broken(const char *what) {
+  fprintf(stderr, "preview: %s (on the Vita this reads freed memory or stalls the GPU)\n", what);
+  abort();
+}
 
 void preview_frame_done(cairo_surface_t *surface);   /* preview_sys.c */
 
@@ -65,10 +81,19 @@ int vita2d_init_advanced_with_msaa(unsigned int temp_pool_size, SceGxmMultisampl
 int vita2d_fini(void) { return 1; }
 void vita2d_set_clear_color(unsigned int color) { clear_color = color; }
 void vita2d_set_vblank_wait(int enable) {}
-void vita2d_wait_rendering_done(void) {}
+void vita2d_wait_rendering_done(void) {
+  if (frame_open)
+    gpu_rule_broken("vita2d_wait_rendering_done() called while a frame is open");
+  frame_done = frame_id;
+}
 static void pool_reset(void);
-void vita2d_start_drawing(void) { pool_reset(); apply_clip(); }
-void vita2d_end_drawing(void) {}
+void vita2d_start_drawing(void) {
+  frame_open = 1;
+  frame_id++;
+  pool_reset();
+  apply_clip();
+}
+void vita2d_end_drawing(void) { frame_open = 0; }
 void vita2d_clear_screen(void) {
   cairo_save(cr);
   cairo_reset_clip(cr);
@@ -209,6 +234,8 @@ vita2d_texture *vita2d_load_PNG_file(const char *filename) {
 void vita2d_free_texture(vita2d_texture *texture) {
   fake_tex *t = (fake_tex *)texture;
   if (!t) return;
+  if (t->drawn_in > frame_done)
+    gpu_rule_broken("texture freed while a frame that drew it may still be read by the GPU");
   if (t->png) cairo_surface_destroy(t->png);
   free(t->rgba);
   free(t);
@@ -243,6 +270,7 @@ void vita2d_draw_texture_part_scale(const vita2d_texture *texture, float x, floa
                                     float tex_w, float tex_h, float x_scale, float y_scale) {
   fake_tex *t = (fake_tex *)texture;
   if (!t) return;
+  t->drawn_in = frame_id;
   int owned;
   cairo_surface_t *s = tex_surface(t, &owned);
   cairo_save(cr);
