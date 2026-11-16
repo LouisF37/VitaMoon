@@ -12,7 +12,7 @@ Embedded.
 | `src/main.c` | start-up: data folder, log, settings, pairing name, network, then the menus |
 | `src/log.c`, `src/log_core.c` | the log: levels, ring, writer thread, budgets (pure part tested on a PC) |
 | `src/app_info.h` | name of the app and of its data folder (package identity: top of `CMakeLists.txt`) |
-| `src/config.c` | settings file `lune.conf`: defaults, reading, sanitising, writing |
+| `src/config.c` | settings file `vitamoon.conf`: defaults, reading, sanitising, writing |
 | `src/connection.c` | stream state machine (ready, paired, connected, paused) and moonlight-common-c callbacks |
 | `src/video/vita.c` | video renderer: hardware H.264 decoding, frame slots, display thread, display modes |
 | `src/video/pacing.c` | *Paced* display timing (pure logic, tested on a PC) |
@@ -94,23 +94,26 @@ warning, error, the PlayStation symbols) are the same in every theme.
 
 ## Data on the memory card
 
-The data folder is the first that can be created among `ux0:data/lune`, `ux0:lune` and
-`uma0:data/lune` (`src/check_dir.c`; the name comes from `src/app_info.h`). It is not shared with
+The data folder is the first that can be created among `ux0:data/vitamoon`, `ux0:vitamoon` and
+`uma0:data/vitamoon` (`src/check_dir.c`; the name comes from `src/app_info.h`). On the first start
+after the rename, Lune's folder (`ux0:data/lune`, or `ux0:lune`, `uma0:data/lune`) is moved to it, with
+`lune.conf` and the logs renamed, so the pairing key and the settings carry over; the folder found
+wins over the `key_dir` line of the settings file. It is not shared with
 Moonlight, which keeps `ux0:data/moonlight`.
 
 | Path | Content |
 |---|---|
-| `lune.conf` | settings (`src/config.c`); unknown keys are ignored, out-of-range values reset |
+| `vitamoon.conf` | settings (`src/config.c`); unknown keys are ignored, out-of-range values reset |
 | `<PC name>/` | per PC: client certificate and key, unique ID, `device.ini` (addresses, MAC, paired) |
 | `stats/session-<date>.csv`, `.txt` | per stream: one line per second, settings and percentiles |
 | `stats/last_<app>.txt` | figures of the last session of each game, for the library |
 | `boxart/<PC>/<app>.cover` | cover art, resized for the library |
-| `lune.log`, `lune.1.log` .. `lune.4.log` | the log of this run and of the four before (`src/log.c`) |
+| `vitamoon.log`, `vitamoon.1.log` .. `vitamoon.4.log` | the log of this run and of the four before (`src/log.c`) |
 
 ## Log
 
-`src/log.c` writes `lune.log` in the data folder on every run; the previous four runs are kept as
-`lune.1.log` (newest) to `lune.4.log`. A line reads `14:03:27.512 I stream  started in 412 ms`: local
+`src/log.c` writes `vitamoon.log` in the data folder on every run; the previous four runs are kept as
+`vitamoon.1.log` (newest) to `vitamoon.4.log`. A line reads `14:03:27.512 I stream  started in 412 ms`: local
 time (to match the PC's Sunshine log), level (E error, W warning, I information, D detail), subject.
 
 - **Normal log** (always): start-up (version, firmware, model, free memory, battery, Wi-Fi), each PC

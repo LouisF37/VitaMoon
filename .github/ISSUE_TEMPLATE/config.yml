@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Setting up Sunshine on the PC
+    url: https://docs.lizardbyte.dev/projects/sunshine/latest/md_docs_2configuration.html
+    about: Sunshine's own documentation, for questions about the PC side.

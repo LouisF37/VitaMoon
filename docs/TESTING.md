@@ -45,6 +45,6 @@ cmake -S . -B /tmp/analyze -DVITA_OPT_LEVEL="-O1 -fanalyzer" && cmake --build /t
 ## On a Vita
 
 The streaming behaviour can only be measured on the console. Each stream writes
-`ux0:data/lune/stats/session-<date>.csv` (one line per second) and `.txt` (settings, Wi-Fi,
+`ux0:data/vitamoon/stats/session-<date>.csv` (one line per second) and `.txt` (settings, Wi-Fi,
 column legend, percentiles over the session). The checkpoint reports in [checkpoints/](checkpoints/)
 hold the test plan and the results.

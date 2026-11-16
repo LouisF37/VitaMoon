@@ -5,7 +5,7 @@
  * over the live picture by the display thread and driven by the input thread,
  * while the game keeps running on the PC; the game receives no button while it
  * is open. Rows: back to the game, statistics on screen, keyboard, pause
- * (Lune's menus), quit the game. The decisions are in quickmenu_logic.h. */
+ * (VitaMoon's menus), quit the game. The decisions are in quickmenu_logic.h. */
 
 #include <stdbool.h>
 #include <stdint.h>

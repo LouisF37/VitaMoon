@@ -1,26 +1,28 @@
 <div align="center">
-  <img src="sce_sys/icon0.png" alt="Lune" width="128"/>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/vitamoon-logo-dark.svg">
+    <img src="docs/assets/vitamoon-logo-light.svg" alt="VitaMoon" width="300">
+  </picture>
 
-  # Lune
+  <h3>Moonlight game streaming for the PS Vita, built for a smooth picture over Wi-Fi</h3>
 
-  **Stream your PC games to a PlayStation Vita, built for a smooth picture over Wi-Fi**
-
-  [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
-  [![Build](https://img.shields.io/github/actions/workflow/status/LouisF37/lune-vita/cmake-psvita.yml?branch=phase2)](../../actions)
-  [![Version](https://img.shields.io/badge/version-1.0.0--beta.1%20%22Nouvelle%20Lune%22-orange)](CHANGELOG.md)
+  [![Build](https://img.shields.io/github/actions/workflow/status/LouisF37/VitaMoon/cmake-psvita.yml?branch=phase2&label=build)](../../actions)
+  [![Release](https://img.shields.io/github/v/release/LouisF37/VitaMoon?include_prereleases&label=release)](../../releases)
+  [![Platform](https://img.shields.io/badge/platform-PS%20Vita%20%7C%20PS%20TV-1B4A8F)](#requirements)
+  [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 </div>
 
 ---
 
-Lune is a [Moonlight](https://moonlight-stream.org) client for the PS Vita and PS TV: it plays the
+VitaMoon is a [Moonlight](https://moonlight-stream.org) client for the PS Vita and PS TV: it plays the
 games of a PC running [Sunshine](https://github.com/LizardByte/Sunshine) (or NVIDIA GameStream) on the
-Vita, on your home network. *Lune* is French for moon.
+Vita, on your home network.
 
 It started from [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight) 0.13.2 and reworks the
 streaming path (decoding off the network thread, three display modes, adaptive audio, waiting for
 late Wi-Fi packets), the interface, and the tools to measure what the Vita actually does. What was
 taken from other forks, and what was measured by whom, is listed in
-[docs/design/performance.md](docs/design/performance.md).
+[docs/design/performance.md](docs/design/performance.md). Up to 1.0.0-beta.1 it was called *Lune*.
 
 > **Status: beta.** Everything builds, the menus are checked on a PC in three languages and the
 > stream logic is covered by PC tests, but this version has not yet been measured on a Vita. See
@@ -75,14 +77,17 @@ measurements).</sub>
 
 ## Install
 
-1. Download the VPK of the
-   [1.0.0-beta.1 release](../../releases/tag/v1.0.0-beta.1), or of
-   [the latest development build](../../releases/tag/build-phase2).
+1. Download `vitamoon-v<version>.vpk` from the [latest release](../../releases), or
+   `vitamoon-phase2.vpk` from [the latest development build](../../releases/tag/build-phase2).
 2. Copy it to the Vita and install it with VitaShell.
 
-Lune has its own title ID (`LUNE00001`) and data folder (`ux0:data/lune`): it installs next to
-Moonlight without changing it, so both can be compared. A PC paired with Moonlight must be paired
-again with Lune.
+VitaMoon has its own title ID (`VMOON0001`) and data folder (`ux0:data/vitamoon`): it installs next
+to Moonlight without changing it, so both can be compared. A PC paired with Moonlight must be paired
+again with VitaMoon.
+
+**Coming from Lune 1.0.0-beta.1?** On its first start VitaMoon moves `ux0:data/lune` to
+`ux0:data/vitamoon`: the paired PCs, the settings, the statistics and the logs follow. The old *Lune*
+bubble can then be deleted.
 
 ## First-time setup
 
@@ -120,10 +125,10 @@ The French user and test guide, with every option and the test plan, is in
 
 ## Getting help
 
-- Each stream writes `ux0:data/lune/stats/session-<date>.csv` and `.txt`: the files to attach to
+- Each stream writes `ux0:data/vitamoon/stats/session-<date>.csv` and `.txt`: the files to attach to
   a bug report, with the build shown at the bottom left of the home screen.
-- Every run writes `ux0:data/lune/lune.log` (the four previous runs: `lune.1.log` to `lune.4.log`):
-  attach it too. *Settings > General > Detailed log* adds every detail line.
+- Every run writes `ux0:data/vitamoon/vitamoon.log` (the four previous runs: `vitamoon.1.log` to
+  `vitamoon.4.log`): attach it too. *Settings > General > Detailed log* adds every detail line.
 - A crash leaves `ux0:data/psp2core-*.psp2dmp`; `tools/dev/crash-dump.sh` decodes it.
 - Bugs and ideas: [Issues](../../issues).
 
@@ -142,7 +147,7 @@ export VITASDK=/usr/local/vitasdk        # with the packages listed in docs/BUIL
 cmake -S . -B build && cmake --build build -j
 ```
 
-The VPK is `build/lune.vpk`. Every push is built by GitHub Actions. Details, PC tests and the
+The VPK is `build/vitamoon.vpk`. Every push is built by GitHub Actions. Details, PC tests and the
 interface preview: [docs/BUILDING.md](docs/BUILDING.md) and [docs/TESTING.md](docs/TESTING.md).
 
 ## Credits
@@ -159,8 +164,9 @@ interface preview: [docs/BUILDING.md](docs/BUILDING.md) and [docs/TESTING.md](do
   [alex4580/vita-moonlight](https://github.com/alex4580/vita-moonlight) and
   [NowaLone/vita-moonlight](https://github.com/NowaLone/vita-moonlight). Details in
   [docs/design/forks.md](docs/design/forks.md).
-- Roboto font (Apache 2.0, `assets/LICENSE.Roboto`), Nerd Fonts icons. The LiveArea icon is drawn by
-  `tools/art/make_icons.py`.
+- Roboto font (Apache 2.0, `assets/LICENSE.Roboto`), Nerd Fonts icons. The logo, the LiveArea images
+  and the GitHub preview are drawn by `tools/art/make_brand.py` (wordmark in Poppins, SIL Open Font
+  License).
 
 Developed by [LouisF37](https://github.com/LouisF37) with the help of
 [Claude Code](https://claude.com/claude-code).

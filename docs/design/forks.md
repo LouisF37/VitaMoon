@@ -87,7 +87,7 @@ A PS5 Remote Play client for the Vita (Chiaki's protocol, not Moonlight's), comp
 2026 at commit e0a2fe8. Its protocol, PSN sign-in and microphone have no Moonlight counterpart; the
 rest was read for what a Vita client needs whatever the protocol.
 
-| Item | In Lune | Notes |
+| Item | In VitaMoon | Notes |
 |---|---|---|
 | Decoder catch-up, input thread priority, output buffer rotation | yes | taken earlier |
 | 8 MiB network memory pool (4 MiB ran out under load) | yes | `src/main.c` |
@@ -96,7 +96,7 @@ rest was read for what a Vita client needs whatever the protocol.
 | Colour themes | yes, own palettes | five themes |
 | Log written from a queue by its own thread, per-run files, drop counters | yes, reworked | a byte ring with no allocation per line, levels, token buckets, repeat folding, the four previous runs kept |
 | Time per stream stage, settings and device state in the log | yes | `stream` and `system` lines |
-| Delay probes: decoder hold, receive backlog, audio gaps, presentation order | mostly | Lune's per-second CSV has decoder hold, receive and queue times, audio buffer and gaps, late and repeated frames |
+| Delay probes: decoder hold, receive backlog, audio gaps, presentation order | mostly | VitaMoon's per-second CSV has decoder hold, receive and queue times, audio buffer and gaps, late and repeated frames |
 | Button-press-to-picture meter (`PIPE/PRESS`: matches a press to the next big frame) | not yet | worth adding: the only end-to-end measure of the delay a player feels; needs care (quiet screen, ambiguous matches), as its own documentation shows |
 | Microphone, PSN, console wake-up over the Internet | no | not in the Moonlight protocol, or done by Sunshine |
 | Latency presets that change several settings at once | yes | *Profile* (Smooth, Paced, Lowest latency, Original) |

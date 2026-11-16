@@ -15,7 +15,7 @@
 #define RECONNECT_RETRY_MS 3000
 
 /* A stream lost again sooner than this after it started counts as a failed
- * reconnection; after RECONNECT_MAX_QUICK_LOSSES of them in a row, Lune stops
+ * reconnection; after RECONNECT_MAX_QUICK_LOSSES of them in a row, VitaMoon stops
  * reconnecting (the link is not good enough to hold a stream). */
 #define RECONNECT_QUICK_LOSS_MS 20000
 #define RECONNECT_MAX_QUICK_LOSSES 3

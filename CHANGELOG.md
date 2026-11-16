@@ -3,23 +3,33 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
-## Unreleased
+## 1.0.0-beta.2 "Nouvelle Lune" (2026-11-16)
+
+### Identity
+
+- Named **VitaMoon**, with a new logo (a disc with a V cut out of its top, in the phases of the moon)
+  drawn by `tools/art/make_brand.py`: LiveArea bubble, gate and background, the mark in the menus' top
+  bar, the README logo and the GitHub preview image. The LiveArea background no longer uses the
+  photograph inherited from vita-moonlight.
+- Own title ID `VMOON0001` and data folder `ux0:data/vitamoon`. On its first start VitaMoon moves
+  Lune's folder (`ux0:data/lune`) to its own, with the paired PCs, settings, statistics and logs; the
+  old Lune bubble can be deleted. VPKs are named `vitamoon-<version>.vpk`.
 
 ### Added
 
 - Automatic reconnection: a stream lost to a Wi-Fi drop or to a sleep of the Vita starts again on its
-  own, on the same game, which kept running on the PC. Lune waits for the Wi-Fi, tries every 3 s for
+  own, on the same game, which kept running on the PC. VitaMoon waits for the Wi-Fi, tries every 3 s for
   a minute and can be cancelled; it stops after three streams in a row lost within 20 s. Option
   *Settings > General > Reconnect automatically*, on by default (`src/reconnect.h`).
 - In-game quick menu, L + R + SELECT during a stream: back to the game, statistics on screen, keyboard,
-  pause (Lune's menus), quit the game (asked twice), with the Wi-Fi, battery and clock of the Vita.
+  pause (VitaMoon's menus), quit the game (asked twice), with the Wi-Fi, battery and clock of the Vita.
   It is drawn over the live picture; the game keeps running and receives no button until the menu is
   closed and every button released (`src/gui/quickmenu.c`, state machine tested on a PC).
 - Five colour themes for the menus, *Settings > General > Theme*: Night (the former look), Dawn,
   Aurora, Twilight, Eclipse; each with its own background. The idea of a few presets comes from
-  VitaRPS5; the palettes are Lune's own (`src/gui/theme.c`, `tools/make_background.py`).
-- A log on every run, `ux0:data/lune/lune.log` (the four previous runs kept as `lune.1.log` to
-  `lune.4.log`): start-up and device state, each PC and its Sunshine version, each stream (settings,
+  VitaRPS5; the palettes are VitaMoon's own (`src/gui/theme.c`, `tools/make_background.py`).
+- A log on every run, `ux0:data/vitamoon/vitamoon.log` (the four previous runs kept as
+  `vitamoon.1.log` to `vitamoon.4.log`): start-up and device state, each PC and its Sunshine version, each stream (settings,
   timed start stages, video, audio and controller set-up, how and when it ended), reconnections, quick
   menu, errors, and one health line per minute of play. Lines are written by a low-priority thread
   from a memory ring, so no stream thread waits for the memory card; repeated lines are folded and

@@ -15,13 +15,13 @@ vdpm install zlib bzip2 expat openssl curl opus libpng libjpeg-turbo freetype li
 ## Build the VPK
 
 ```sh
-git clone --recurse-submodules https://github.com/LouisF37/lune-vita.git
-cd lune-vita
+git clone --recurse-submodules https://github.com/LouisF37/VitaMoon.git
+cd VitaMoon
 cmake -S . -B build
 cmake --build build -j
 ```
 
-The result is `build/lune.vpk` (and `build/lune.elf` with debug symbols, for crash dumps).
+The result is `build/vitamoon.vpk` (and `build/vitamoon.elf` with debug symbols, for crash dumps).
 
 - `-DVITA_OPT_LEVEL=-O0` builds without optimisation, for debugging (default `-O2`).
 - The home screen shows the version and the build (`branch-commit`), so a tester can tell which
@@ -43,7 +43,7 @@ Set the Vita's address in `VITA_IP` or in `tools/dev/vita_ip.txt` (not committed
 |---|---|
 | `deploy-vpk.sh` | build, send the VPK to VitaShell's FTP (`ux0:/ABM/`), open VitaShell |
 | `deploy-eboot.sh` | build and replace only `eboot.bin` of the installed app, then start it (vitacompanion) |
-| `crash-dump.sh` | fetch the newest `psp2core` dump and decode it against `build/lune.elf` |
+| `crash-dump.sh` | fetch the newest `psp2core` dump and decode it against `build/vitamoon.elf` |
 | `release_info.py` | tag, title and notes of the version CI will release ([RELEASING.md](RELEASING.md)) |
 
 ## Translations
@@ -58,4 +58,6 @@ Spanish texts are in `tools/i18n/table.py` and `table2.py`; `python3 tools/i18n/
   to Sunshine with their cover art.
 - `tools/wol_sniffer.py`: listens for Wake-on-LAN packets, to check them without turning the PC off.
 - `tools/make_background.py`: generates the interface background.
-- `tools/art/make_icons.py`: draws the LiveArea bubble icon and gate image.
+- `tools/art/make_brand.py`: draws the logo and the images made from it (LiveArea bubble, gate and
+  background, `assets/logo_mark.png`, `docs/assets/`). Needs Pillow, fontTools, `rsvg-convert` and
+  the Poppins and Inter Display fonts.

@@ -39,8 +39,9 @@ def changelog_section(version):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument('--repo', default='LouisF37/lune-vita')
+    ap.add_argument('--repo', default='LouisF37/VitaMoon')
     ap.add_argument('--notes', default='release-notes.md')
+    ap.add_argument('--field', choices=['tag'], help='print only this value, write no notes')
     args = ap.parse_args()
 
     v = cmake_vars()
@@ -48,6 +49,9 @@ def main():
     if v['VERSION_LABEL']:
         version += '-' + v['VERSION_LABEL']
     tag = 'v' + version
+    if args.field == 'tag':
+        print(tag)
+        return
     title = '%s %s "%s"' % (v['TITLE'], version, v['VERSION_NAME'])
 
     base = 'https://github.com/%s/blob/%s/' % (args.repo, tag)

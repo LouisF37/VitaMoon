@@ -1,19 +1,24 @@
-# Lune : guide d'utilisation et de test
+# VitaMoon : guide d'utilisation et de test
 
-Lune est un client Moonlight pour PS Vita. Version 1.0.0 bêta 1 « Nouvelle Lune ».
+VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 2 « Nouvelle Lune ». Jusqu'à la
+bêta 1, le projet s'appelait Lune.
 
 Téléchargement :
-- version 1.0.0-beta.1 : https://github.com/LouisF37/lune-vita/releases/tag/v1.0.0-beta.1
+- versions publiées : https://github.com/LouisF37/VitaMoon/releases
 - dernière compilation de la branche `phase2` :
-  https://github.com/LouisF37/lune-vita/releases/download/build-phase2/lune-phase2.vpk
+  https://github.com/LouisF37/VitaMoon/releases/download/build-phase2/vitamoon-phase2.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.1  phase2-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.2  phase2-xxxxxxx`.
 
-**Installation à côté de Moonlight.** Lune a son propre identifiant (`LUNE00001`), sa propre bulle et son
-propre dossier (`ux0:data/lune`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc appairer
-le PC une première fois avec Lune (code à 4 chiffres dans Sunshine). Pour comparer avec le Moonlight
-d'origine, réinstaller le VPK officiel de vita-moonlight 0.13.2 sur la bulle Moonlight : une version
+**Installation à côté de Moonlight.** VitaMoon a son propre identifiant (`VMOON0001`), sa propre bulle et
+son propre dossier (`ux0:data/vitamoon`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc
+appairer le PC une première fois avec VitaMoon (code à 4 chiffres dans Sunshine). Pour comparer avec le
+Moonlight d'origine, réinstaller le VPK officiel de vita-moonlight 0.13.2 sur la bulle Moonlight : une version
 d'essai précédente de ce projet y est peut-être installée.
+
+**Si Lune bêta 1 est installé.** Au premier lancement, VitaMoon déplace `ux0:data/lune` vers
+`ux0:data/vitamoon` : les PC appairés, les réglages, les statistiques et les journaux suivent, sans
+nouvel appairage. La bulle Lune peut ensuite être supprimée.
 
 **État des vérifications.** Le code compile pour la Vita, les tests sur PC passent (affichage
 cadencé simulé, fichier de réglages, réécriture du SPS), tous les écrans ont été rendus hors console
@@ -42,7 +47,7 @@ la dernière session du jeu sélectionné.
 - Croix directionnelle ou écran tactile pour choisir ; L et R avancent de 5 jeux.
 
 **Menu rapide en jeu.** L + R + SELECT pendant un stream ouvre un menu par-dessus le jeu : retour au jeu,
-statistiques à l'écran (oui / non, enregistré), clavier, pause (menus de Lune), quitter le jeu (Croix
+statistiques à l'écran (oui / non, enregistré), clavier, pause (menus de VitaMoon), quitter le jeu (Croix
 deux fois, pour éviter un accident ; Rond si X et O sont inversés). Le haut de l'écran montre le Wi-Fi,
 la batterie et l'heure. Le jeu continue de tourner sur le PC pendant ce temps, mais ne reçoit aucun
 bouton tant que le menu est ouvert, ni avant que tous les boutons soient relâchés à sa fermeture. Rond
@@ -54,10 +59,10 @@ s'appliquent qu'au démarrage d'un stream ont été modifiés pendant la pause (
 options de la rubrique Performance...), la reprise propose de relancer le stream : le jeu continue sur le PC,
 seul le flux est recommencé.
 
-**Reconnexion automatique.** Si le Wi-Fi coupe ou si la Vita se met en veille pendant un stream, Lune
+**Reconnexion automatique.** Si le Wi-Fi coupe ou si la Vita se met en veille pendant un stream, VitaMoon
 affiche « Connexion perdue », attend le retour du Wi-Fi puis relance le stream du même jeu, qui a continué
 sur le PC. Il essaie toutes les 3 secondes pendant une minute ; Rond (ou Croix si X et O sont inversés)
-annule. Si le stream retombe trois fois de suite moins de 20 secondes après être reparti, Lune arrête et
+annule. Si le stream retombe trois fois de suite moins de 20 secondes après être reparti, VitaMoon arrête et
 le dit. Option : Réglages → Général → Reconnexion automatique (activée par défaut). Une coupure pendant la
 pause (dans les menus) ne déclenche pas de reconnexion : reconnectez-vous et choisissez Reprendre.
 
@@ -117,7 +122,7 @@ Rubrique Vidéo : 960 x 544 par défaut (la définition de l'écran de la Vita) 
 Rubrique Avancé, deux autres options de test :
 - `Lissage des contours` (activé) : anticrénelage 4x des menus et du stream. Son coût sur le dessin du
   stream n'est pas mesuré ; pour le mesurer, comparer la colonne `render_avg_us` avec et sans
-  (redémarrer Lune après le changement).
+  (redémarrer VitaMoon après le changement).
 - `Garder la liaison avec le PC ouverte` (désactivé) : évite de rouvrir une connexion sécurisée à chaque
   requête des menus (liste des jeux, jaquettes). Expérimental.
 
@@ -137,9 +142,9 @@ pendant le stream) :
    `Taille des paquets vidéo` à 1392 ; `Lire les commandes au rythme de la Vita` désactivé. Le plus
    simple : START + L + R, changer l'option, reprendre et accepter la relance du stream (chaque stream a
    ses propres fichiers de statistiques).
-6. Facultatif : Fluide avec `Lissage des contours` désactivé (après redémarrage de Lune).
+6. Facultatif : Fluide avec `Lissage des contours` désactivé (après redémarrage de VitaMoon).
 
-Chaque session crée deux fichiers dans `ux0:data/lune/stats/` : un `.csv` (une ligne par seconde)
+Chaque session crée deux fichiers dans `ux0:data/vitamoon/stats/` : un `.csv` (une ligne par seconde)
 et un `.txt` (réglages de la session, signal Wi-Fi, légende des colonnes). Ce sont ces fichiers qu'il
 faut renvoyer, avec une phrase sur le ressenti (saccades, retard des commandes, son).
 
@@ -159,7 +164,7 @@ profil à l'autre : les moyennes cachent les saccades.
 **Vita.** Paramètres → Paramètres d'économie d'énergie : décocher l'utilisation du Wi-Fi en mode économie
 d'énergie. Couper aussi le Bluetooth si aucun appareil Bluetooth ne sert : il partage la bande 2,4 GHz
 avec le Wi-Fi (juanjsebgarcia : pertes d'images d'environ 50 par minute à 0 avec un signal fort et le
-Bluetooth coupé). Lune lit ces deux réglages et affiche un avertissement sur l'accueil s'il les
+Bluetooth coupé). VitaMoon lit ces deux réglages et affiche un avertissement sur l'accueil s'il les
 trouve activés (lecture du registre non encore vérifiée sur console).
 
 **Sunshine** (interface web : `https://localhost:47990`), en résumé ; le pas-à-pas complet est dans le
@@ -167,9 +172,9 @@ tutoriel Sunshine fourni avec cette version.
 - Installer **ViGEmBus** (1.17 ou plus récent), puis *Input* > *Pilotes de la manette Windows* = ViGEmBus :
   sans pilote, Sunshine 2026.914 ne crée pas de manette virtuelle.
 - *Input* > *Mapper Retour/Sélection au clic du pavé tactile* : décoché (sinon SELECT appuie aussi sur
-  le pavé de la DualShock 4 virtuelle quand Lune annonce une manette PlayStation).
+  le pavé de la DualShock 4 virtuelle quand VitaMoon annonce une manette PlayStation).
 - *Audio / Vidéo* > options des périphériques d'affichage : *Vérifier que l'écran est activé*, puis une
-  entrée de remplacement 960x544 → 1280x720 ; côté Lune, *Laisser le PC adapter son écran* activé.
+  entrée de remplacement 960x544 → 1280x720 ; côté VitaMoon, *Laisser le PC adapter son écran* activé.
 - *Encodeur Intel QuickSync* > préréglage : la **première** ligne (veryfast ; la traduction donne le
   même libellé à la deuxième). `cavlc` et `fec_percentage` = 30 restent des essais, un par un.
 - `lan_encryption_mode` = 0 et `minimum_fps_target` = 0 : les valeurs par défaut.
@@ -194,11 +199,11 @@ Fichiers reconnus : `.cue`, `.chd`, `.m3u`, `.pbp`. Une image `.png` ou `.jpg` d
 
 ## En cas de problème
 
-Chaque lancement écrit `ux0:data/lune/lune.log` (les quatre précédents : `lune.1.log` à `lune.4.log`) :
+Chaque lancement écrit `ux0:data/vitamoon/vitamoon.log` (les quatre précédents : `vitamoon.1.log` à `vitamoon.4.log`) :
 démarrage, PC contactés et version de Sunshine, chaque stream (réglages, étapes chronométrées, fin et
 cause), reconnexions, erreurs, et une ligne de santé par minute de jeu. L'heure des lignes est celle de
 la Vita, pour la rapprocher du journal de Sunshine (*Dépannage* > *Journaux*). *Réglages* > *Général* >
-*Journal détaillé* ajoute tous les détails. Pour un rapport : `lune.log` et les fichiers `stats/session-*`.
+*Journal détaillé* ajoute tous les détails. Pour un rapport : `vitamoon.log` et les fichiers `stats/session-*`.
 
 - Image saccadée, figée ou absente : profil **Original**. Couleurs fausses : désactiver
   `Décodage rapide des couleurs`.

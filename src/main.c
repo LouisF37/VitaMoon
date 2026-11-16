@@ -187,7 +187,12 @@ int main(int argc, char* argv[]) {
   log_init(config.key_dir);
   // The config is not saved before every value is initialized
   config_parse(argc, argv, &config);
+  // The folder found above wins over the one written in the settings file
+  // (Lune's folder name, before it was moved).
+  strcpy(config.key_dir, out_key_dir);
   log_set_detailed(config.save_debug_log);
+  if (check_dir_migrated_from())
+    LOGI("app", "data moved from %s (Lune) to %s", check_dir_migrated_from(), config.key_dir);
   {
     SceKernelSystemSwVersion fw;
     memset(&fw, 0, sizeof(fw));

@@ -1,3 +1,4 @@
+#include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
 #include <stdio.h>
 #include <string.h>
@@ -7,6 +8,38 @@
 #include "check_dir.h"
 
 #define SCE_ERROR_ALREADY_EXISTS 0x80010011
+
+static const char *migrated_from;
+
+const char *check_dir_migrated_from(void) {
+  return migrated_from;
+}
+
+// Moves Lune's folder (1.0.0-beta.1) to VitaMoon's, once: the pairing key, the
+// known PCs, the settings, the statistics and the logs follow. Nothing is done
+// when the new folder already exists.
+static void move_old_folder(const char *old_dir, const char *new_dir) {
+  SceIoStat st;
+  if (sceIoGetstat(new_dir, &st) >= 0 || sceIoGetstat(old_dir, &st) < 0)
+    return;
+  if (sceIoRename(old_dir, new_dir) < 0)
+    return;
+  migrated_from = old_dir;
+  static const char *const files[][2] = {
+    {APP_OLD_DATA_DIR ".conf", APP_DATA_DIR ".conf"},
+    {APP_OLD_DATA_DIR ".log", APP_DATA_DIR ".log"},
+    {APP_OLD_DATA_DIR ".1.log", APP_DATA_DIR ".1.log"},
+    {APP_OLD_DATA_DIR ".2.log", APP_DATA_DIR ".2.log"},
+    {APP_OLD_DATA_DIR ".3.log", APP_DATA_DIR ".3.log"},
+    {APP_OLD_DATA_DIR ".4.log", APP_DATA_DIR ".4.log"},
+  };
+  char from[MOONLIGHT_PATH_MAX], to[MOONLIGHT_PATH_MAX];
+  for (unsigned i = 0; i < sizeof(files) / sizeof(files[0]); i++) {
+    snprintf(from, sizeof(from), "%s/%s", new_dir, files[i][0]);
+    snprintf(to, sizeof(to), "%s/%s", new_dir, files[i][1]);
+    sceIoRename(from, to);
+  }
+}
 
 // Writes a one-line note next to the data folder, for the cases where it could
 // not be created where expected (the debug log is not open yet).
@@ -34,6 +67,14 @@ void check_and_create_data_dir(char *out_path, char *out_key_dir) {
   };
   #endif
   const int count = sizeof(candidates) / sizeof(candidates[0]);
+
+  #ifdef USE_DIR_UMA0
+  move_old_folder("uma0:data/" APP_OLD_DATA_DIR, candidates[0]);
+  #else
+  move_old_folder("ux0:data/" APP_OLD_DATA_DIR, candidates[0]);
+  move_old_folder("ux0:" APP_OLD_DATA_DIR, candidates[1]);
+  move_old_folder("uma0:data/" APP_OLD_DATA_DIR, candidates[2]);
+  #endif
 
   int found = -1;
   for (int i = 0; i < count; i++) {

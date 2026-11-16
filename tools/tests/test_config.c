@@ -14,7 +14,7 @@ void vita_debug_log(const char *s, ...) { (void)s; }
 int sceKernelGetModelForCDialog(void) { return 0; }
 void LiInitializeStreamConfiguration(PSTREAM_CONFIGURATION c) { memset(c, 0, sizeof(*c)); }
 
-static const char *k_file = "/tmp/lune-test.conf";
+static const char *k_file = "/tmp/vitamoon-test.conf";
 
 static void write_text(const char *text) {
   FILE *f = fopen(k_file, "w");
@@ -78,7 +78,7 @@ static CONFIGURATION sample(void) {
   c.special_keys.se = 0x7;
   c.special_keys.offset = 5;
   c.special_keys.size = 160;
-  snprintf(c.key_dir, sizeof(c.key_dir), "ux0:data/lune/");
+  snprintf(c.key_dir, sizeof(c.key_dir), "ux0:data/vitamoon/");
   return c;
 }
 

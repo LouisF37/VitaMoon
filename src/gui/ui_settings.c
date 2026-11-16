@@ -514,7 +514,7 @@ static const setting_row k_rows[] = {
   {S_AUTO_RECONNECT, CAT_GENERAL, ROW_TOGGLE, N_("Reconnect automatically"),
    N_("After a Wi-Fi drop or a sleep during a stream, the game starts again on its own.")},
   {S_DEBUG_LOG, CAT_GENERAL, ROW_TOGGLE, N_("Detailed log"),
-   N_("Adds every detail to lune.log, which always keeps the main events. For troubleshooting.")},
+   N_("Adds every detail to vitamoon.log, which always keeps the main events. For troubleshooting.")},
 
   /* Video */
   {S_RESOLUTION, CAT_VIDEO, ROW_CHOICE, N_("Resolution"),
@@ -556,7 +556,7 @@ static const setting_row k_rows[] = {
   {S_SWAP_SHOULDER, CAT_CONTROLS, ROW_TOGGLE, N_("Swap L1/R1 with L2/R2"),
    N_("L and R send the triggers, the rear touch pad sends L1 and R1. Turns the mapping file off.")},
   {S_MAPPING, CAT_CONTROLS, ROW_TOGGLE, N_("Button mapping file"),
-   N_("Uses mappings/vita.conf from Lune's folder. Turns the swap above off.")},
+   N_("Uses mappings/vita.conf from VitaMoon's folder. Turns the swap above off.")},
   {S_PS_CAPTURE, CAT_CONTROLS, ROW_TOGGLE, N_("PS button sent to the PC"),
    N_("The PS button is sent to the game instead of opening the Vita home screen.")},
   {S_DOUBLE_TAP_SPRINT, CAT_CONTROLS, ROW_TOGGLE, N_("Double tap to sprint"),
@@ -600,7 +600,7 @@ static const setting_row k_rows[] = {
   {S_KEEPALIVE, CAT_ADVANCED, ROW_TOGGLE, N_("Keep the link to the PC open"),
    N_("Experimental: the menus and covers load faster. Turn off if the PC stops answering.")},
   {S_MSAA, CAT_ADVANCED, ROW_TOGGLE, N_("Smooth edges"),
-   N_("4x anti-aliasing of the menus and the stream. Restart Lune to apply a change.")},
+   N_("4x anti-aliasing of the menus and the stream. Restart VitaMoon to apply a change.")},
 };
 #define ROW_COUNT ((int)(sizeof(k_rows) / sizeof(k_rows[0])))
 

@@ -98,10 +98,10 @@ jobs:
       - name: Upload VPK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: lune-vpk
+          name: vitamoon-vpk
           path: build/*.vpk
 
-      # Fixed link: https://github.com/<owner>/<repo>/releases/download/build-<branch>/lune-<branch>.vpk
+      # Fixed link: https://github.com/<owner>/<repo>/releases/download/build-<branch>/vitamoon-<branch>.vpk
       - name: Publish rolling pre-release
         if: github.event_name != 'pull_request'
         env:
@@ -110,9 +110,9 @@ jobs:
           SAFE_BRANCH="${BUILD_BRANCH//\//-}"
           TAG="build-$SAFE_BRANCH"
           VPK="$(ls build/*.vpk | head -1)"
-          cp "$VPK" "lune-$SAFE_BRANCH.vpk"
+          cp "$VPK" "vitamoon-$SAFE_BRANCH.vpk"
           gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-          gh release create "$TAG" "lune-$SAFE_BRANCH.vpk" \
+          gh release create "$TAG" "vitamoon-$SAFE_BRANCH.vpk" \
             --repo "$GITHUB_REPOSITORY" \
             --prerelease \
             --target "$GITHUB_SHA" \
@@ -135,10 +135,10 @@ jobs:
             exit 0
           fi
           VPK="$(ls build/*.vpk | head -1)"
-          cp "$VPK" "lune-$TAG.vpk"
+          cp "$VPK" "vitamoon-$TAG.vpk"
           flags=()
           [ "$PRERELEASE" = 1 ] && flags+=(--prerelease)
-          gh release create "$TAG" "lune-$TAG.vpk" \
+          gh release create "$TAG" "vitamoon-$TAG.vpk" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "$TITLE" \

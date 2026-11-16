@@ -8,6 +8,6 @@ cd "$(dirname "$0")/../.."
 source tools/dev/vita-ip.sh
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
-curl --ftp-method nocwd -T build/lune.vpk "ftp://$VITA_IP:1337/ux0:/ABM/"
+curl --ftp-method nocwd -T build/vitamoon.vpk "ftp://$VITA_IP:1337/ux0:/ABM/"
 echo "launch VITASHELL" | nc "$VITA_IP" 1338 || true
-echo "Install ux0:/ABM/lune.vpk in VitaShell, then: echo launch $TITLE_ID | nc $VITA_IP 1338"
+echo "Install ux0:/ABM/vitamoon.vpk in VitaShell, then: echo launch $TITLE_ID | nc $VITA_IP 1338"

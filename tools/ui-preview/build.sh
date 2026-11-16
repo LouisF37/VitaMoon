@@ -20,7 +20,9 @@ srcs="$here/fake_vita2d.c $here/preview_sys.c $here/preview_main.c
 # excepted: vita2d's RGBA8 macro shifts a signed int by 24).
 san=""
 [ -n "$PREVIEW_SANITIZE" ] && san="-fsanitize=address,undefined -fno-sanitize=shift -fno-omit-frame-pointer -fno-sanitize-recover=undefined"
-gcc -std=gnu99 -O1 -g -w -fcommon $san -D__vita__ -DUI_PREVIEW -DVERSION_MAJOR=1 -DVERSION_MINOR=0 -DVERSION_PATCH=0 -DVERSION_TEXT=\"v1.0.0-beta.1\" -DBUILD_ID=\"preview\" \
+# The version shown in the screens comes from CMakeLists.txt.
+version=$(python3 "$root/tools/dev/release_info.py" --field tag 2>/dev/null || echo "v-preview")
+gcc -std=gnu99 -O1 -g -w -fcommon $san -D__vita__ -DUI_PREVIEW -DVERSION_MAJOR=1 -DVERSION_MINOR=0 -DVERSION_PATCH=0 -DVERSION_TEXT=\"$version\" -DBUILD_ID=\"preview\" \
   -DASSET_PREFIX="\"$root/assets/\"" \
   -I"$here" -I"$out/inc" -I"$root/src" -I"$root/src/gui" -I"$root/libgamestream" -I"$root/third_party/inih" \
   -I"$root/third_party/moonlight-common-c/src" -I"$root/third_party/libuuid/src" \

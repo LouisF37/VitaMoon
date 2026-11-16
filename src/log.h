@@ -1,12 +1,12 @@
 /*
- * The app's log: <data folder>/lune.log, always written.
+ * The app's log: <data folder>/vitamoon.log, always written.
  *
  * The normal log keeps what happens (start-up, PCs, streams and how they end,
  * reconnections, errors) at a few lines a minute; the detailed log (setting
  * "Detailed log") adds every debug line. Callers only format a line and copy
  * it into a memory ring: a low-priority thread writes it to the memory card,
  * so a stream thread never waits for the card. The four previous logs are
- * kept as lune.1.log (newest) to lune.4.log.
+ * kept as vitamoon.1.log (newest) to vitamoon.4.log.
  *
  * Line format: "14:03:27.512 I stream  message" (local time; E error,
  * W warning, I information, D detail).
@@ -18,7 +18,7 @@
 
 typedef enum { LOG_ERROR = 0, LOG_WARN, LOG_INFO, LOG_DEBUG } log_level;
 
-/* Opens <dir>/lune.log (after rotating the old ones) and starts the writer.
+/* Opens <dir>/vitamoon.log (after rotating the old ones) and starts the writer.
  * Lines logged before are lost. dir ends with '/'. */
 void log_init(const char *dir);
 /* Detail lines (LOG_DEBUG) written or not; also echoed to the system console. */

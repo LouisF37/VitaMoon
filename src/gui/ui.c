@@ -454,7 +454,7 @@ static void home_draw(void) {
       home_explain(tr("Settings"), tr("Language, video quality, performance profile, controls and touch screen."));
       break;
     case MAIN_MENU_QUIT:
-      home_explain(tr("Quit"), tr("Closes Lune and returns to the Vita home screen."));
+      home_explain(tr("Quit"), tr("Closes VitaMoon and returns to the Vita home screen."));
       break;
     default:
       break;

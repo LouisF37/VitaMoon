@@ -10,21 +10,22 @@ endif()
 add_compile_options(-g -Wall -Wextra -Wno-unused-parameter -Wno-pointer-sign -Wno-sign-compare -Wno-switch)
 
 
-project(lune)
+project(vitamoon)
 
 include("$ENV{VITASDK}/share/vita.cmake" REQUIRED)
 # Package identity and version: the place to edit them (docs/RELEASING.md).
 # The name and data folder used by the code are in src/app_info.h.
-# LUNE00001 is the app's own title ID: it installs next to Moonlight
-# (XYZZ00002) and keeps its data in ux0:data/lune.
-set(TITLE_ID "LUNE00001")
-set(TITLE "Lune")
-set(LIVEAREA_TITLE "LUNE")
+# VMOON0001 is the app's own title ID: it installs next to Moonlight
+# (XYZZ00002) and keeps its data in ux0:data/vitamoon. Up to 1.0.0-beta.1 the
+# app was Lune (LUNE00001, ux0:data/lune): its folder is moved on first start.
+set(TITLE_ID "VMOON0001")
+set(TITLE "VitaMoon")
+set(LIVEAREA_TITLE "VITAMOON")
 set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
 set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "0")
-set(VERSION_LABEL "beta.1")        # empty for a final release
+set(VERSION_LABEL "beta.2")        # empty for a final release
 set(VERSION_NAME "Nouvelle Lune")  # milestone name, shown in the docs
 if(VERSION_LABEL)
 	set(VERSION_TEXT "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_LABEL}")
@@ -218,6 +219,7 @@ add_custom_target(${PROJECT_NAME}.vpk ALL
 			--add ../assets/bg_aurora.png=assets/bg_aurora.png
 			--add ../assets/bg_twilight.png=assets/bg_twilight.png
 			--add ../assets/bg_eclipse.png=assets/bg_eclipse.png
+			--add ../assets/logo_mark.png=assets/logo_mark.png
 			${PROJECT_NAME}.vpk
 )
 
@@ -226,7 +228,7 @@ add_dependencies(${PROJECT_NAME}.vpk ${PROJECT_NAME}.velf param.sfo)
 
 add_subdirectory(third_party)
 
-option(USE_DIR_UMA0 "Keep the data folder in uma0:data/lune instead of ux0:data/lune" OFF)
+option(USE_DIR_UMA0 "Keep the data folder in uma0:data/vitamoon instead of ux0:data/vitamoon" OFF)
 if(USE_DIR_UMA0)
   add_definitions(-DUSE_DIR_UMA0)
 endif()

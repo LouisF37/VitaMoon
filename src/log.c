@@ -31,7 +31,7 @@
 #define BUILD_ID "local"
 #endif
 
-#define LOG_KEEP 4                      /* lune.1.log .. lune.4.log */
+#define LOG_KEEP 4                      /* vitamoon.1.log .. vitamoon.4.log */
 #define LOG_FILE_MAX (4 * 1024 * 1024)  /* a file stops growing past this */
 #define LOG_LINE_MAX 1024
 #define LOG_WAKE_BYTES (16 * 1024)      /* the writer is woken past this */

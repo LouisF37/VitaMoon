@@ -19,7 +19,7 @@ typedef enum {
   QM_ACT_CLOSE,         /* back to the game */
   QM_ACT_TOGGLE_STATS,  /* statistics on screen, on or off (the menu stays) */
   QM_ACT_KEYBOARD,      /* close, then open the keyboard */
-  QM_ACT_PAUSE,         /* close, then pause the stream (Lune's menus) */
+  QM_ACT_PAUSE,         /* close, then pause the stream (VitaMoon's menus) */
   QM_ACT_QUIT,          /* close, then quit the game on the PC (confirmed) */
 } qm_action;
 

@@ -59,7 +59,7 @@ static float g_alpha = 1.0f;
 
 /* Each theme: its name, its background picture (assets/bg_<slug>.png, drawn by
  * tools/make_background.py from the same sky colours) and its colours. The idea
- * of a few colour presets comes from VitaRPS5; these palettes are Lune's own,
+ * of a few colour presets comes from VitaRPS5; these palettes are VitaMoon's own,
  * named after the sky. */
 typedef struct {
   const char *name;
@@ -99,6 +99,9 @@ unsigned int theme_alpha(unsigned int color, unsigned int alpha) {
 const char *theme_name(int index) {
   return index >= 0 && index < THEME_COUNT ? k_themes[index].name : "";
 }
+
+/* VitaMoon's mark (tools/art/make_brand.py), left of the name in the top bar. */
+static vita2d_texture *logo_mark;
 
 void theme_select(int index) {
   if (index < 0 || index >= THEME_COUNT)
@@ -160,6 +163,7 @@ void theme_init(void) {
       vita2d_font_text_width(faces[i].font, faces[i].size, k_prewarm);
   }
   theme_select(config.theme);
+  logo_mark = vita2d_load_PNG_file(ASSET_PREFIX "logo_mark.png");
 }
 
 static th_face *face_for(int size) {
@@ -577,10 +581,18 @@ void theme_topbar(const char *section) {
 
   theme_vgradient(0, 0, WIDTH, 64, theme_alpha(TH_INK, 120), theme_alpha(TH_INK, 0));
 
-  /* left: wordmark and section */
-  theme_text(TH_MARGIN, TH_TOPBAR_BASE, TH_TEXT, TS_LEAD, APP_NAME);
+  /* left: mark, name and section */
+  int name_x = TH_MARGIN;
+  if (logo_mark) {
+    const float size = 28.0f;   /* the disc is 68 % of the picture: about the name's height */
+    vita2d_draw_texture_scale(logo_mark, TH_MARGIN - 3, TH_TOPBAR_BASE - 23,
+                              size / vita2d_texture_get_width(logo_mark),
+                              size / vita2d_texture_get_height(logo_mark));
+    name_x += 30;
+  }
+  theme_text(name_x, TH_TOPBAR_BASE, TH_TEXT, TS_LEAD, APP_NAME);
   if (section && *section) {
-    int x = TH_MARGIN + theme_text_width(TS_LEAD, APP_NAME) + 16;
+    int x = name_x + theme_text_width(TS_LEAD, APP_NAME) + 16;
     int w = theme_text_width(TS_SMALL, section);
     theme_rounded_rect(x, 21, w + 24, 26, 13, TH_FILL_FOCUS);
     theme_text(x + 12, 39, TH_TEXT, TS_SMALL, section);
