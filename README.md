@@ -15,17 +15,18 @@
 ---
 
 VitaMoon is a [Moonlight](https://moonlight-stream.org) client for the PS Vita and PS TV: it plays the
-games of a PC running [Sunshine](https://github.com/LizardByte/Sunshine) (or NVIDIA GameStream) on the
-Vita, on your home network.
+games of a PC running [Sunshine](https://github.com/LizardByte/Sunshine) on the Vita, on your home
+network.
 
-It started from vita-moonlight 0.13.2 ([origins](#origins)) and reworks the streaming path (decoding off the network thread, three display modes, adaptive audio, waiting for
-late Wi-Fi packets), the interface, and the tools to measure what the Vita actually does. What was
-taken from other forks, and what was measured by whom, is listed in
-[docs/design/performance.md](docs/design/performance.md). Up to 1.0.0-beta.1 it was called *Lune*.
+It started from vita-moonlight 0.13.2 ([origins](#origins)) and reworks the streaming path (decoding
+off the network thread, three display modes, adaptive audio, waiting for late Wi-Fi packets), the
+interface, and the tools to measure what the Vita actually does. What was taken from other forks, and
+what was measured by whom, is listed in [docs/design/performance.md](docs/design/performance.md). Up to
+1.0.0-beta.1 it was called *Lune*.
 
 > **Status: beta.** Everything builds, the menus are checked on a PC in three languages and the
 > stream logic is covered by PC tests, but this version has not yet been measured on a Vita. See
-> [the checkpoint report](docs/checkpoints/2026-11-15.md).
+> [the checkpoint report](docs/checkpoints/2026-11-16.md), with the test plan for the Vita.
 
 ## Screenshots
 

@@ -20,10 +20,11 @@ d'essai précédente de ce projet y est peut-être installée.
 `ux0:data/vitamoon` : les PC appairés, les réglages, les statistiques et les journaux suivent, sans
 nouvel appairage. La bulle Lune peut ensuite être supprimée.
 
-**État des vérifications.** Le code compile pour la Vita, les tests sur PC passent (affichage
-cadencé simulé, fichier de réglages, réécriture du SPS), tous les écrans ont été rendus hors console
+**État des vérifications.** Le code compile pour la Vita, les 221 vérifications des tests sur PC
+passent (affichage cadencé simulé, fichier de réglages, réécriture du SPS, menu rapide, journal,
+reconnexion, police des titres et lune d'attente), tous les écrans ont été rendus hors console
 (outil `tools/ui-preview`) en anglais, français et espagnol, et le code a été audité (voir
-[le point d'étape](checkpoints/2026-11-15.md)). Rien n'a encore tourné sur une vraie Vita : la
+[le point d'étape](checkpoints/2026-11-16.md)). Rien n'a encore tourné sur une vraie Vita : la
 fluidité, la latence et le son restent à mesurer avec le plan de test ci-dessous.
 
 **Bibliothèque réseau.** moonlight-common-c est intégré au dépôt (`third_party/moonlight-common-c`, version
@@ -135,7 +136,7 @@ Rubrique Avancé, deux autres options de test :
 ## Plan de test
 
 Le plan complet, avec les essais de robustesse (pauses répétées, coupure du Wi-Fi, mise en veille),
-est dans [le point d'étape](checkpoints/2026-11-15.md). L'essentiel :
+est dans [le point d'étape](checkpoints/2026-11-16.md). L'essentiel :
 
 Même jeu, même endroit, 3 à 5 minutes par session, statistiques affichées (Général → Statistiques
 pendant le stream) :

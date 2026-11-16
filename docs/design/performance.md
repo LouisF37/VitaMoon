@@ -2,7 +2,7 @@
 
 Every change made for speed or smoothness, with its source and the evidence behind it. "Measured"
 means measured on a Vita by the source named; **none of these changes has yet been measured in this
-project** (see the [checkpoint report](../checkpoints/2026-11-15.md) for the test plan).
+project** (see the [checkpoint report](../checkpoints/2026-11-16.md) for the test plan).
 
 Sources:
 [juan](https://github.com/juanjsebgarcia/vita-moonlight) = juanjsebgarcia/vita-moonlight
@@ -68,4 +68,4 @@ Turn on *Settings > General > Statistics while streaming*. Each stream writes
 `stats/session-<date>.csv` (one line per second) and `.txt` (settings, Wi-Fi, legend, percentiles over
 the session). Compare profiles on the same game and spot with the `.txt` percentiles: `r2p` (first
 packet received to frame visible), the interval between shown frames and the share of frames shown
-late or repeated. The test plan is in the [checkpoint report](../checkpoints/2026-11-15.md).
+late or repeated. The test plan is in the [checkpoint report](../checkpoints/2026-11-16.md).
