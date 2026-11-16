@@ -53,7 +53,8 @@ milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELE
 
 ## 1.0.0-beta.1 "Nouvelle Lune" (2026-11-15)
 
-First version of Lune, from [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight) 0.13.2.
+First version of Lune, from [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight) 0.13.2
+(commit `984603b`, kept as the branch `legacy/vita-moonlight-0.13.2`).
 Built and tested on a PC; not yet measured on a Vita
 ([checkpoint report](docs/checkpoints/2026-11-15.md)).
 

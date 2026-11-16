@@ -18,8 +18,7 @@ VitaMoon is a [Moonlight](https://moonlight-stream.org) client for the PS Vita a
 games of a PC running [Sunshine](https://github.com/LizardByte/Sunshine) (or NVIDIA GameStream) on the
 Vita, on your home network.
 
-It started from [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight) 0.13.2 and reworks the
-streaming path (decoding off the network thread, three display modes, adaptive audio, waiting for
+It started from vita-moonlight 0.13.2 ([origins](#origins)) and reworks the streaming path (decoding off the network thread, three display modes, adaptive audio, waiting for
 late Wi-Fi packets), the interface, and the tools to measure what the Vita actually does. What was
 taken from other forks, and what was measured by whom, is listed in
 [docs/design/performance.md](docs/design/performance.md). Up to 1.0.0-beta.1 it was called *Lune*.
@@ -149,6 +148,17 @@ cmake -S . -B build && cmake --build build -j
 
 The VPK is `build/vitamoon.vpk`. Every push is built by GitHub Actions. Details, PC tests and the
 interface preview: [docs/BUILDING.md](docs/BUILDING.md) and [docs/TESTING.md](docs/TESTING.md).
+
+## Origins
+
+VitaMoon is its own project. It started from **vita-moonlight 0.13.2**, the PS Vita port of
+[Moonlight Embedded](https://github.com/moonlight-stream/moonlight-embedded) (Iwan Timmer) maintained
+at [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight), as released by AorsiniYT in November
+2025 (commit `984603b`). That code is kept unchanged in the branch
+[`legacy/vita-moonlight-0.13.2`](../../tree/legacy/vita-moonlight-0.13.2), and the history of both
+projects is in the git log. Everything since is VitaMoon's (named *Lune* up to 1.0.0-beta.1):
+[CHANGELOG.md](CHANGELOG.md) lists it, and [docs/design/forks.md](docs/design/forks.md) says what came
+from the other Vita forks.
 
 ## Credits
 
