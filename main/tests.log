@@ -153,7 +153,8 @@
   ok    auto bitrate grows with the resolution
   ok    auto bitrate lower at 30 fps
   ok    auto bitrate stays within 20 Mbps
-[config] 75 checks, 0 failed
+  ok    settings file that cannot be written: logged, app keeps running
+[config] 76 checks, 0 failed
 
 [sps rewrite]
   ok    test SPS built
