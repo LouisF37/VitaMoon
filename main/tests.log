@@ -91,6 +91,11 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
 [url, percentiles, reconnection and PC names] 35 checks, 0 failed
 
 [config]
+  ok    round trip: library_stats
+  ok    round trip: twinkle_stars
+  ok    round trip: sky_speed
+  ok    round trip: sky_anticlockwise
+  ok    round trip: tap_time_ms
   ok    round trip: stream.width
   ok    round trip: stream.height
   ok    round trip: stream.fps
@@ -155,6 +160,8 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    sanitize: unknown display mode back to Smooth
   ok    sanitize: touch mode and controller type
   ok    sanitize: mouse acceleration
+  ok    sanitize: tap time out of 100..250 back to 250
+  ok    sanitize: unknown sky speed back to a still sky
   ok    sanitize: NaN motion scale
   ok    sanitize: huge motion scale
   ok    sanitize: sprint tap time
@@ -162,13 +169,16 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    sanitize: unknown theme back to Night
   ok    sanitize: unknown keyboard layout back to text
   ok    sanitize: a valid packet size is kept
+  ok    sanitize: acceleration 0 (off) is kept
+  ok    sanitize: a tap time of 100 ms is kept
+  ok    sanitize: the fastest sky is kept
   ok    sanitize leaves valid settings alone
     auto bitrate: 960x544@60 8000, 1280x720@60 10000, 1280x720@30 6250 kbps
   ok    auto bitrate grows with the resolution
   ok    auto bitrate lower at 30 fps
   ok    auto bitrate stays within 20 Mbps
   ok    settings file that cannot be written: logged, app keeps running
-[config] 76 checks, 0 failed
+[config] 86 checks, 0 failed
 
 [sps rewrite]
   ok    test SPS built
@@ -328,5 +338,62 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    progress: a step half done counts half
   ok    progress: held in 0..1
 [start-up screen] 40 checks, 0 failed
+
+[library, stars and tap]
+  ok    a last-session moment is read
+  ok    empty, missing, impossible or cut moments are refused
+  ok    days since 1970 (2026-11-16 is day 20773, as Python counts)
+  ok    leap year: 29 February counts
+  ok    across a new year
+  ok    same day: today
+  ok    the day before, even late: yesterday
+  ok    two days ago
+  ok    six days ago
+  ok    a week or more: the date
+  ok    a moment after today (clock set back): the date
+  ok    31 December seen on 1 January: yesterday
+  ok    6 min 30 s: 7 min (a started minute counts)
+  ok    72 min: 1 h 12
+  ok    never less than 1 min
+  ok    played later comes first
+  ok    played comes before never played
+  ok    never played: the PC's order
+  ok    a favourite comes first, even never played
+  ok    among favourites: the most recently played first
+  ok    the same game is equal to itself
+  ok    a missing moment counts as never played
+  ok    each star rests and reaches its peak, within 0..1
+  ok    no flicker: at most 0.066 from one frame to the next
+  ok    a star brightens 45 % of the time
+  ok    stars twinkle at their own moments
+  ok    the white dot never exceeds its peak
+  ok    a star of no brightness does not twinkle
+  ok    lifted at 80 ms without moving: a click
+  ok    lifted at 220 ms with 250 ms set: still a click
+  ok    the same with 100 ms set: not a click
+  ok    still down, still and short: wait
+  ok    moving past the threshold starts the swipe at once, before the tap time
+  ok    a quick flick is not a click
+  ok    a small wobble still clicks
+  ok    held past the tap time: the pointer follows
+  ok    the horizon's share of stars: within 0.0059 of (1 - y/H)^1.4
+  ok    fewer stars lower down: all at the top, none at the bottom
+  ok    four speeds: one turn in 32, 16, 8 and 4 minutes
+  ok    still (or unknown speed): the sky does not move
+  ok    Slow: one whole turn in 16 minutes
+  ok    anticlockwise: the same step the other way
+  ok    the angle stays within one turn, either way
+  ok    back from an hour of streaming: the sky goes on from where it was, no jump
+  ok    changing the speed: the stars go on from where they are (no jump)
+  ok    clockwise: a star left of the moon rises, one above it goes right
+  ok    no star crosses the moon (all at least 20 px outside it)
+  ok    the ring reaches the far corner: no empty patch as it turns
+  ok    at the far corner: 3.5 px/s (very slow) to 27.8 px/s (fast), 0.46 px a frame at most
+  ok    the top bar's text stays clear, the middle of the top does not
+  ok    off the screen: not drawn
+  ok    a small star drawn wider gives the same light
+  ok    the turning sky's light stays near the still one's (worst 1.16 times)
+  ok    no star pops in or out: 2.61 of 115 at most from one frame to the next
+[library, stars and tap] 54 checks, 0 failed
 
 all tests passed
