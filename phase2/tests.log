@@ -226,4 +226,31 @@
   ok    after that report the message is written again
 [log] 27 checks, 0 failed
 
+[title font coverage]
+  ok    an empty text needs nothing
+  ok    plain Latin
+  ok    French accents (à)
+  ok    a line break is not a character to draw
+  ok    dash and French quotes
+  ok    Cyrillic falls back to Inter
+  ok    Greek falls back to Inter
+  ok    Japanese falls back to Inter
+  ok    a malformed byte falls back
+  ok    a sequence cut short falls back
+  ok    three-byte sequence decoded (euro sign)
+  ok    four-byte sequence decoded, next character kept
+[waiting moon]
+  ok    first stage: new moon
+  ok    video start: full moon (the mark)
+  ok    every stage shows a fuller moon than the one before
+  ok    reconnection starts with a new moon
+  ok    half the minute of tries: phase 6 of 11
+  ok    past the minute: full
+  ok    no steps: full, no division by zero
+  ok    first picture always drawn
+  ok    not again 20 ms later
+  ok    again 50 ms later
+  ok    the full moon is never skipped
+[waiting moon] 23 checks, 0 failed
+
 all tests passed
