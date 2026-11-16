@@ -296,6 +296,9 @@ T2 = {
     ("Échec de l'appairage (erreur %d).\\n%s\\nVérifiez le code saisi sur le PC, puis réessayez.",
      "Error al emparejar (error %d).\\n%s\\nComprueba el código escrito en el PC e inténtalo de nuevo."),
 "%s is paired with this Vita.": ("%s est appairé avec cette Vita.", "%s está emparejado con esta Vita."),
+"The stream could not start: the session with the PC is not ready.\\nGo back and open the PC again.":
+    ("Le stream n'a pas pu démarrer" + NB + ": la session avec le PC n'est pas prête.\\nRevenez en arrière et rouvrez le PC.",
+     "No se pudo iniciar el stream: la sesión con el PC no está lista.\\nVuelve atrás y abre de nuevo el PC."),
 "A pairing request from this Vita is still waiting on the PC.\\nCancel it on Sunshine's PIN page, or wait 5 minutes, then try again.":
     ("Une demande d'appairage de cette Vita attend encore sur le PC.\\nAnnulez-la sur la page PIN de Sunshine, ou attendez 5 minutes, puis réessayez.",
      "Una solicitud de emparejamiento de esta Vita sigue pendiente en el PC.\\nCancélala en la página PIN de Sunshine o espera 5 minutos y vuelve a intentarlo."),

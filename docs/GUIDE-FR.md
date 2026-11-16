@@ -1,6 +1,6 @@
 # VitaMoon : guide d'utilisation et de test
 
-VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 7 « Nouvelle Lune ». Jusqu'à la
+VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 8 « Nouvelle Lune ». Jusqu'à la
 bêta 1, le projet s'appelait Lune.
 
 Téléchargement :
@@ -8,7 +8,7 @@ Téléchargement :
 - dernière compilation de la branche `main` :
   https://github.com/LouisF37/VitaMoon/releases/download/build-main/vitamoon-main.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.7  main-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.8  main-xxxxxxx`.
 
 **Installation à côté de Moonlight.** VitaMoon a son propre identifiant (`VMOON0001`), sa propre bulle et
 son propre dossier (`ux0:data/vitamoon`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc
@@ -24,9 +24,10 @@ nouvel appairage. La bulle Lune peut ensuite être supprimée.
 passent (affichage cadencé simulé, fichier de réglages, réécriture du SPS, menu rapide, journal,
 reconnexion, police des titres et lune d'attente), tous les écrans ont été rendus hors console
 (outil `tools/ui-preview`) en anglais, français et espagnol, et le code a été audité (voir
-[le point d'étape](checkpoints/2026-11-16.md)). Sur une vraie Vita, seuls le démarrage et le
-changement de thème ont été essayés (ce dernier bloquait la Vita, corrigé en bêta 6) : la fluidité,
-la latence et le son restent à mesurer avec le plan de test ci-dessous.
+[le point d'étape](checkpoints/2026-11-16.md)). Sur une vraie Vita, seuls le démarrage, le
+changement de thème (il bloquait la Vita, corrigé en bêta 6) et l'ouverture du PC ont été essayés
+(« Jouer » dans la bibliothèque ne lançait rien, corrigé en bêta 8) : la fluidité, la latence et le
+son restent à mesurer avec le plan de test ci-dessous.
 
 **Bibliothèque réseau.** moonlight-common-c est intégré au dépôt (`third_party/moonlight-common-c`, version
 amont e2722dc) avec trois correctifs listés dans `third_party/patches/moonlight-common-c/` : attente des

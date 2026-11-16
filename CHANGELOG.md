@@ -3,6 +3,22 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.0.0-beta.8 "Nouvelle Lune" (2026-11-16)
+
+### Fixed
+
+- **Play in the library did nothing** (seen on the first test on a Vita). Opening a PC leaves the
+  session *ready*; it is marked *paired*, the state a stream starts from, only when the classic menu
+  (triangle) is built. Since the library became the first screen (Lune 1.0.0-beta.1), Play from it
+  started nothing and the library came back. The launch now marks a ready session of a paired PC
+  itself, and a press that cannot start a stream is logged and explained instead of ignored.
+
+### Tests
+
+- New preview scenario `play`: opens a paired PC the way the home screen does, then presses X on a
+  cover; it fails if the PC is not asked to start the game (it fails on beta.7). The preview's
+  `connection_reset()` now changes the session state as the real one does.
+
 ## 1.0.0-beta.7 "Nouvelle Lune" (2026-11-16)
 
 Fixes from a review of what the PC preview cannot see: the limits of the Vita and of the network.

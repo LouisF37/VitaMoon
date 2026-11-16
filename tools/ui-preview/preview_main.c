@@ -55,7 +55,13 @@ void stop_host_scan_thread(void) {}
 int connection_terminate(void) { return 0; }
 int connection_get_status(void) { return fake_status; }
 int connection_paired(void) { fake_status = LI_PAIRED; return 0; }
-int connection_reset(void) { return 0; }
+/* Same transitions as src/connection.c for the states the menus go through. */
+int connection_reset(void) {
+  if (fake_status != LI_DISCONNECTED)
+    return -1;
+  fake_status = LI_READY;
+  return 0;
+}
 void connection_set_stage_hook(void (*hook)(int stage)) { (void)hook; }
 void connection_close_idle(void) {}
 bool connection_was_lost(void) { return false; }
@@ -130,7 +136,12 @@ int gs_applist(PSERVER_DATA server, PAPP_LIST *list) {
 void sort_app_list(PAPP_LIST list) {}
 int gs_pair(PSERVER_DATA server, char *pin, bool (*cancel)(void)) { return GS_OK; }
 int gs_unpair(PSERVER_DATA server) { return GS_OK; }
-int gs_start_app(PSERVER_DATA s, PSTREAM_CONFIGURATION c, int id, bool sops, bool local, int mask) { return -1; }
+static int stream_asked = 0;   /* app id the PC was asked to start (scenario play) */
+int gs_start_app(PSERVER_DATA s, PSTREAM_CONFIGURATION c, int id, bool sops, bool local, int mask) {
+  stream_asked = id;
+  gs_error = "preview: no PC";
+  return -1;
+}
 int gs_quit_app(PSERVER_DATA server) { return GS_OK; }
 int gs_get_server_mac(PSERVER_DATA server, char *mac, unsigned int size) { return -1; }
 void boxart_prefetch(PSERVER_DATA server, PAPP_LIST apps) {}
@@ -318,6 +329,31 @@ static void scenario_library(void) {
   ui_library(&server, apps, "MINI-PC", &app_id);
 }
 
+/* Play from the library, the way the Vita gets there: open a paired PC from the
+ * home screen, then X on a cover. The PC must be asked to start the game (here
+ * it refuses, and the error is shown); until beta.7 nothing happened. */
+static void check_play_asked(void) {
+  if (!stream_asked)
+    fprintf(stderr, "preview: Play in the library did not ask the PC to start the game\n");
+}
+
+static void scenario_play(void) {
+  atexit(check_play_asked);
+  device_info_t pc;
+  memset(&pc, 0, sizeof(pc));
+  snprintf(pc.name, sizeof(pc.name), "MINI-PC");
+  snprintf(pc.internal, sizeof(pc.internal), "192.168.1.24");
+  pc.port = 47989;
+  pc.paired = true;
+  fake_status = LI_DISCONNECTED;
+  preview_wait(12);
+  preview_snap("play_1_library");
+  preview_press(SCE_CTRL_CROSS);
+  preview_snap("play_2_started");
+  preview_wait(4);
+  ui_connect_paired_device(&pc);
+}
+
 static void scenario_library_running(void) {
   SERVER_DATA server;
   PAPP_LIST apps;
@@ -463,6 +499,7 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "settings_change")) scenario_settings_change();
   else if (!strcmp(s, "library")) scenario_library();
   else if (!strcmp(s, "library_running")) scenario_library_running();
+  else if (!strcmp(s, "play")) scenario_play();
   else if (!strcmp(s, "dialogs")) scenario_dialogs();
   else if (!strcmp(s, "restart")) scenario_restart();
   else if (!strcmp(s, "reconnect")) scenario_reconnect();

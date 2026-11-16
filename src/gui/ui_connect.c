@@ -419,6 +419,13 @@ static int ui_quit_app(void);
  * to show the library/menu again, 1 if the connection was lost. */
 static int ui_launch_app(int id) {
   int status = connection_get_status();
+  // Opening a PC leaves the session READY; it becomes PAIRED once the PC is
+  // known to accept this Vita. Only the classic menu (triangle) did that, so
+  // Play in the library did nothing at all (Lune beta.1 to VitaMoon beta.7).
+  if (status == LI_READY && server.paired) {
+    connection_paired();
+    status = connection_get_status();
+  }
   bool restart = status == LI_MINIMIZED && server.currentGame == id && start_settings_changed() &&
                  display_confirm(tr("Some settings you changed only apply to a new stream.\nRestart the stream now? The game keeps running on the PC."));
   vitapower_config(config);
@@ -452,6 +459,12 @@ static int ui_launch_app(int id) {
   } else if (status == LI_MINIMIZED || status == LI_PAIRED) {
     moon_begin(tr("Starting stream..."));
     ui_connect_stream(id);
+  } else if (status != LI_DISCONNECTED) {
+    // Never silent: a press that starts nothing is logged and explained (a
+    // session that ended is handled below, as before).
+    LOGE("stream", "cannot start app %d: session state %d, paired %d", id, status, server.paired);
+    display_error(tr("The stream could not start: the session with the PC is not ready.\nGo back and open the PC again."));
+    return QUIT_RELOAD;
   }
 
   // The stream runs on its own threads: wait here until it is paused or ends.
