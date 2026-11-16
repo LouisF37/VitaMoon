@@ -286,4 +286,47 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    20000 random and damaged packets: no hang, no crash
 [mDNS search] 8 checks, 0 failed
 
+[start-up screen]
+  ok    nothing loaded: the new moon
+  ok    all steps done but not loaded: the last phase, not the mark
+  ok    loaded: the mark
+  ok    nonsense progress: the new moon
+  ok    progress over 1 is held at the last phase
+  ok    the first update only starts the clock
+  ok    one picture per SPLASH_STEP_US while loading
+  ok    a long wait between two frames: still one picture, no jump
+  ok    never goes back
+  ok    steps done: the last phase, no mark before the end
+  ok    loaded: the mark, and when it came
+  ok    from the last phase to the mark: a few frames
+  ok    the mark stays
+  ok    everything loaded at once: still every phase, one per SPLASH_CATCHUP_US (a third of a second)
+  ok    0: the new moon alone
+  ok    a whole picture alone
+  ok    between two phases: the next fades in over it
+  ok    towards the mark: the mark under, the last phase fading off it
+  ok    the mark alone
+  ok    nonsense: the new moon
+  ok    the unlit part shows faintly while loading
+  ok    it fades as the mark comes
+  ok    the mark's V shows the sky
+  ok    ease: from 0 to 1, never back
+  ok    ease: held outside 0..1
+  ok    the mark stays a moment before it moves
+  ok    not finished during the move
+  ok    finished at its end
+  ok    at the end the mark and the name are all the way
+  ok    no move before the mark
+  ok    the name starts after the mark
+  ok    loading: the moon centred, at its own size
+  ok    at the end: exactly over the top bar's mark
+  ok    at the end: the name where the top bar draws it, at its size
+  ok    loading: the name centred under the moon
+  ok    the name never touches the mark on the way (closest: 9.5 px)
+  ok    ... nor with a narrower or wider name
+  ok    progress: 0 to 1
+  ok    progress: a step half done counts half
+  ok    progress: held in 0..1
+[start-up screen] 40 checks, 0 failed
+
 all tests passed
