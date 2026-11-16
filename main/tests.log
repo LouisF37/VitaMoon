@@ -1,3 +1,13 @@
+/home/runner/work/VitaMoon/VitaMoon/third_party/mdnsniff/udp_sniffer_vita.c: In function ‘udp_sniffer_vita_poll’:
+/home/runner/work/VitaMoon/VitaMoon/third_party/mdnsniff/udp_sniffer_vita.c:197:104: warning: pointer targets in passing argument 6 of ‘sceNetRecvfrom’ differ in signedness [-Wpointer-sign]
+  197 |     int n = sceNetRecvfrom(sock, buffer, sizeof(buffer), SCE_NET_MSG_DONTWAIT, (SceNetSockaddr*)&from, &fromlen);
+      |                                                                                                        ^~~~~~~~
+      |                                                                                                        |
+      |                                                                                                        int *
+In file included from /home/runner/work/VitaMoon/VitaMoon/third_party/mdnsniff/udp_sniffer_vita.c:10:
+build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but argument is of type ‘int *’
+  230 | int sceNetRecvfrom(int s, void *buf, unsigned int len, int flags, SceNetSockaddr *from, unsigned int *fromlen);
+      |                                                                                         ~~~~~~~~~~~~~~^~~~~~~
 [pacing]
     steady 60 fps            frames  3600 shown  3596 dropped   4 repeats    0 | wait max early  28.7, late  24.7, avg late  14.0 ms | margin  4.0 ms
   ok    frames shown in order
@@ -74,7 +84,11 @@
   ok    path separators and drive colons refused
   ok    announced name: forbidden characters become '-'
   ok    announced name '..' replaced
-[url, percentiles, reconnection and PC names] 31 checks, 0 failed
+  ok    35 streams: the files of the 5 oldest are chosen (10 files)
+  ok    only the 5 oldest streams are chosen
+  ok    per-game summaries and other files are never chosen
+  ok    fewer than 30 streams: nothing chosen
+[url, percentiles, reconnection and PC names] 35 checks, 0 failed
 
 [config]
   ok    round trip: stream.width
@@ -260,5 +274,16 @@
 [characters rendered at start-up]
   ok    every character of the translations is rendered at start-up
 [characters rendered at start-up] 24 checks, 0 failed
+
+[mDNS search]
+  ok    a Sunshine answer is understood
+  ok    its address and port
+  ok    its name
+  ok    a name that points to itself does not hang the search
+  ok    two names pointing to each other do not hang it
+  ok    an answer cut anywhere is read without hanging
+  ok    a record longer than its packet is not read past it
+  ok    20000 random and damaged packets: no hang, no crash
+[mDNS search] 8 checks, 0 failed
 
 all tests passed
