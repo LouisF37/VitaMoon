@@ -6,7 +6,7 @@ Bug reports, measurements and pull requests are welcome.
 
 Open an [issue](https://github.com/LouisF37/VitaMoon/issues) with:
 
-- the build shown at the bottom left of the home screen (`v1.0.0-beta.3  branch-commit`);
+- the build shown at the bottom left of the home screen (`v1.0.0-beta.4  branch-commit`);
 - the PC side: Sunshine version, GPU and encoder, resolution and frame rate of the stream;
 - the `.csv` and `.txt` files of the session from `ux0:data/vitamoon/stats/`;
 - for a crash, the dump `ux0:data/psp2core-*.psp2dmp` (or its decoding, `tools/dev/crash-dump.sh`).

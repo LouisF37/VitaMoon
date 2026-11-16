@@ -104,7 +104,11 @@ picture in `moon.h`): a new moon when a PC is contacted or the PC is asked for t
 picture per stage of `LiStartConnection`, drawn by `connection_set_stage_hook()` on the menu thread
 before each stage's clock starts, at most one per 50 ms. The moon is full as the video stream starts,
 and the menus draw nothing after that stage, since from there the video thread may draw. The log
-gives the number of pictures and the time they took (`waiting moon: N pictures drawn in M ms`). A
+gives the number of pictures and the time they took (`waiting moon: N pictures drawn in M ms`). The
+picture is freed once the full moon is drawn and before each reconnection try, so no texture of the
+moon is kept during a game. The names the quick menu draws over the game are prepared on the menu
+thread by `quickmenu_set_context()` (`theme_prepare_text()`), so the display thread never rasterises
+glyphs or makes a fallback font during play. A
 reconnection draws its own screen between tries, the moon filling over the minute of tries; no
 picture is drawn during a try.
 

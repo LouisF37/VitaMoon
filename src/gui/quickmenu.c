@@ -34,6 +34,10 @@ static char game_name[128] = "";
 void quickmenu_set_context(const char *host, const char *game) {
   snprintf(host_name, sizeof(host_name), "%s", host ? host : "");
   snprintf(game_name, sizeof(game_name), "%s", game ? game : "");
+  // Called on the menu thread before the stream: the names the menu will draw
+  // over the game are prepared here, not by the display thread during play.
+  theme_prepare_text(TS_LEAD, game_name[0] ? game_name : tr("Game"));
+  theme_prepare_text(TS_SMALL, host_name);
 }
 
 static void publish(void) {

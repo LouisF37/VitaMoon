@@ -655,6 +655,16 @@ void flash_moon(int phase, const char *title, const char *caption, bool cancel) 
   ui_end();
 }
 
+/* Frees the moon picture before a stream's video starts, so that the game runs
+ * with the same memory as without it; the next wait loads it again. Called on
+ * the menu thread after a frame was finished (ui_end waits for the GPU). */
+void flash_moon_release(void) {
+  if (moon_sheet) {
+    vita2d_free_texture(moon_sheet);
+    moon_sheet = NULL;
+  }
+}
+
 /* Pairing screen, drawn once: the code in large digits and where to type it.
  * The caller then blocks in gs_pair() until the PC has accepted the code. */
 void flash_pairing_code(const char *host, const char *code, const char *url) {

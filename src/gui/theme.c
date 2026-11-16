@@ -237,6 +237,10 @@ int theme_text_width(int size, const char *text) {
   return vita2d_font_text_width(face_font(f, text), f->size, text);
 }
 
+void theme_prepare_text(int size, const char *text) {
+  (void)theme_text_width(size, text);   /* vita2d rasterises what it measures */
+}
+
 void theme_text(float x, float y, unsigned int color, int size, const char *text) {
   if (!text || !*text)
     return;

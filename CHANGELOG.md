@@ -3,6 +3,16 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.0.0-beta.4 "Nouvelle Lune" (2026-11-16)
+
+### Changed
+
+- Nothing of the new look is prepared or kept during a game. The names the quick menu draws over the
+  game (the game's, the PC's) are prepared on the menu thread before the stream, with the title
+  font's fallback when the game's name has a character Poppins lacks, so the display thread
+  rasterises nothing when the menu first opens. The moon picture (0.6 MB of graphics memory) is freed
+  once the full moon is drawn, before the video starts, and before each reconnection try.
+
 ## 1.0.0-beta.3 "Nouvelle Lune" (2026-11-16)
 
 ### Changed

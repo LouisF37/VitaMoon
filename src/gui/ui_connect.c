@@ -202,6 +202,10 @@ static void moon_stage(int stage) {
   if (!moon_should_draw(moon_last_us, now, phase))
     return;
   flash_moon(phase, moon_title, stage_caption(stage), false);
+  // The full moon is the last picture before the video thread may draw: the
+  // picture is freed now, while nothing else draws, not during the game.
+  if (stage == MOON_LAST_STAGE)
+    flash_moon_release();
   moon_last_us = sceKernelGetProcessTimeWide();
   moon_draws++;
   moon_draw_us += moon_last_us - now;
@@ -307,6 +311,8 @@ static int start_stream(int appId, bool report_errors) {
                           video_callback, platform_get_audio(system),
                           NULL, drFlags, NULL, 0);
   connection_set_stage_hook(NULL);
+  if (ret != 0)
+    flash_moon_release();   // failed before the video: no other thread draws
   vitapower_busy_end();
   if (report_errors)
     LOGI("stream", "waiting moon: %d pictures drawn in %u ms", moon_draws, (unsigned)(moon_draw_us / 1000));
@@ -390,6 +396,9 @@ static reconnect_result reconnect_stream(int id) {
       if (connection_get_status() == LI_DISCONNECTED)
         connection_reset();
       connection_paired();
+      // A try that works goes straight into the game: the moon picture is freed
+      // before it (and loaded again for the next frame if the try fails).
+      flash_moon_release();
       if (start_stream(id, false) == 0) {
         LOGI("reconn", "reconnected after %d tries, %u ms after the loss", attempt,
              (unsigned)((sceKernelGetProcessTimeWide() - start) / 1000));

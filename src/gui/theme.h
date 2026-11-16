@@ -118,6 +118,10 @@ void theme_text_fit_right(float right, float y, unsigned int color, int size, co
 /* Centred on cx, cut with an ellipsis if wider than max_w. */
 void theme_text_fit_center(float cx, float y, unsigned int color, int size, const char *text, int max_w);
 int theme_text_width(int size, const char *text);
+/* Gets text ready to be drawn at `size` (its glyphs rasterised, the title
+ * fallback font made if it needs one): for text that another thread will draw
+ * later, so that nothing is prepared while a game is streaming. */
+void theme_prepare_text(int size, const char *text);
 /* Copies text into out, cut with an ellipsis if it is wider than max_w.
    Cuts on UTF-8 boundaries so accented letters are never split. */
 void theme_ellipsize(int size, const char *text, int max_w, char *out, int outlen);

@@ -108,6 +108,8 @@ void flash_message(char *format, ...);
 /* One frame of a wait with the moon at `phase` (moon.h), a title, a line
  * under it and, if `cancel`, a Cancel hint. */
 void flash_moon(int phase, const char *title, const char *caption, bool cancel);
+/* Frees the moon picture (before a stream's video starts). */
+void flash_moon_release(void);
 
 void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw_cb);
 
