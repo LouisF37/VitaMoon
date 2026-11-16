@@ -42,7 +42,7 @@ phases of the moon, in French: *Nouvelle Lune* (1.0), then *Premier Croissant*, 
 3. Run the PC tests and the interface preview ([TESTING.md](TESTING.md)).
 4. For a release that changes the stream, write a checkpoint report with Vita measurements in
    `docs/checkpoints/`.
-5. Commit and push to `phase2` (the `RELEASE_BRANCH` of the CI workflow). Once the VPK is built and
+5. Commit and push to `main` (the `RELEASE_BRANCH` of the CI workflow). Once the VPK is built and
    the PC tests pass, CI publishes the version if it has no release yet: tag `v<version>` on that
    commit, a GitHub release (a pre-release when the version has a label) with the version's
    `CHANGELOG.md` section as notes, and the VPK as `vitamoon-v<version>.vpk`. Later pushes with the same

@@ -6,7 +6,7 @@
 
   <h3>Moonlight game streaming for the PS Vita, built for a smooth picture over Wi-Fi</h3>
 
-  [![Build](https://img.shields.io/github/actions/workflow/status/LouisF37/VitaMoon/cmake-psvita.yml?branch=phase2&label=build)](../../actions)
+  [![Build](https://img.shields.io/github/actions/workflow/status/LouisF37/VitaMoon/cmake-psvita.yml?branch=main&label=build)](../../actions)
   [![Release](https://img.shields.io/github/v/release/LouisF37/VitaMoon?include_prereleases&label=release)](../../releases)
   [![Platform](https://img.shields.io/badge/platform-PS%20Vita%20%7C%20PS%20TV-1B4A8F)](#requirements)
   [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
@@ -79,7 +79,7 @@ measurements).</sub>
 ## Install
 
 1. Download `vitamoon-v<version>.vpk` from the [latest release](../../releases), or
-   `vitamoon-phase2.vpk` from [the latest development build](../../releases/tag/build-phase2).
+   `vitamoon-main.vpk` from [the latest development build](../../releases/tag/build-main).
 2. Copy it to the Vita and install it with VitaShell.
 
 VitaMoon has its own title ID (`VMOON0001`) and data folder (`ux0:data/vitamoon`): it installs next

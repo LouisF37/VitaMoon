@@ -5,10 +5,10 @@ bêta 1, le projet s'appelait Lune.
 
 Téléchargement :
 - versions publiées : https://github.com/LouisF37/VitaMoon/releases
-- dernière compilation de la branche `phase2` :
-  https://github.com/LouisF37/VitaMoon/releases/download/build-phase2/vitamoon-phase2.vpk
+- dernière compilation de la branche `main` :
+  https://github.com/LouisF37/VitaMoon/releases/download/build-main/vitamoon-main.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.4  phase2-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.4  main-xxxxxxx`.
 
 **Installation à côté de Moonlight.** VitaMoon a son propre identifiant (`VMOON0001`), sa propre bulle et
 son propre dossier (`ux0:data/vitamoon`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc

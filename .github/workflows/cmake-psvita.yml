@@ -23,7 +23,7 @@ jobs:
       VITASDK: ${{ github.workspace }}/vitasdk
       BUILD_BRANCH: ${{ github.head_ref || github.ref_name }}
       # Branch whose pushes publish the version set in CMakeLists.txt (docs/RELEASING.md).
-      RELEASE_BRANCH: phase2
+      RELEASE_BRANCH: main
     defaults:
       run:
         shell: bash
