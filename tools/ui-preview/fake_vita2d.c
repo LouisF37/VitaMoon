@@ -11,6 +11,12 @@
  * break the preview with a message: no wait for the GPU while a frame is open
  * (vita2d_wait_rendering_done between start and end drawing), and no texture
  * freed while a frame that drew it has not been waited for.
+ *
+ * It also counts what each frame takes from vita2d's vertex pool (1 MiB, set by
+ * guilib_init), with the sizes and alignment of vita2d's own drawing calls:
+ * vita2d does not check that pool, a frame that ran out would write through a
+ * null pointer. More than half of it used is reported, all of it stops the
+ * preview; PREVIEW_POOL_REPORT=1 prints the peak at the end.
  */
 #include <vita2d.h>
 
@@ -48,6 +54,33 @@ static int clip_on, clip_x0, clip_y0, clip_x1, clip_y1;
 static unsigned int frame_id = 0, frame_done = 0;
 static int frame_open = 0;
 
+#define POOL_SIZE (1u * 1024 * 1024)   /* guilib_init: vita2d_init_advanced_with_msaa(1 MiB) */
+static unsigned int pool_index = 0, pool_peak = 0;
+static int pool_warned = 0;
+
+/* vita2d_pool_memalign()'s arithmetic, without the memory. */
+static void pool_take(unsigned int size, unsigned int alignment) {
+  pool_index = ((pool_index + alignment - 1) & ~(alignment - 1)) + size;
+  if (pool_index > pool_peak)
+    pool_peak = pool_index;
+  if (pool_index >= POOL_SIZE) {
+    fprintf(stderr, "preview: a frame used all of vita2d's vertex pool (%u bytes)\n", POOL_SIZE);
+    abort();
+  }
+  if (pool_index > POOL_SIZE / 2 && !pool_warned) {
+    pool_warned = 1;
+    fprintf(stderr, "preview: a frame used more than half of vita2d's vertex pool\n");
+  }
+}
+#define POOL_COLOR_QUAD() pool_take(4 * 16, 16)                    /* 4 vita2d_color_vertex */
+#define POOL_TEXTURE_QUAD() pool_take(4 * 20, 20)                  /* 4 vita2d_texture_vertex */
+#define POOL_TINTED_QUAD() (pool_take(4 * 4, 4), POOL_TEXTURE_QUAD()) /* tint colour + quad */
+
+static void pool_report(void) {
+  if (getenv("PREVIEW_POOL_REPORT"))
+    fprintf(stderr, "pool peak: %u bytes (%.1f%% of %u)\n", pool_peak, pool_peak * 100.0 / POOL_SIZE, POOL_SIZE);
+}
+
 static void gpu_rule_broken(const char *what) {
   fprintf(stderr, "preview: %s (on the Vita this reads freed memory or stalls the GPU)\n", what);
   abort();
@@ -72,6 +105,7 @@ int vita2d_init(void) { return vita2d_init_advanced_with_msaa(0, 0); }
 int vita2d_init_advanced(unsigned int temp_pool_size) { return vita2d_init_advanced_with_msaa(0, 0); }
 int vita2d_init_advanced_with_msaa(unsigned int temp_pool_size, SceGxmMultisampleMode msaa) {
   if (!screen) {
+    atexit(pool_report);
     screen = cairo_image_surface_create(CAIRO_FORMAT_ARGB32, W, H);
     cr = cairo_create(screen);
     FT_Init_FreeType(&ft);
@@ -90,6 +124,7 @@ static void pool_reset(void);
 void vita2d_start_drawing(void) {
   frame_open = 1;
   frame_id++;
+  pool_index = 0;
   pool_reset();
   apply_clip();
 }
@@ -109,6 +144,10 @@ void vita2d_swap_buffers(void) {
 
 void vita2d_set_clip_rectangle(int x_min, int y_min, int x_max, int y_max) {
   clip_x0 = x_min; clip_y0 = y_min; clip_x1 = x_max; clip_y1 = y_max;
+  if (frame_open) {   /* vita2d draws the stencil: the whole screen, then the region */
+    POOL_COLOR_QUAD();
+    POOL_COLOR_QUAD();
+  }
   apply_clip();
 }
 void vita2d_enable_clipping(void) { clip_on = 1; apply_clip(); }
@@ -132,16 +171,19 @@ void *vita2d_pool_memalign(unsigned int size, unsigned int alignment) {
   }
   void *p = malloc(size);
   pool_blocks[pool_count++] = p;
+  pool_take(size, alignment);
   return p;
 }
 
 void vita2d_draw_rectangle(float x, float y, float w, float h, unsigned int color) {
+  POOL_COLOR_QUAD();
   set_color(color);
   cairo_rectangle(cr, x, y, w, h);
   cairo_fill(cr);
 }
 
 void vita2d_draw_line(float x0, float y0, float x1, float y1, unsigned int color) {
+  pool_take(2 * 16, 16);
   set_color(color);
   cairo_set_line_width(cr, 1.0);
   cairo_move_to(cr, x0 + 0.5, y0 + 0.5);
@@ -150,6 +192,8 @@ void vita2d_draw_line(float x0, float y0, float x1, float y1, unsigned int color
 }
 
 void vita2d_draw_fill_circle(float x, float y, float radius, unsigned int color) {
+  pool_take(101 * 16, 16);   /* 100 segments and the centre */
+  pool_take(102 * 2, 2);
   set_color(color);
   cairo_arc(cr, x, y, radius, 0, 2 * M_PI);
   cairo_fill(cr);
@@ -271,6 +315,7 @@ void vita2d_draw_texture_part_scale(const vita2d_texture *texture, float x, floa
   fake_tex *t = (fake_tex *)texture;
   if (!t) return;
   t->drawn_in = frame_id;
+  POOL_TEXTURE_QUAD();
   int owned;
   cairo_surface_t *s = tex_surface(t, &owned);
   cairo_save(cr);
@@ -351,6 +396,8 @@ static int font_text(vita2d_font *font, int draw, int x, int y, unsigned int col
     if (FT_Load_Glyph(font->face, gi, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL))
       continue;
     FT_GlyphSlot g = font->face->glyph;
+    if (draw)
+      POOL_TINTED_QUAD();   /* vita2d draws every glyph, spaces included */
     if (draw && g->bitmap.width && g->bitmap.rows) {
       int bw = g->bitmap.width, bh = g->bitmap.rows;
       cairo_surface_t *mask = cairo_image_surface_create(CAIRO_FORMAT_A8, bw, bh);

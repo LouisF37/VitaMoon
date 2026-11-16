@@ -3,6 +3,13 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## Unreleased
+
+### Tests
+
+- The PC preview also counts what each frame takes from vita2d's vertex pool, which vita2d does not
+  check: peak 9% of it, on the settings screen.
+
 ## 1.0.0-beta.6 "Nouvelle Lune" (2026-11-16)
 
 ### Fixed

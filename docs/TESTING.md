@@ -37,6 +37,9 @@ The fake vita2d draws at once, while the Vita's GPU reads textures only after a 
 It therefore checks two rules of the console and stops with a message when one is broken: no wait
 for the GPU while a frame is open, and no texture freed before the GPU has finished every frame that
 drew it. The theme change in the `settings_change` scenario covers the case that froze beta.5.
+It also counts what each frame takes from vita2d's vertex pool (1 MiB), with the sizes of vita2d's
+own drawing calls: vita2d does not check that pool. More than half of it is reported, all of it
+stops the preview; `PREVIEW_POOL_REPORT=1` prints the peak (9% on 16 November, the settings screen).
 
 ## Static analysis
 
