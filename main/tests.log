@@ -1,0 +1,256 @@
+[pacing]
+    steady 60 fps            frames  3600 shown  3596 dropped   4 repeats    0 | wait max early  28.7, late  24.7, avg late  14.0 ms | margin  4.0 ms
+  ok    frames shown in order
+  ok    every frame shown or dropped
+  ok    at most 0.2 % dropped on a steady link
+  ok    margin comes down to the minimum when nothing is late
+  ok    steady: almost no repeated frame
+  ok    wait stays within the delay plus two refreshes
+    60 fps, 0-15 ms jitter   frames  3600 shown  3597 dropped   3 repeats    0 | wait max early  38.6, late  35.8, avg late  23.0 ms | margin  4.0 ms
+  ok    frames shown in order
+  ok    even cadence despite jitter: almost no repeated frame
+  ok    margin within its bounds
+  ok    at most 5 % dropped with heavy jitter
+  ok    wait bounded by the maximum delay
+    PC clock 200 ppm fast    frames  7200 shown  7191 dropped   9 repeats    0 | wait max early  34.0, late  28.8, avg late  19.1 ms | margin  4.0 ms
+  ok    wait does not grow with a fast PC clock
+  ok    few frames dropped with a fast PC clock
+  ok    fast PC clock: few repeated frames
+    PC clock 200 ppm slow    frames  7200 shown  7192 dropped   8 repeats    2 | wait max early  29.3, late  26.0, avg late  16.3 ms | margin  4.0 ms
+  ok    wait bounded with a slow PC clock
+  ok    few frames dropped with a slow PC clock
+  ok    slow PC clock: few repeated frames
+    PC clock 0.1 % fast      frames  7200 shown  7185 dropped  15 repeats    0 | wait max early  34.5, late  30.5, avg late  21.0 ms | margin  4.0 ms
+  ok    0.1 % fast: wait does not grow
+  ok    0.1 % fast: under 2 % dropped
+    PC clock 0.1 % slow      frames  7200 shown  7171 dropped  29 repeats   19 | wait max early  27.4, late  25.4, avg late  14.5 ms | margin  4.0 ms
+  ok    0.1 % slow: wait bounded
+  ok    0.1 % slow: under 2 % dropped
+    59.94 fps (matched)      frames  3596 shown  3596 dropped   0 repeats    0 | wait max early  27.3, late  26.3, avg late  24.8 ms | margin  4.0 ms
+  ok    matched rate: no drop, no repeat
+    30 fps                   frames  1800 shown  1800 dropped   0 repeats  897 | wait max early  33.3, late  28.3, avg late  18.4 ms | margin  4.0 ms
+  ok    frames shown in order
+  ok    30 fps: nearly nothing dropped
+    3 s pause on the PC      frames  1620 shown  1618 dropped   2 repeats    0 | wait max early  30.1, late  23.1, avg late  19.2 ms | margin  8.0 ms
+  ok    first frame after a pause shown within 3 refreshes
+  ok    every frame shown or dropped after a pause
+  ok    catch-up picks the newest frame
+  ok    catch-up drops the older frames
+  ok    catch-up anchors on the frame shown
+  ok    first frame due after the start delay
+  ok    clock going back re-anchors
+[pacing] 31 checks, 0 failed
+
+[url, percentiles and reconnection]
+  ok    space encoded
+  ok    unreserved characters kept
+  ok    UTF-8 bytes and & encoded
+  ok    never ends in the middle of an escape
+  ok    NULL gives an empty string
+  ok    empty histogram: 0
+  ok    count and maximum
+    1..100 ms: p50 50500, p95 95500, p99 99500 us
+  ok    p50 is the bucket of 50 ms
+  ok    p95 is the bucket of 95 ms
+  ok    p99 is the bucket of 99 ms
+  ok    formatted in milliseconds
+  ok    values above the range reported as such
+  ok    maximum kept beyond the range
+  ok    ended by the PC or the user: no reconnection
+  ok    DRM content: no reconnection
+  ok    capture error on the PC: no reconnection
+  ok    picture conversion error: no reconnection
+  ok    no video traffic: reconnection
+  ok    no video frame: reconnection
+  ok    control stream lost: reconnection
+  ok    socket error: reconnection
+  ok    lost after 10 min: retry, no quick loss
+  ok    lost after 5 s: retry, 1 quick loss
+  ok    lost again after 2 s: retry, 2 quick losses
+  ok    third quick loss in a row: stop
+  ok    a stream that held 20 s resets the count
+[url, percentiles and reconnection] 26 checks, 0 failed
+
+[config]
+  ok    round trip: stream.width
+  ok    round trip: stream.height
+  ok    round trip: stream.fps
+  ok    round trip: stream.bitrate
+  ok    round trip: auto_bitrate
+  ok    round trip: stream.packetSize
+  ok    round trip: sops
+  ok    round trip: localaudio
+  ok    round trip: enable_frame_pacer
+  ok    round trip: center_region_only
+  ok    round trip: disable_powersave
+  ok    round trip: jp_layout
+  ok    round trip: show_fps
+  ok    round trip: save_debug_log
+  ok    round trip: enable_front_touchzones
+  ok    round trip: mouse_acceleration
+  ok    round trip: enable_ref_frame_invalidation
+  ok    round trip: stream.streamingRemotely
+  ok    round trip: enable_vita_vblank_wait
+  ok    round trip: boost_clocks
+  ok    round trip: match_refresh_rate
+  ok    round trip: low_latency_audio
+  ok    round trip: display_mode
+  ok    round trip: decoder_catchup
+  ok    round trip: http_keepalive
+  ok    round trip: ui_msaa
+  ok    round trip: decode_yuv
+  ok    round trip: video_reorder_wait_ms
+  ok    round trip: thread_pinning
+  ok    round trip: input_sync
+  ok    round trip: auto_reconnect
+  ok    round trip: enable_motion_controls
+  ok    round trip: enable_psbutton_capture
+  ok    round trip: enable_double_tap_sprint
+  ok    round trip: double_tap_sprint_step_time
+  ok    round trip: keyboard_layout
+  ok    round trip: language
+  ok    round trip: theme
+  ok    round trip: touchscreen_mode
+  ok    round trip: swap_shoulder_buttons
+  ok    round trip: controller_type
+  ok    round trip: back_deadzone.top
+  ok    round trip: back_deadzone.right
+  ok    round trip: back_deadzone.bottom
+  ok    round trip: back_deadzone.left
+  ok    round trip: special_keys.nw
+  ok    round trip: special_keys.ne
+  ok    round trip: special_keys.sw
+  ok    round trip: special_keys.se
+  ok    round trip: special_keys.offset
+  ok    round trip: special_keys.size
+  ok    round trip: motion scalar x
+  ok    round trip: motion scalar y
+  ok    old packetsize key ignored
+  ok    out-of-range packet size falls back to the default
+  ok    reorder wait clamped to 50 ms
+  ok    negative reorder wait clamped to 0
+  ok    old bitrate line read as a manual bitrate
+  ok    sanitize: resolution back to 960x544
+  ok    sanitize: fps back to 60
+  ok    sanitize: absurd bitrate back to automatic
+  ok    sanitize: unknown display mode back to Smooth
+  ok    sanitize: touch mode and controller type
+  ok    sanitize: mouse acceleration
+  ok    sanitize: NaN motion scale
+  ok    sanitize: huge motion scale
+  ok    sanitize: sprint tap time
+  ok    sanitize: unknown language back to English
+  ok    sanitize: unknown theme back to Night
+  ok    sanitize: unknown keyboard layout back to text
+  ok    sanitize: a valid packet size is kept
+  ok    sanitize leaves valid settings alone
+    auto bitrate: 960x544@60 8000, 1280x720@60 10000, 1280x720@30 6250 kbps
+  ok    auto bitrate grows with the resolution
+  ok    auto bitrate lower at 30 fps
+  ok    auto bitrate stays within 20 Mbps
+[config] 75 checks, 0 failed
+
+[sps rewrite]
+  ok    test SPS built
+    SPS 19 bytes in, 23 bytes out
+  ok    nothing written before the offset
+  ok    result within the room kept by the renderer
+  ok    start code kept
+  ok    result is a valid SPS
+  ok    one reference frame
+  ok    bitstream restriction present
+  ok    decoder buffers a single frame
+  ok    no reordering
+  ok    picture size untouched
+  ok    unparsable SPS passed through unchanged
+  ok    missing start code: passed through
+  ok    truncated SPS: passed through
+  ok    not an SPS: passed through
+[sps rewrite] 14 checks, 0 failed
+
+[quick menu]
+  ok    L + R + SELECT opens it
+  ok    L / R read as triggers count too
+  ok    headphones plugged in do not matter
+  ok    with START it is the pause, not the menu
+  ok    L + SELECT alone: nothing
+  ok    closed: the game gets its buttons
+  ok    opens on Back to the game
+  ok    the held combination is not a press
+  ok    open: the game gets nothing
+  ok    releasing the combination: nothing
+  ok    down: statistics
+  ok    statistics toggled, the menu stays
+  ok    up from the top wraps to Quit
+  ok    first press on Quit asks again
+  ok    moving away cancels the question
+  ok    second press quits and closes
+  ok    closed with the button still held: the game gets nothing
+  ok    headphones do not count as a held button
+  ok    all released: the game gets its buttons again
+  ok    cancel goes back to the game
+  ok    and the game gets its buttons
+  ok    SELECT closes it too
+  ok    keyboard closes the menu
+  ok    pause closes the menu
+  ok    swapped buttons: Circle confirms Back to the game
+[quick menu] 25 checks, 0 failed
+
+[log]
+  ok    lines go in
+  ok    and come out in order
+  ok    the ring is then empty
+  ok    a line almost as big as the ring fits
+  ok    partial reads leave the rest
+  ok    a line across the end of the buffer
+  ok    comes out whole after the wrap
+  ok    nearly full
+  ok    a line that does not fit is refused
+  ok    counted, nothing written
+  ok    a line that fits exactly still goes in
+  ok    a burst of five lines passes at once
+  ok    the rest of the flood is counted
+  ok    0.4 s later: still nothing (2 lines a second)
+  ok    half a second refills one line, which reports the 16
+  ok    the bucket is empty again
+  ok    the next line reports the one left out
+  ok    after a quiet minute the bucket holds a full burst, no more
+  ok    a clock that goes back refills nothing
+  ok    a first message is written
+  ok    the same again is held back
+  ok    and counted
+  ok    another message is written, after the count of copies
+  ok    nothing held back: nothing to report
+  ok    copies are kept while the flood may go on
+  ok    and reported once it has stopped
+  ok    after that report the message is written again
+[log] 27 checks, 0 failed
+
+[title font coverage]
+  ok    an empty text needs nothing
+  ok    plain Latin
+  ok    French accents (à)
+  ok    a line break is not a character to draw
+  ok    dash and French quotes
+  ok    Cyrillic falls back to Inter
+  ok    Greek falls back to Inter
+  ok    Japanese falls back to Inter
+  ok    a malformed byte falls back
+  ok    a sequence cut short falls back
+  ok    three-byte sequence decoded (euro sign)
+  ok    four-byte sequence decoded, next character kept
+[waiting moon]
+  ok    first stage: new moon
+  ok    video start: full moon (the mark)
+  ok    every stage shows a fuller moon than the one before
+  ok    reconnection starts with a new moon
+  ok    half the minute of tries: phase 6 of 11
+  ok    past the minute: full
+  ok    no steps: full, no division by zero
+  ok    first picture always drawn
+  ok    not again 20 ms later
+  ok    again 50 ms later
+  ok    the full moon is never skipped
+[waiting moon] 23 checks, 0 failed
+
+all tests passed
