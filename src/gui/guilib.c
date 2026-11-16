@@ -487,34 +487,39 @@ error:
 #define DIALOG_MAX_LINES 12
 
 /* A centred panel sized to its text: message lines, then the button hints. */
-static void draw_dialog(const char *message, char *buttons_captions[], int buttons_count) {
+static void draw_dialog_hints(const char *message, const theme_hint_item *hints, int hints_count) {
   char lines[DIALOG_MAX_LINES][256];
   int n = theme_wrap(TS_BODY, message, DIALOG_W - 72, lines, DIALOG_MAX_LINES);
   int text_h = n * DIALOG_LINE_H;
-  int h = 44 + text_h + (buttons_count ? 64 : 36);
+  int h = 44 + text_h + (hints_count ? 64 : 36);
   if (h < 132) h = 132;
   int x = (WIDTH - DIALOG_W) / 2, y = (HEIGHT - h) / 2;
 
   theme_rect(0, 0, WIDTH, HEIGHT, RGBA8(2, 5, 14, 110));   /* dim what is behind */
   theme_glass(x, y, DIALOG_W, h, 16);
 
-  int area_h = h - (buttons_count ? 60 : 0);
+  int area_h = h - (hints_count ? 60 : 0);
   float ty = y + (area_h - text_h) / 2.0f + DIALOG_LINE_H * 0.72f;
   for (int i = 0; i < n; i++)
     theme_text_center(WIDTH / 2.0f, ty + i * DIALOG_LINE_H, TH_TEXT, TS_BODY, lines[i]);
 
-  if (buttons_count) {
-    const int glyphs[4] = {theme_confirm_glyph(), theme_cancel_glyph(), GLYPH_TRIANGLE, GLYPH_SQUARE};
-    const char *defaults[4] = {tr("OK"), tr("Cancel"), tr("Options"), tr("Delete")};
-    theme_hint_item hints[4];
-    int count = buttons_count > 4 ? 4 : buttons_count;
-    for (int i = 0; i < count; i++) {
-      hints[i].glyph = glyphs[i];
-      hints[i].label = buttons_captions && buttons_captions[i] ? buttons_captions[i] : defaults[i];
-    }
+  if (hints_count) {
     theme_rect(x + 24, y + h - 60, DIALOG_W - 48, 1, TH_DIVIDER);
-    theme_hints_at(hints, count, WIDTH / 2.0f, y + h - 24);
+    theme_hints_at(hints, hints_count, WIDTH / 2.0f, y + h - 24);
   }
+}
+
+/* Buttons in order: confirm, cancel, triangle, square. */
+static void draw_dialog(const char *message, char *buttons_captions[], int buttons_count) {
+  const int glyphs[4] = {theme_confirm_glyph(), theme_cancel_glyph(), GLYPH_TRIANGLE, GLYPH_SQUARE};
+  const char *defaults[4] = {tr("OK"), tr("Cancel"), tr("Options"), tr("Delete")};
+  theme_hint_item hints[4];
+  int count = buttons_count > 4 ? 4 : buttons_count;
+  for (int i = 0; i < count; i++) {
+    hints[i].glyph = glyphs[i];
+    hints[i].label = buttons_captions && buttons_captions[i] ? buttons_captions[i] : defaults[i];
+  }
+  draw_dialog_hints(message, hints, count < 0 ? 0 : count);
 }
 
 void display_alert(char *message, char *button_captions[], int buttons_count,
@@ -609,6 +614,17 @@ void flash_message(char *format, ...) {
   ui_start();
   theme_topbar(NULL);
   draw_dialog(buf, NULL, 0);
+  ui_end();
+}
+
+/* One frame of a message with a single "Cancel" hint, for a wait the caller
+ * runs itself (it reads the buttons between frames). */
+void flash_cancelable(const char *message) {
+  theme_hint_item cancel = {theme_cancel_glyph(), tr("Cancel")};
+  ui_end();
+  ui_start();
+  theme_topbar(NULL);
+  draw_dialog_hints(message, &cancel, 1);
   ui_end();
 }
 

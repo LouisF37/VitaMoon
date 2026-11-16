@@ -1,15 +1,17 @@
 /*
- * Small helpers: URL encoding of the pairing name (libgamestream/url.c) and
- * the percentiles of the session summary (src/video/histogram.h).
+ * Small helpers: URL encoding of the pairing name (libgamestream/url.c), the
+ * percentiles of the session summary (src/video/histogram.h) and the
+ * decisions of the automatic reconnection (src/reconnect.h).
  */
 #include "test.h"
 #include "url.h"
 #include "histogram.h"
+#include "reconnect.h"
 
 #include <string.h>
 
 int main(void) {
-  TEST_BEGIN("url and percentiles");
+  TEST_BEGIN("url, percentiles and reconnection");
 
   char out[64];
   gs_url_encode("PS Vita", out, sizeof(out));
@@ -42,6 +44,26 @@ int main(void) {
   CHECK(hist_percentile(&h, 100) == UINT32_MAX, "values above the range reported as such");
   hist_format(line, sizeof(line), "test", &h);
   CHECK(strstr(line, "max 10000.00 ms (101 values)") != NULL, "maximum kept beyond the range");
+
+  /* reconnection: which ends are a lost connection */
+  CHECK(!reconnect_after_error(ML_ERROR_GRACEFUL_TERMINATION), "ended by the PC or the user: no reconnection");
+  CHECK(!reconnect_after_error(ML_ERROR_PROTECTED_CONTENT), "DRM content: no reconnection");
+  CHECK(!reconnect_after_error(ML_ERROR_UNEXPECTED_EARLY_TERMINATION), "capture error on the PC: no reconnection");
+  CHECK(!reconnect_after_error(ML_ERROR_FRAME_CONVERSION), "picture conversion error: no reconnection");
+  CHECK(reconnect_after_error(ML_ERROR_NO_VIDEO_TRAFFIC), "no video traffic: reconnection");
+  CHECK(reconnect_after_error(ML_ERROR_NO_VIDEO_FRAME), "no video frame: reconnection");
+  CHECK(reconnect_after_error(-1), "control stream lost: reconnection");
+  CHECK(reconnect_after_error(110), "socket error: reconnection");
+
+  /* reconnection: streams lost again soon after starting */
+  int quick = 0;
+  CHECK(reconnect_should_retry(&quick, 600000) && quick == 0, "lost after 10 min: retry, no quick loss");
+  CHECK(reconnect_should_retry(&quick, 5000) && quick == 1, "lost after 5 s: retry, 1 quick loss");
+  CHECK(reconnect_should_retry(&quick, 2000) && quick == 2, "lost again after 2 s: retry, 2 quick losses");
+  CHECK(!reconnect_should_retry(&quick, 1000) && quick == 3, "third quick loss in a row: stop");
+  quick = 2;
+  CHECK(reconnect_should_retry(&quick, RECONNECT_QUICK_LOSS_MS) && quick == 0,
+        "a stream that held 20 s resets the count");
 
   return TEST_END();
 }

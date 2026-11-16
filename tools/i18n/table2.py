@@ -351,4 +351,23 @@ T2 = {
 "Reads the buttons once per sample of the Vita instead of every 2 ms. If touch feels slower, turn it off.":
     ("Lit les boutons une fois par relevé de la Vita au lieu de toutes les 2 ms. Si le tactile semble plus lent, désactivez.",
      "Lee los botones una vez por muestreo de la Vita en lugar de cada 2 ms. Si el táctil parece más lento, desactívalo."),
+"Reconnect automatically": ("Reconnexion automatique", "Reconexión automática"),
+"After a Wi-Fi drop or a sleep during a stream, the game starts again on its own.":
+    ("Après une coupure du Wi-Fi ou une mise en veille pendant un stream, le jeu reprend tout seul.",
+     "Tras un corte del Wi-Fi o una suspensión durante un stream, el juego vuelve solo."),
+"Connection lost.\\nReconnecting to %s (try %d)...":
+    ("Connexion perdue.\\nReconnexion à %s (essai %d)...",
+     "Conexión perdida.\\nReconectando con %s (intento %d)..."),
+"Connection lost.\\nReconnecting to %s...":
+    ("Connexion perdue.\\nReconnexion à %s...",
+     "Conexión perdida.\\nReconectando con %s..."),
+"Connection lost.\\nWaiting for the Wi-Fi...":
+    ("Connexion perdue.\\nEn attente du Wi-Fi...",
+     "Conexión perdida.\\nEsperando al Wi-Fi..."),
+"The connection keeps dropping.\\nThe game should still be running on the PC: connect again to resume it.":
+    ("La connexion coupe sans cesse.\\nLe jeu devrait toujours tourner sur le PC" + NB + ": reconnectez-vous pour le reprendre.",
+     "La conexión se corta una y otra vez.\\nEl juego debería seguir en el PC: vuelve a conectarte para continuarlo."),
+"Could not reconnect.\\nThe game should still be running on the PC: connect again to resume it.":
+    ("Reconnexion impossible.\\nLe jeu devrait toujours tourner sur le PC" + NB + ": reconnectez-vous pour le reprendre.",
+     "No se pudo reconectar.\\nEl juego debería seguir en el PC: vuelve a conectarte para continuarlo."),
 }

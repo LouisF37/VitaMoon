@@ -5,6 +5,13 @@ milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELE
 
 ## Unreleased
 
+### Added
+
+- Automatic reconnection: a stream lost to a Wi-Fi drop or to a sleep of the Vita starts again on its
+  own, on the same game, which kept running on the PC. Lune waits for the Wi-Fi, tries every 3 s for
+  a minute and can be cancelled; it stops after three streams in a row lost within 20 s. Option
+  *Settings > General > Reconnect automatically*, on by default (`src/reconnect.h`).
+
 ## 1.0.0-beta.1 "Nouvelle Lune" (2026-11-15)
 
 First version of Lune, from [xyzz/vita-moonlight](https://github.com/xyzz/vita-moonlight) 0.13.2.

@@ -130,6 +130,8 @@ int sceRtcGetCurrentTick(SceRtcTick *tick) { tick->tick = (SceUInt64)frame * 166
 int scePowerGetBatteryLifePercent(void) { return 73; }
 SceBool scePowerIsBatteryCharging(void) { return 0; }
 
+int sceNetCtlInetGetState(int *state) { *state = SCE_NETCTL_STATE_CONNECTED; return 0; }
+
 int sceNetCtlInetGetInfo(int code, SceNetCtlInfo *info) {
   memset(info, 0, sizeof(*info));
   info->rssi_percentage = 82;

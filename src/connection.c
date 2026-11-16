@@ -30,8 +30,14 @@
 #include <pthread.h>
 #include "connection_overlay.h"
 #include "debug.h"
+#include "reconnect.h"
 
 static int connection_status = LI_DISCONNECTED;
+
+/* How the last stream ended (connection_was_lost()). Written under
+ * terminate_lock, read by the menus once the status is LI_DISCONNECTED. */
+static volatile bool stream_lost = false;
+static volatile int last_error = 0;
 
 extern motion_data_state motion_state;
 
@@ -67,6 +73,7 @@ void connection_connection_started() {
     return;
   }
   vita_debug_log("connection started\n");
+  stream_lost = false;
   connection_status = LI_CONNECTED;
   start_output();
   vitavideo_hide_poor_net_indicator();
@@ -109,6 +116,11 @@ static void connection_connection_terminated(int error_code) {
 
   LiStopConnection();
 
+  last_error = error_code;
+  // Only a running stream is reconnected: one lost during the pause is left to
+  // the menus, where the game can be resumed by hand.
+  stream_lost = connection_status == LI_CONNECTED && reconnect_after_error(error_code);
+
   if (connection_status == LI_CONNECTED) {
     stop_output();
   } else if (connection_status == LI_MINIMIZED) {
@@ -127,7 +139,16 @@ int connection_reset() {
     return -1;
   }
   connection_status = LI_READY;
+  stream_lost = false;
   return 0;
+}
+
+bool connection_was_lost() {
+  return stream_lost;
+}
+
+int connection_last_error() {
+  return last_error;
 }
 
 int connection_paired() {

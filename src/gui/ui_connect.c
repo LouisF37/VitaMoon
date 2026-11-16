@@ -23,6 +23,7 @@
 
 #include "../power/vita.h"
 #include "../input/vita.h"
+#include "../reconnect.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -32,6 +33,8 @@
 #include <sys/types.h>
 
 #include <psp2/kernel/threadmgr.h>
+#include <psp2/kernel/processmgr.h>
+#include <psp2/net/netctl.h>
 #include <psp2/ctrl.h>
 #include <psp2/display.h>
 #include <psp2/io/stat.h>
@@ -141,7 +144,10 @@ static bool start_settings_changed(void) {
   return memcmp(&now, &started_with, sizeof(now)) != 0;
 }
 
-void ui_connect_stream(int appId) {
+/* Starts the stream of appId (launch, or resume when the PC already runs it).
+ * Returns 0 when the stream runs; on failure, explains it on screen when
+ * report_errors is set (a reconnection retries quietly instead). */
+static int start_stream(int appId, bool report_errors) {
   // TODO support force controller id
   vita_debug_log("Running gs_start_app...");
   // Clocks up from the launch request to the end of the stream setup (RTSP).
@@ -149,6 +155,9 @@ void ui_connect_stream(int appId) {
   int ret = gs_start_app(&server, &config.stream, appId, config.sops, config.localaudio, 1);
   if (ret < 0) {
     vitapower_busy_end();
+    vita_debug_log("gs_start_app failed: %d (%s)", ret, gs_error ? gs_error : "");
+    if (!report_errors)
+      return ret;
     if (ret == GS_NOT_SUPPORTED_4K)
       display_error(tr("The PC cannot stream in 4K."));
     else if (ret == GS_NOT_SUPPORTED_MODE)
@@ -157,7 +166,7 @@ void ui_connect_stream(int appId) {
     else
       display_error(tr("The PC could not start the game (error %d).\n%s"), ret, gs_error ? gs_error : "");
 
-    return;
+    return ret;
   }
   vita_debug_log("App started.");
 
@@ -216,10 +225,17 @@ void ui_connect_stream(int appId) {
 
   if (ret == 0) {
     server.currentGame = appId;
-  } else {
+    return 0;
+  }
+  vita_debug_log("LiStartConnection failed at %s: %d", LiGetStageName(connection_stage), ret);
+  if (report_errors)
     display_error(tr("The stream could not start.\nFailed step: %s (error %d)"),
                   LiGetStageName(connection_stage), ret);
-  }
+  return ret < 0 ? ret : -1;
+}
+
+void ui_connect_stream(int appId) {
+  start_stream(appId, true);
 }
 
 enum {
@@ -231,6 +247,61 @@ enum {
 #define QUIT_RELOAD 2
 
 static char connected_host_name[128] = "";
+
+static bool wifi_connected(void) {
+  int state = 0;
+  return sceNetCtlInetGetState(&state) >= 0 && state == SCE_NETCTL_STATE_CONNECTED;
+}
+
+typedef enum { RECONNECTED, RECONNECT_CANCELLED, RECONNECT_FAILED } reconnect_result;
+
+/* A stream was lost while it ran (Wi-Fi drop, sleep): waits for the Wi-Fi and
+ * starts the stream of the same game again. The game kept running on the PC,
+ * which resumes it. Tries every RECONNECT_RETRY_MS for RECONNECT_GIVE_UP_MS,
+ * until the user cancels. */
+static reconnect_result reconnect_stream(int id) {
+  vita_debug_log("[CONNECT] stream lost (error %d): reconnecting", connection_last_error());
+  const SceUInt64 start = sceKernelGetProcessTimeWide();
+  // The first try waits a moment: the PC has to notice that the old stream is gone.
+  SceUInt64 next_try = start + 1000 * 1000ULL;
+  int attempt = 0;
+  char message[256];
+  read_buttons();   // a button held from the game does not count as a press
+
+  while (sceKernelGetProcessTimeWide() - start < RECONNECT_GIVE_UP_MS * 1000ULL) {
+    bool wifi = wifi_connected();
+    if (wifi && attempt > 0)
+      snprintf(message, sizeof(message), tr("Connection lost.\nReconnecting to %s (try %d)..."),
+               connected_host_name, attempt);
+    else if (wifi)
+      snprintf(message, sizeof(message), tr("Connection lost.\nReconnecting to %s..."), connected_host_name);
+    else
+      snprintf(message, sizeof(message), "%s", tr("Connection lost.\nWaiting for the Wi-Fi..."));
+    flash_cancelable(message);
+
+    int buttons = read_buttons();
+    if ((buttons & config.btn_cancel) && !(buttons & SCE_CTRL_HOLD)) {
+      vita_debug_log("[CONNECT] reconnection cancelled after %d tries", attempt);
+      return RECONNECT_CANCELLED;
+    }
+
+    if (wifi && sceKernelGetProcessTimeWide() >= next_try) {
+      attempt++;
+      vita_debug_log("[CONNECT] reconnection, try %d", attempt);
+      if (connection_get_status() == LI_DISCONNECTED)
+        connection_reset();
+      connection_paired();
+      if (start_stream(id, false) == 0) {
+        vita_debug_log("[CONNECT] reconnected after %d tries", attempt);
+        return RECONNECTED;
+      }
+      next_try = sceKernelGetProcessTimeWide() + RECONNECT_RETRY_MS * 1000ULL;
+    }
+    sceKernelDelayThread(100 * 1000);
+  }
+  vita_debug_log("[CONNECT] reconnection failed after %d tries", attempt);
+  return RECONNECT_FAILED;
+}
 
 /* Start (or resume) an app and wait for the stream to end. Returns QUIT_RELOAD
  * to show the library/menu again, 1 if the connection was lost. */
@@ -263,8 +334,28 @@ static int ui_launch_app(int id) {
   }
 
   // The stream runs on its own threads: wait here until it is paused or ends.
-  while (connection_is_connected()) {
-    sceKernelDelayThread(100 * 1000);
+  // A stream lost while it ran (Wi-Fi drop, sleep) is started again.
+  int quick_losses = 0;
+  for (;;) {
+    const SceUInt64 began = sceKernelGetProcessTimeWide();
+    while (connection_is_connected()) {
+      sceKernelDelayThread(100 * 1000);
+    }
+    if (connection_get_status() != LI_DISCONNECTED || !connection_was_lost() || !config.auto_reconnect)
+      break;
+    unsigned ran_ms = (unsigned)((sceKernelGetProcessTimeWide() - began) / 1000);
+    if (!reconnect_should_retry(&quick_losses, ran_ms)) {
+      vita_debug_log("[CONNECT] stream lost %d times soon after starting: no more reconnection", quick_losses);
+      display_error(tr("The connection keeps dropping.\nThe game should still be running on the PC: connect again to resume it."));
+      break;
+    }
+    reconnect_result r = reconnect_stream(id);
+    if (r == RECONNECTED)
+      continue;
+    connection_close_idle();   // a failed try leaves the session paired: end it
+    if (r == RECONNECT_FAILED)
+      display_error(tr("Could not reconnect.\nThe game should still be running on the PC: connect again to resume it."));
+    break;
   }
 
   if (connection_get_status() == LI_DISCONNECTED) {

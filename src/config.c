@@ -163,6 +163,8 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->thread_pinning = BOOL(value);
     } else if (strcmp(name, "input_sync") == 0) {
       config->input_sync = BOOL(value);
+    } else if (strcmp(name, "auto_reconnect") == 0) {
+      config->auto_reconnect = BOOL(value);
     } else if (strcmp(name, "enable_motion_controls") == 0) {
       config->enable_motion_controls = BOOL(value);
     } else if (strcmp(name, "enable_front_touchzones") == 0) {
@@ -285,6 +287,7 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_int(fd, "video_reorder_wait_ms", config->video_reorder_wait_ms);
   write_config_bool(fd, "thread_pinning", config->thread_pinning);
   write_config_bool(fd, "input_sync", config->input_sync);
+  write_config_bool(fd, "auto_reconnect", config->auto_reconnect);
   write_config_bool(fd, "enable_motion_controls", config->enable_motion_controls);
   write_config_bool(fd, "enable_psbutton_capture", config->enable_psbutton_capture);
   write_config_bool(fd, "enable_double_tap_sprint", config->enable_double_tap_sprint);
@@ -415,6 +418,9 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   // juanjsebgarcia/vita-moonlight reads the controls in step with the
   // controller's sampling by default (no measurement published).
   config->input_sync = true;
+  // A stream lost to a Wi-Fi drop or a sleep starts again on its own, as in
+  // VitaRPS5 (reconnection overlay).
+  config->auto_reconnect = true;
   config->language = 0; // English
   config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;

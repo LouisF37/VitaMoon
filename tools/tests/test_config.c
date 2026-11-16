@@ -55,6 +55,7 @@ static CONFIGURATION sample(void) {
   c.video_reorder_wait_ms = 30;
   c.thread_pinning = true;
   c.input_sync = true;
+  c.auto_reconnect = false;   /* not the default: the file must carry it */
   c.enable_motion_controls = true;
   c.enable_psbutton_capture = true;
   c.enable_double_tap_sprint = true;
@@ -97,7 +98,7 @@ int main(void) {
   SAME(enable_ref_frame_invalidation); SAME(stream.streamingRemotely); SAME(enable_vita_vblank_wait);
   SAME(boost_clocks); SAME(match_refresh_rate); SAME(low_latency_audio); SAME(display_mode);
   SAME(decoder_catchup); SAME(http_keepalive); SAME(ui_msaa); SAME(decode_yuv);
-  SAME(video_reorder_wait_ms); SAME(thread_pinning); SAME(input_sync); SAME(enable_motion_controls);
+  SAME(video_reorder_wait_ms); SAME(thread_pinning); SAME(input_sync); SAME(auto_reconnect); SAME(enable_motion_controls);
   SAME(enable_psbutton_capture); SAME(enable_double_tap_sprint); SAME(double_tap_sprint_step_time);
   SAME(keyboard_layout); SAME(language); SAME(touchscreen_mode); SAME(swap_shoulder_buttons);
   SAME(controller_type); SAME(back_deadzone.top); SAME(back_deadzone.right); SAME(back_deadzone.bottom);

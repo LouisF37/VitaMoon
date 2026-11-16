@@ -66,6 +66,15 @@ Resuming checks whether a setting that only applies at stream start was changed 
 (resolution, bitrate, display mode, audio mode, colour decoding, reorder wait, cores...) and offers to
 restart the stream; the game keeps running on the PC.
 
+A stream that ends while it runs with an error that means a lost link (time-outs, socket errors:
+`reconnect_after_error()` in `src/reconnect.h`) is marked lost by `connection.c`. The menu thread, which
+waits in `ui_launch_app()` while the stream runs, then shows "Connection lost", waits for the Wi-Fi
+(`sceNetCtlInetGetState`) and starts the stream of the same game again every 3 s for a minute; the PC
+resumes the game it kept running. An end by the PC or the user (`ML_ERROR_GRACEFUL_TERMINATION`), or a
+problem on the PC that a new stream would meet again (capture, DRM, picture conversion), is not
+reconnected, nor is a stream lost during the pause. Three streams in a row lost within 20 s of starting
+stop the reconnection.
+
 ## Data on the memory card
 
 The data folder is the first that can be created among `ux0:data/lune`, `ux0:lune` and

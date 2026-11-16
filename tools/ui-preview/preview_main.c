@@ -52,6 +52,8 @@ int connection_get_status(void) { return fake_status; }
 int connection_paired(void) { fake_status = LI_PAIRED; return 0; }
 int connection_reset(void) { return 0; }
 void connection_close_idle(void) {}
+bool connection_was_lost(void) { return false; }
+int connection_last_error(void) { return 0; }
 void http_set_reuse(bool reuse) {}
 int connection_resume(void) { return 0; }
 bool connection_is_ready(void) { return false; }
@@ -332,6 +334,27 @@ static void scenario_restart(void) {
   display_confirm(tr("Some settings you changed only apply to a new stream.\nRestart the stream now? The game keeps running on the PC."));
 }
 
+/* Automatic reconnection after a lost stream: the three states of its screen,
+ * then the message when it gives up. Every step is queued first: the script
+ * ends with its last step. */
+static void scenario_reconnect(void) {
+  preview_snap("reconnect_1_wifi");
+  preview_snap("reconnect_2_first");
+  preview_snap("reconnect_3_retry");
+  preview_wait(2);
+  preview_snap("reconnect_4_failed");
+  preview_press(SCE_CTRL_CROSS);
+
+  char message[256];
+  flash_cancelable(tr("Connection lost.\nWaiting for the Wi-Fi..."));
+  snprintf(message, sizeof(message), tr("Connection lost.\nReconnecting to %s..."), "MINI-PC");
+  flash_cancelable(message);
+  snprintf(message, sizeof(message), tr("Connection lost.\nReconnecting to %s (try %d)..."), "MINI-PC", 3);
+  flash_cancelable(message);
+  ui_start();
+  display_error(tr("Could not reconnect.\nThe game should still be running on the PC: connect again to resume it."));
+}
+
 static void scenario_pairing(void) {
   preview_snap("pairing_code");   /* the screen is drawn once: capture that frame */
   flash_pairing_code("MINI-PC", "4821", "https://192.168.1.24:47990");
@@ -369,6 +392,7 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "library_running")) scenario_library_running();
   else if (!strcmp(s, "dialogs")) scenario_dialogs();
   else if (!strcmp(s, "restart")) scenario_restart();
+  else if (!strcmp(s, "reconnect")) scenario_reconnect();
   else {
     fprintf(stderr, "unknown scenario %s\n", s);
     return 2;

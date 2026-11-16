@@ -47,6 +47,13 @@ s'appliquent qu'au démarrage d'un stream ont été modifiés pendant la pause (
 options de la rubrique Performance...), la reprise propose de relancer le stream : le jeu continue sur le PC,
 seul le flux est recommencé.
 
+**Reconnexion automatique.** Si le Wi-Fi coupe ou si la Vita se met en veille pendant un stream, Lune
+affiche « Connexion perdue », attend le retour du Wi-Fi puis relance le stream du même jeu, qui a continué
+sur le PC. Il essaie toutes les 3 secondes pendant une minute ; Rond (ou Croix si X et O sont inversés)
+annule. Si le stream retombe trois fois de suite moins de 20 secondes après être reparti, Lune arrête et
+le dit. Option : Réglages → Général → Reconnexion automatique (activée par défaut). Une coupure pendant la
+pause (dans les menus) ne déclenche pas de reconnexion : reconnectez-vous et choisissez Reprendre.
+
 **Appairage.** La Vita s'appaire sous son pseudo (le nom d'utilisateur de la console) au lieu de « roth » : c'est le nom
 affiché dans la liste des appareils de Sunshine. Les appairages existants gardent l'ancien nom.
 

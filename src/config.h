@@ -91,6 +91,7 @@ typedef struct _CONFIGURATION {
   int video_reorder_wait_ms; // wait for late video packets before giving a frame up (0 = off)
   bool thread_pinning;      // place the streaming threads on fixed CPU cores
   bool input_sync;          // read the controls once per controller sample instead of every 2 ms
+  bool auto_reconnect;      // start a lost stream again (Wi-Fi drop, sleep), src/reconnect.h
   bool enable_motion_controls; //Metalface
   bool enable_psbutton_capture;
   bool enable_double_tap_sprint; //**

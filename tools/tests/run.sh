@@ -18,7 +18,8 @@ cc="gcc -std=gnu99 -O1 -g -Wall -Wextra -Wno-unused-parameter -Wno-sign-compare
     -Werror=implicit-function-declaration -Werror=incompatible-pointer-types -Werror=int-conversion"
 
 $cc -I"$here" -I"$root/src/video" "$here/test_pacing.c" "$root/src/video/pacing.c" -o "$out/test_pacing"
-$cc -I"$here" -I"$root/libgamestream" -I"$root/src/video" "$here/test_misc.c" "$root/libgamestream/url.c" -o "$out/test_misc"
+$cc -I"$here" -I"$root/libgamestream" -I"$root/src/video" -I"$root/src" -I"$root/third_party/moonlight-common-c/src" \
+    "$here/test_misc.c" "$root/libgamestream/url.c" -o "$out/test_misc"
 $cc -w -fcommon -D__vita__ -I"$here" -I"$out/inc" -I"$root/src" -I"$root/third_party/inih" \
     -I"$root/third_party/moonlight-common-c/src" "$here/test_config.c" "$root/src/config.c" \
     "$root/third_party/inih/ini.c" -o "$out/test_config"

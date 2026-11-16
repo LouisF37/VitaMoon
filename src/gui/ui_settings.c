@@ -480,7 +480,7 @@ static const char *k_categories[CAT_COUNT] = {
 typedef enum { ROW_CHOICE, ROW_TOGGLE, ROW_ACTION } row_type;
 
 enum {
-  S_LANGUAGE, S_SHOW_STATS, S_SWAP_XO, S_KEEP_AWAKE, S_DEBUG_LOG,
+  S_LANGUAGE, S_SHOW_STATS, S_SWAP_XO, S_KEEP_AWAKE, S_AUTO_RECONNECT, S_DEBUG_LOG,
   S_RESOLUTION, S_FPS, S_BITRATE, S_CROP, S_LOCAL_AUDIO,
   S_PROFILE, S_DISPLAY_MODE, S_LL_AUDIO, S_CATCHUP, S_YUV, S_REORDER, S_BOOST, S_MATCH_REFRESH,
   S_PACKET_SIZE,
@@ -508,6 +508,8 @@ static const setting_row k_rows[] = {
    N_("O confirms and X goes back, as on Japanese consoles.")},
   {S_KEEP_AWAKE, CAT_GENERAL, ROW_TOGGLE, N_("Keep the Vita awake"),
    N_("The screen does not dim and the Vita does not go to sleep during a stream.")},
+  {S_AUTO_RECONNECT, CAT_GENERAL, ROW_TOGGLE, N_("Reconnect automatically"),
+   N_("After a Wi-Fi drop or a sleep during a stream, the game starts again on its own.")},
   {S_DEBUG_LOG, CAT_GENERAL, ROW_TOGGLE, N_("Save a debug log"),
    N_("Detailed log in Lune's folder. It slows the stream down: for troubleshooting only.")},
 
@@ -716,6 +718,7 @@ static bool row_is_on(int id) {
     case S_SHOW_STATS: return config.show_fps;
     case S_SWAP_XO: return config.jp_layout;
     case S_KEEP_AWAKE: return config.disable_powersave;
+    case S_AUTO_RECONNECT: return config.auto_reconnect;
     case S_DEBUG_LOG: return config.save_debug_log;
     case S_CROP: return config.center_region_only;
     case S_LOCAL_AUDIO: return config.localaudio;
@@ -827,6 +830,7 @@ static bool row_change(int id, int dir) {
       update_layout();
       return true;
     case S_KEEP_AWAKE: config.disable_powersave = !config.disable_powersave; return true;
+    case S_AUTO_RECONNECT: config.auto_reconnect = !config.auto_reconnect; return true;
     case S_DEBUG_LOG: config.save_debug_log = !config.save_debug_log; return true;
     case S_CROP: config.center_region_only = !config.center_region_only; return true;
     case S_LOCAL_AUDIO: config.localaudio = !config.localaudio; return true;

@@ -56,6 +56,7 @@ measurements).</sub>
 - **Controls**: Xbox or PlayStation layout, rear touch, front touch as DS4 touchpad, mouse or tablet,
   motion controls, on-screen keyboard, button mapping files, PS button forwarding.
 - Wake-on-LAN, restart of the stream from the pause menu when a setting needs it.
+- Automatic reconnection after a Wi-Fi drop or a sleep of the Vita, back into the same game.
 
 ## Requirements
 

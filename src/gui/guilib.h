@@ -105,6 +105,8 @@ void display_alert(
 void display_error(char *format, ...);
 
 void flash_message(char *format, ...);
+/* One frame of a message with a "Cancel" hint; the caller reads the buttons. */
+void flash_cancelable(const char *message);
 
 void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw_cb);
 

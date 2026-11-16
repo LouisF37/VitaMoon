@@ -53,6 +53,12 @@ int connection_resume();
 int connection_terminate();
 void connection_close_idle();
 
+/* After a stream ended: true when it was lost while running (Wi-Fi drop, sleep)
+ * rather than ended by the PC or the user (src/reconnect.h decides), and the
+ * moonlight-common-c error it ended with. Cleared when a stream starts. */
+bool connection_was_lost();
+int connection_last_error();
+
 bool connection_is_ready();
 bool connection_is_connected();
 int connection_get_status();
