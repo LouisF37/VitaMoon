@@ -41,6 +41,13 @@ la dernière session du jeu sélectionné.
 - ✕ jouer ou reprendre, □ quitter le jeu en cours sur le PC, △ ancien menu, START réglages, ○ retour.
 - Croix directionnelle ou écran tactile pour choisir ; L et R avancent de 5 jeux.
 
+**Menu rapide en jeu.** L + R + SELECT pendant un stream ouvre un menu par-dessus le jeu : retour au jeu,
+statistiques à l'écran (oui / non, enregistré), clavier, pause (menus de Lune), quitter le jeu (Croix
+deux fois, pour éviter un accident ; Rond si X et O sont inversés). Le haut de l'écran montre le Wi-Fi,
+la batterie et l'heure. Le jeu continue de tourner sur le PC pendant ce temps, mais ne reçoit aucun
+bouton tant que le menu est ouvert, ni avant que tous les boutons soient relâchés à sa fermeture. Rond
+(Croix si X et O sont inversés) ou SELECT referme le menu.
+
 **Pendant le stream.** START + L + R met le stream en pause et revient aux menus. La pause relâche sur le PC
 tout ce qui était maintenu (boutons, sticks, clic souris, doigts sur l'écran tactile). Si des réglages qui ne
 s'appliquent qu'au démarrage d'un stream ont été modifiés pendant la pause (définition, débit, affichage,
@@ -61,6 +68,8 @@ affiché dans la liste des appareils de Sunshine. Les appairages existants garde
 - Haut / bas : option. Gauche / droite : changer la valeur. ✕ : basculer, valeur suivante ou ouvrir.
 - L / R : rubrique précédente / suivante. ○ : retour (les réglages sont enregistrés).
 - Langue : English, Français, Español (rubrique Général).
+- Thème : Nuit (l'apparence d'origine), Aube, Aurore, Crépuscule, Éclipse (rubrique Général) ; appliqué
+  tout de suite, avec son propre fond.
 
 ## Performance (Réglages → Performance)
 

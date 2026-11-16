@@ -6,9 +6,11 @@
  * the Free Software Foundation; either version 3 of the License, or
  * (at your option) any later version.
  *
- * Visual theme shared by every screen, in the spirit of VitaRPS5's "Ocean"
- * theme: wave background, Roboto type, thin dividers, rounded focus
- * highlight, outlined PlayStation symbols on the hint row.
+ * Visual theme shared by every screen, in the spirit of VitaRPS5's themes:
+ * wave background, Roboto type, thin dividers, rounded focus highlight,
+ * outlined PlayStation symbols on the hint row. Five colour themes (Settings >
+ * General > Theme) change the background and the colours below that follow
+ * the theme; the others are the same in every theme.
  *
  * Everything is drawn on one grid (see the TH_* layout constants) so that
  * screens line up with each other, and all text goes through theme_text*():
@@ -20,24 +22,45 @@
 #include <stdbool.h>
 #include <vita2d.h>
 
+/* ---- colour themes ---- */
+enum { THEME_NIGHT, THEME_DAWN, THEME_AURORA, THEME_TWILIGHT, THEME_ECLIPSE, THEME_COUNT };
+
+/* The colours that follow the theme (vita2d RGBA8). */
+typedef struct {
+  unsigned int text2, text3;        /* secondary and tertiary text, tinted */
+  unsigned int accent, accent_hi;   /* focus, toggles, highlights */
+  unsigned int ink;                 /* darkest tone: shades and dims */
+  unsigned int panel;               /* floating panels (with their opacity) */
+  unsigned int sky_top, sky_bottom; /* background when its picture is missing */
+} theme_palette;
+
+extern theme_palette th_pal;
+
+/* Applies a theme (THEME_*): its colours and its background picture. */
+void theme_select(int index);
+/* English name of a theme, to translate with tr(). */
+const char *theme_name(int index);
+/* The same colour with another opacity (0-255). */
+unsigned int theme_alpha(unsigned int color, unsigned int alpha);
+
 /* ---- colours (vita2d RGBA8) ---- */
 #define TH_TEXT        RGBA8(0xFF, 0xFF, 0xFF, 0xFF)
-#define TH_TEXT2       RGBA8(0xDD, 0xE3, 0xF0, 0xFF)
-#define TH_TEXT3       RGBA8(0xB3, 0xBD, 0xD2, 0xFF)
-#define TH_TEXT_OFF    RGBA8(0xB3, 0xBD, 0xD2, 0x8C)   /* unavailable rows */
-#define TH_ACCENT      RGBA8(109, 180, 255, 0xFF)
-#define TH_ACCENT_HI   RGBA8(160, 205, 255, 0xFF)
-#define TH_INK         RGBA8(2, 5, 14, 0xFF)
+#define TH_TEXT2       (th_pal.text2)
+#define TH_TEXT3       (th_pal.text3)
+#define TH_TEXT_OFF    theme_alpha(th_pal.text3, 0x8C)   /* unavailable rows */
+#define TH_ACCENT      (th_pal.accent)
+#define TH_ACCENT_HI   (th_pal.accent_hi)
+#define TH_INK         (th_pal.ink)
 #define TH_OK          RGBA8(0x4E, 0xE0, 0x9A, 0xFF)
 #define TH_WARN        RGBA8(0xFF, 0xBE, 0x4D, 0xFF)
 #define TH_ERR         RGBA8(0xFF, 0x80, 0x80, 0xFF)
-#define TH_PANEL       RGBA8(6, 12, 28, 200)           /* floating panels */
+#define TH_PANEL       (th_pal.panel)                    /* floating panels */
 #define TH_PANEL_EDGE  RGBA8(255, 255, 255, 36)
 #define TH_FILL_FOCUS  RGBA8(255, 255, 255, 30)
 #define TH_FILL_SOFT   RGBA8(255, 255, 255, 18)
 #define TH_DIVIDER     RGBA8(255, 255, 255, 38)
 #define TH_LINE_FAINT  TH_DIVIDER
-#define TH_SHADE       RGBA8(2, 5, 14, 150)
+#define TH_SHADE       theme_alpha(th_pal.ink, 150)
 #define TH_GLYPH_X     RGBA8(0x9F, 0xD0, 0xFF, 0xFF)
 #define TH_GLYPH_O     RGBA8(0xFF, 0xA9, 0xC0, 0xFF)
 #define TH_GLYPH_TRI   RGBA8(0x8F, 0xE8, 0xB4, 0xFF)

@@ -11,6 +11,13 @@ milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELE
   own, on the same game, which kept running on the PC. Lune waits for the Wi-Fi, tries every 3 s for
   a minute and can be cancelled; it stops after three streams in a row lost within 20 s. Option
   *Settings > General > Reconnect automatically*, on by default (`src/reconnect.h`).
+- In-game quick menu, L + R + SELECT during a stream: back to the game, statistics on screen, keyboard,
+  pause (Lune's menus), quit the game (asked twice), with the Wi-Fi, battery and clock of the Vita.
+  It is drawn over the live picture; the game keeps running and receives no button until the menu is
+  closed and every button released (`src/gui/quickmenu.c`, state machine tested on a PC).
+- Five colour themes for the menus, *Settings > General > Theme*: Night (the former look), Dawn,
+  Aurora, Twilight, Eclipse; each with its own background. The idea of a few presets comes from
+  VitaRPS5; the palettes are Lune's own (`src/gui/theme.c`, `tools/make_background.py`).
 
 ## 1.0.0-beta.1 "Nouvelle Lune" (2026-11-15)
 

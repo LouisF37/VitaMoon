@@ -16,7 +16,8 @@ by CI on every push.
 | `test_pacing.c` | the *Paced* display against simulated streams: steady, 0-15 ms jitter, PC clock 200 ppm and 0.1 % off both ways, a matched 59.94 fps stream, 30 fps, a 3 s pause; frames shown in order, drops and repeated frames, bounded wait |
 | `test_config.c` | every setting survives a save and a load; old keys ignored, out-of-range values reset; automatic bitrate |
 | `test_sps.c` | the SPS rewrite sets the low-latency hints, stays within the room the renderer keeps, passes anything it cannot parse through unchanged |
-| `test_misc.c` | URL encoding of the pairing name, percentiles of the session summary |
+| `test_misc.c` | URL encoding of the pairing name, percentiles of the session summary, the decisions of the automatic reconnection |
+| `test_quickmenu.c` | the in-game quick menu: what opens it, moves in it, acts and closes it, when the game gets its buttons back |
 
 ## Interface preview (`tools/ui-preview`)
 
@@ -25,8 +26,8 @@ VITASDK=/usr/local/vitasdk tools/ui-preview/run.sh /tmp/screens
 ```
 
 Compiles the real interface code against a fake vita2d drawing with cairo, plays scripted button
-presses and writes every screen as a PNG in English, French and Spanish, then lists any text that
-does not fit its box. Needs gcc and the cairo and freetype development packages.
+presses and writes every screen as a PNG in English, French and Spanish, a few screens in each colour
+theme (`themes/`), then lists any text that does not fit its box. Needs gcc and the cairo and freetype development packages.
 `PREVIEW_SANITIZE=1` builds it with AddressSanitizer and UBSan, which then checks the menus for
 memory errors and leaks as well.
 

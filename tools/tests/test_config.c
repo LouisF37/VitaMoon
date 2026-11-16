@@ -64,6 +64,7 @@ static CONFIGURATION sample(void) {
   c.motion_controls_scalar_y = 0.75f;
   c.keyboard_layout = 1;
   c.language = 2;
+  c.theme = 3;
   c.touchscreen_mode = 3;
   c.swap_shoulder_buttons = true;
   c.controller_type = 1;
@@ -100,7 +101,7 @@ int main(void) {
   SAME(decoder_catchup); SAME(http_keepalive); SAME(ui_msaa); SAME(decode_yuv);
   SAME(video_reorder_wait_ms); SAME(thread_pinning); SAME(input_sync); SAME(auto_reconnect); SAME(enable_motion_controls);
   SAME(enable_psbutton_capture); SAME(enable_double_tap_sprint); SAME(double_tap_sprint_step_time);
-  SAME(keyboard_layout); SAME(language); SAME(touchscreen_mode); SAME(swap_shoulder_buttons);
+  SAME(keyboard_layout); SAME(language); SAME(theme); SAME(touchscreen_mode); SAME(swap_shoulder_buttons);
   SAME(controller_type); SAME(back_deadzone.top); SAME(back_deadzone.right); SAME(back_deadzone.bottom);
   SAME(back_deadzone.left); SAME(special_keys.nw); SAME(special_keys.ne); SAME(special_keys.sw);
   SAME(special_keys.se); SAME(special_keys.offset); SAME(special_keys.size);
@@ -138,7 +139,7 @@ int main(void) {
   write_text("width = 5000\nheight = 10\nfps = 240\nbitrate = 900000\ndisplay_mode = 9\n"
              "touchscreen_mode = -2\ncontroller_type = 0\nmouse_acceleration = 4000\n"
              "motion_controls_scalar_x = nan\nmotion_controls_scalar_y = 99\n"
-             "double_tap_sprint_step_time = 5\nlanguage = 7\npacket_size = 1300\n");
+             "double_tap_sprint_step_time = 5\nlanguage = 7\npacket_size = 1300\ntheme = 9\n");
   config_file_parse((char *)k_file, &c);
   config_sanitize(&c);
   CHECK(c.stream.width == 960 && c.stream.height == 544, "sanitize: resolution back to 960x544");
@@ -151,6 +152,7 @@ int main(void) {
   CHECK(c.motion_controls_scalar_y > 0.79f && c.motion_controls_scalar_y < 0.81f, "sanitize: huge motion scale");
   CHECK(c.double_tap_sprint_step_time == 200, "sanitize: sprint tap time");
   CHECK(c.language == 0, "sanitize: unknown language back to English");
+  CHECK(c.theme == 0, "sanitize: unknown theme back to Night");
   CHECK(c.stream.packetSize == 1300, "sanitize: a valid packet size is kept");
   CONFIGURATION good = sample();
   CONFIGURATION copy = good;

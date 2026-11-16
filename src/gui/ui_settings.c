@@ -136,7 +136,7 @@ static void side_card(const char *caption, float *ox, float *oy) {
   theme_glass(SIDE_CARD_X, SIDE_CARD_Y, SIDE_CARD_W, 16 + SIDE_DRAW_H + 16 + n * 19 + 10, 14);
   *ox = SIDE_CARD_X + 16;
   *oy = SIDE_CARD_Y + 16;
-  theme_rounded_rect(*ox, *oy, SIDE_DRAW_W, SIDE_DRAW_H, 6, RGBA8(2, 5, 14, 150));
+  theme_rounded_rect(*ox, *oy, SIDE_DRAW_W, SIDE_DRAW_H, 6, theme_alpha(TH_INK, 150));
   theme_rounded_outline(*ox, *oy, SIDE_DRAW_W, SIDE_DRAW_H, 6, TH_DIVIDER);
   for (int i = 0; i < n; i++)
     theme_text(*ox, *oy + SIDE_DRAW_H + 30 + i * 19, TH_TEXT2, TS_SMALL, lines[i]);
@@ -158,7 +158,7 @@ static void deadzone_draw() {
   float w = (WIDTH - config.back_deadzone.left - config.back_deadzone.right) * SIDE_SCALE;
   float h = (HEIGHT - config.back_deadzone.top - config.back_deadzone.bottom) * SIDE_SCALE;
   if (w >= 2 && h >= 2) {
-    theme_rect(x, y, w, h, RGBA8(109, 180, 255, 56));
+    theme_rect(x, y, w, h, theme_alpha(TH_ACCENT, 56));
     theme_rect(x, y, w, 1, TH_ACCENT);
     theme_rect(x, y + h - 1, w, 1, TH_ACCENT);
     theme_rect(x, y, 1, h, TH_ACCENT);
@@ -411,11 +411,11 @@ static void special_keys_draw() {
     if (special_keys_focus == ids[i]) {
       theme_rect(x, y, size, size, TH_ACCENT);
     } else {
-      theme_rect(x, y, size, size, RGBA8(109, 180, 255, codes[i] ? 96 : 30));
-      theme_rect(x, y, size, 1, RGBA8(109, 180, 255, 170));
-      theme_rect(x, y + size - 1, size, 1, RGBA8(109, 180, 255, 170));
-      theme_rect(x, y, 1, size, RGBA8(109, 180, 255, 170));
-      theme_rect(x + size - 1, y, 1, size, RGBA8(109, 180, 255, 170));
+      theme_rect(x, y, size, size, theme_alpha(TH_ACCENT, codes[i] ? 96 : 30));
+      theme_rect(x, y, size, 1, theme_alpha(TH_ACCENT, 170));
+      theme_rect(x, y + size - 1, size, 1, theme_alpha(TH_ACCENT, 170));
+      theme_rect(x, y, 1, size, theme_alpha(TH_ACCENT, 170));
+      theme_rect(x + size - 1, y, 1, size, theme_alpha(TH_ACCENT, 170));
     }
   }
 }
@@ -480,7 +480,7 @@ static const char *k_categories[CAT_COUNT] = {
 typedef enum { ROW_CHOICE, ROW_TOGGLE, ROW_ACTION } row_type;
 
 enum {
-  S_LANGUAGE, S_SHOW_STATS, S_SWAP_XO, S_KEEP_AWAKE, S_AUTO_RECONNECT, S_DEBUG_LOG,
+  S_LANGUAGE, S_THEME, S_SHOW_STATS, S_SWAP_XO, S_KEEP_AWAKE, S_AUTO_RECONNECT, S_DEBUG_LOG,
   S_RESOLUTION, S_FPS, S_BITRATE, S_CROP, S_LOCAL_AUDIO,
   S_PROFILE, S_DISPLAY_MODE, S_LL_AUDIO, S_CATCHUP, S_YUV, S_REORDER, S_BOOST, S_MATCH_REFRESH,
   S_PACKET_SIZE,
@@ -502,6 +502,8 @@ static const setting_row k_rows[] = {
   /* General */
   {S_LANGUAGE, CAT_GENERAL, ROW_CHOICE, N_("Language"),
    N_("Interface language. Takes effect immediately.")},
+  {S_THEME, CAT_GENERAL, ROW_CHOICE, N_("Theme"),
+   N_("Colours and background of the menus. Takes effect immediately.")},
   {S_SHOW_STATS, CAT_GENERAL, ROW_TOGGLE, N_("Statistics while streaming"),
    N_("Frames, delay, network and sound at the top of the screen, updated every second.")},
   {S_SWAP_XO, CAT_GENERAL, ROW_TOGGLE, N_("Swap X and O in the menus"),
@@ -752,6 +754,9 @@ static void row_value(int id, char *out, size_t n) {
     case S_LANGUAGE:
       snprintf(out, n, "%s", i18n_language_name(i18n_language()));
       break;
+    case S_THEME:
+      snprintf(out, n, "%s", tr(theme_name(config.theme)));
+      break;
     case S_RESOLUTION:
       snprintf(out, n, "%d x %d", config.stream.width, config.stream.height);
       break;
@@ -874,6 +879,10 @@ static bool row_change(int id, int dir) {
     case S_LANGUAGE:
       config.language = (i18n_language() + LANG_COUNT + step) % LANG_COUNT;
       i18n_set_language(config.language);
+      return true;
+    case S_THEME:
+      config.theme = (config.theme + THEME_COUNT + (step ? step : 1)) % THEME_COUNT;
+      theme_select(config.theme);
       return true;
     case S_RESOLUTION: {
       int pos = resolution_position();
@@ -1308,7 +1317,7 @@ int ui_settings_menu() {
       } else if (cancel) {
         v.in_rows = false;
       }
-      if (changed && row->id == S_LANGUAGE)
+      if (changed && (row->id == S_LANGUAGE || row->id == S_THEME))
         ui_settings_save_config();   /* kept even if the app is closed from here */
     }
 

@@ -12,6 +12,7 @@
 #include "guilib.h"
 #include "../config.h"
 #include "../app_info.h"
+#include "../i18n.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -54,6 +55,70 @@ static th_face faces[] = {
 static vita2d_texture *background = NULL;
 static float g_alpha = 1.0f;
 
+/* ---------------- colour themes ---------------- */
+
+/* Each theme: its name, its background picture (assets/bg_<slug>.png, drawn by
+ * tools/make_background.py from the same sky colours) and its colours. The idea
+ * of a few colour presets comes from VitaRPS5; these palettes are Lune's own,
+ * named after the sky. */
+typedef struct {
+  const char *name;
+  const char *slug;
+  theme_palette pal;
+} theme_def;
+
+_Static_assert(THEME_COUNT == CONFIG_THEME_COUNT, "config.c clamps the theme with CONFIG_THEME_COUNT");
+
+#define C(r, g, b) RGBA8(r, g, b, 0xFF)
+static const theme_def k_themes[THEME_COUNT] = {
+  [THEME_NIGHT] = {N_("Night"), "night", {
+    C(0xDD, 0xE3, 0xF0), C(0xB3, 0xBD, 0xD2), C(109, 180, 255), C(160, 205, 255),
+    C(2, 5, 14), RGBA8(6, 12, 28, 200), C(6, 32, 74), C(36, 95, 156)}},
+  [THEME_DAWN] = {N_("Dawn"), "dawn", {
+    C(0xF2, 0xE2, 0xDA), C(0xD6, 0xBE, 0xB2), C(255, 152, 112), C(255, 192, 164),
+    C(14, 4, 2), RGBA8(30, 11, 6, 200), C(40, 12, 8), C(132, 56, 34)}},
+  [THEME_AURORA] = {N_("Aurora"), "aurora", {
+    C(0xDA, 0xF0, 0xEA), C(0xB0, 0xD2, 0xC8), C(86, 226, 186), C(156, 242, 216),
+    C(1, 11, 11), RGBA8(4, 24, 23, 200), C(2, 24, 26), C(9, 80, 76)}},
+  [THEME_TWILIGHT] = {N_("Twilight"), "twilight", {
+    C(0xE8, 0xDE, 0xF4), C(0xC6, 0xB6, 0xDC), C(196, 140, 255), C(222, 190, 255),
+    C(8, 3, 16), RGBA8(20, 8, 36, 200), C(22, 8, 42), C(78, 36, 132)}},
+  [THEME_ECLIPSE] = {N_("Eclipse"), "eclipse", {
+    C(0xE6, 0xE4, 0xDE), C(0xC0, 0xBC, 0xB2), C(240, 192, 104), C(250, 218, 158),
+    C(4, 4, 5), RGBA8(14, 14, 16, 200), C(10, 10, 12), C(36, 36, 42)}},
+};
+#undef C
+
+theme_palette th_pal;
+static int current_theme = -1;
+
+unsigned int theme_alpha(unsigned int color, unsigned int alpha) {
+  return (color & 0x00FFFFFFu) | ((alpha & 0xFFu) << 24);
+}
+
+const char *theme_name(int index) {
+  return index >= 0 && index < THEME_COUNT ? k_themes[index].name : "";
+}
+
+void theme_select(int index) {
+  if (index < 0 || index >= THEME_COUNT)
+    index = THEME_NIGHT;
+  th_pal = k_themes[index].pal;
+  if (index == current_theme && background)
+    return;
+  current_theme = index;
+  char path[96];
+  snprintf(path, sizeof(path), ASSET_PREFIX "bg_%s.png", k_themes[index].slug);
+  vita2d_texture *picture = vita2d_load_PNG_file(path);
+  if (!picture)
+    return;   /* keep the previous picture, or the plain gradient */
+  if (background) {
+    vita2d_wait_rendering_done();   /* the GPU may still read the old one */
+    vita2d_free_texture(background);
+  }
+  background = picture;
+}
+
 /* Characters drawn once at start-up so that no glyph has to be rasterised in
  * the middle of an animation (ASCII plus what French and Spanish need). */
 static const char *k_prewarm =
@@ -94,7 +159,7 @@ void theme_init(void) {
     if (faces[i].font)
       vita2d_font_text_width(faces[i].font, faces[i].size, k_prewarm);
   }
-  background = vita2d_load_PNG_file(ASSET_PREFIX "bg_ocean.png");
+  theme_select(config.theme);
 }
 
 static th_face *face_for(int size) {
@@ -240,7 +305,7 @@ void theme_draw_background(void) {
   if (background)
     vita2d_draw_texture(background, 0, 0);
   else
-    theme_vgradient(0, 0, WIDTH, HEIGHT, RGBA8(6, 32, 74, 0xFF), RGBA8(36, 95, 156, 0xFF));
+    theme_vgradient(0, 0, WIDTH, HEIGHT, th_pal.sky_top, th_pal.sky_bottom);
 }
 
 void theme_rect(float x, float y, float w, float h, unsigned int color) {
@@ -383,9 +448,9 @@ void theme_toggle(float x, float cy, float knob) {
   if (knob < 0.0f) knob = 0.0f;
   if (knob > 1.0f) knob = 1.0f;
   const float w = 44, h = 24;
-  unsigned int track = mix(RGBA8(255, 255, 255, 40), RGBA8(109, 180, 255, 235), knob);
+  unsigned int track = mix(RGBA8(255, 255, 255, 40), theme_alpha(TH_ACCENT, 235), knob);
   theme_rounded_rect(x, cy - h / 2, w, h, h / 2, track);
-  theme_rounded_outline(x, cy - h / 2, w, h, h / 2, mix(RGBA8(255, 255, 255, 120), RGBA8(190, 222, 255, 255), knob));
+  theme_rounded_outline(x, cy - h / 2, w, h, h / 2, mix(RGBA8(255, 255, 255, 120), TH_ACCENT_HI, knob));
   theme_circle(x + h / 2 + knob * (w - h), cy, h / 2 - 3.5f, mix(RGBA8(215, 222, 235, 255), TH_TEXT, knob));
 }
 
@@ -510,7 +575,7 @@ void theme_topbar(const char *section) {
   if (battery < 0) battery = 0;
   if (battery > 100) battery = 100;
 
-  theme_vgradient(0, 0, WIDTH, 64, RGBA8(2, 5, 14, 120), RGBA8(2, 5, 14, 0));
+  theme_vgradient(0, 0, WIDTH, 64, theme_alpha(TH_INK, 120), theme_alpha(TH_INK, 0));
 
   /* left: wordmark and section */
   theme_text(TH_MARGIN, TH_TOPBAR_BASE, TH_TEXT, TS_LEAD, APP_NAME);

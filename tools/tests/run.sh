@@ -24,13 +24,15 @@ $cc -w -fcommon -D__vita__ -I"$here" -I"$out/inc" -I"$root/src" -I"$root/third_p
     -I"$root/third_party/moonlight-common-c/src" "$here/test_config.c" "$root/src/config.c" \
     "$root/third_party/inih/ini.c" -o "$out/test_config"
 
+$cc -I"$here" -I"$out/inc" -I"$root/src/gui" "$here/test_quickmenu.c" -o "$out/test_quickmenu"
+
 hb="$root/third_party/h264bitstream"
 $cc -w -I"$here" -I"$root/libgamestream" -I"$hb" -I"$root/third_party/moonlight-common-c/src" \
     "$here/test_sps.c" "$root/libgamestream/sps.c" "$hb/h264_stream.c" "$hb/h264_nal.c" "$hb/h264_sei.c" \
     -o "$out/test_sps"
 
 status=0
-for t in test_pacing test_misc test_config test_sps; do
+for t in test_pacing test_misc test_config test_sps test_quickmenu; do
   "$out/$t" || status=1
 done
 if [ $status -eq 0 ]; then echo "all tests passed"; else echo "SOME TESTS FAILED"; fi

@@ -33,6 +33,8 @@ taken from other forks, and what was measured by whom, is listed in
   <img src="docs/screenshots/library_1_stats.png" alt="Library: games with the last session's figures" width="48%"/>
   <img src="docs/screenshots/settings_profile_smooth.png" alt="Settings: performance profiles" width="48%"/>
   <img src="docs/screenshots/pairing_code.png" alt="Pairing: code to type in Sunshine" width="48%"/>
+  <img src="docs/screenshots/quickmenu.png" alt="In-game quick menu over the game" width="48%"/>
+  <img src="docs/screenshots/themes.png" alt="The five colour themes: Night, Dawn, Aurora, Twilight, Eclipse" width="96%"/>
 </div>
 
 <sub>Rendered on a PC by `tools/ui-preview` with sample data (names, addresses and figures are not real
@@ -52,7 +54,10 @@ measurements).</sub>
 - **Statistics**: an overlay during play, and per session a CSV (one line per second) plus a summary
   with percentiles, to compare settings on your own setup.
 - **Interface**: computers with their state, a game library with cover art, two-pane settings with
-  help for every option, pairing with a code to type in Sunshine, English, French and Spanish.
+  help for every option, pairing with a code to type in Sunshine, English, French and Spanish, five
+  colour themes (Night, Dawn, Aurora, Twilight, Eclipse).
+- **In-game quick menu** (L + R + SELECT): statistics on or off, keyboard, pause or quit the game,
+  with the battery and the clock, without leaving the game.
 - **Controls**: Xbox or PlayStation layout, rear touch, front touch as DS4 touchpad, mouse or tablet,
   motion controls, on-screen keyboard, button mapping files, PS button forwarding.
 - Wake-on-LAN, restart of the stream from the pause menu when a setting needs it.
@@ -91,6 +96,7 @@ again with Lune.
 |-------|--------|
 | **START + L + R** | Pause the stream and go back to the menus (✕ on the game resumes it) |
 | **START + Left** | On-screen keyboard |
+| **L + R + SELECT** | In-game quick menu: back to the game, statistics, keyboard, pause, quit the game (the game keeps running; it gets no button while the menu is open) |
 | **PS** (twice) | Back to the LiveArea; a single press is sent to the PC as the guide button (option) |
 | Front touch | Mouse, DS4 touchpad or tablet (*Settings > Touch*), corner zones as extra buttons |
 | Rear touch | Four zones acting as the extra shoulder and stick buttons (*Settings > Controls*, *Touch*) |

@@ -370,4 +370,18 @@ T2 = {
 "Could not reconnect.\\nThe game should still be running on the PC: connect again to resume it.":
     ("Reconnexion impossible.\\nLe jeu devrait toujours tourner sur le PC" + NB + ": reconnectez-vous pour le reprendre.",
      "No se pudo reconectar.\\nEl juego debería seguir en el PC: vuelve a conectarte para continuarlo."),
+"Theme": ("Thème", "Tema"),
+"Colours and background of the menus. Takes effect immediately.":
+    ("Couleurs et fond des menus. S'applique immédiatement.",
+     "Colores y fondo de los menús. Se aplica al instante."),
+"Night": ("Nuit", "Noche"),
+"Dawn": ("Aube", "Alba"),
+"Aurora": ("Aurore", "Aurora"),
+"Twilight": ("Crépuscule", "Crepúsculo"),
+"Eclipse": ("Éclipse", "Eclipse"),
+"Back to the game": ("Retour au jeu", "Volver al juego"),
+"Pause: library and settings": ("Pause" + NB + ": bibliothèque et réglages", "Pausa: biblioteca y ajustes"),
+"Quit the game? Press again.": ("Quitter le jeu" + NB + "? Appuyez à nouveau.", "¿Cerrar el juego? Pulsa otra vez."),
+"START + Left": ("START + Gauche", "START + Izquierda"),
+"Game": ("Jeu", "Juego"),
 }

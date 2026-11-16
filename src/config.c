@@ -183,6 +183,8 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->keyboard_layout = INT(value);
     } else if (strcmp(name, "language") == 0) {
       config->language = INT(value);
+    } else if (strcmp(name, "theme") == 0) {
+      config->theme = INT(value);
     } else if (strcmp(name, "touchscreen_mode") == 0) {
       config->touchscreen_mode = atoi(value);
     } else if (strcmp(name, "controller_type") == 0) {
@@ -231,6 +233,8 @@ void config_sanitize(PCONFIGURATION config) {
     config->double_tap_sprint_step_time = 200;
   if (config->language < 0 || config->language > 2)
     config->language = 0;
+  if (config->theme < 0 || config->theme >= CONFIG_THEME_COUNT)
+    config->theme = 0;
 }
 
 void config_save(const char* filename, PCONFIGURATION config) {
@@ -296,6 +300,7 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_float(fd, "motion_controls_scalar_y", config->motion_controls_scalar_y);
   write_config_int(fd, "keyboard_layout", config->keyboard_layout);
   write_config_int(fd, "language", config->language);
+  write_config_int(fd, "theme", config->theme);
   write_config_int(fd, "touchscreen_mode", config->touchscreen_mode);
   write_config_bool(fd, "swap_shoulder_buttons", config->swap_shoulder_buttons); // top level
   write_config_int(fd, "controller_type", config->controller_type); // top level
@@ -422,6 +427,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   // VitaRPS5 (reconnection overlay).
   config->auto_reconnect = true;
   config->language = 0; // English
+  config->theme = 0;    // Night
   config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;
 

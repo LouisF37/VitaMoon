@@ -20,6 +20,7 @@
 #include "device.h"
 #include "check_host.h"
 #include "connection.h"
+#include "quickmenu.h"
 #include "client.h"
 #include "errors.h"
 #include "i18n.h"
@@ -56,6 +57,7 @@ bool connection_was_lost(void) { return false; }
 int connection_last_error(void) { return 0; }
 void http_set_reuse(bool reuse) {}
 int connection_resume(void) { return 0; }
+int connection_minimize(void) { return 0; }
 bool connection_is_ready(void) { return false; }
 bool connection_is_connected(void) { return false; }
 void save_device_info(const device_info_t *info) {}
@@ -81,6 +83,7 @@ void ui_search_device(void) {}
 int ui_check_ip_update(device_info_t *info, const char *new_ip) { return 0; }
 void touchabsolute_enable(bool enable) {}
 void keyboardsystem_set_layout(int layout) {}
+void keyboardsystem_open_keyboard(void) {}
 void stream_stats_set_app(int app_id) {}
 bool send_wol_packet(const char *mac, const char *ip_broadcast, int port) { return true; }
 int sceKernelGetModelForCDialog(void) { return 0; }
@@ -355,6 +358,36 @@ static void scenario_reconnect(void) {
   display_error(tr("Could not reconnect.\nThe game should still be running on the PC: connect again to resume it."));
 }
 
+/* In-game quick menu over a picture standing in for the game (the LiveArea
+ * background): opened, statistics turned on, then the question of Quit. */
+static void scenario_quickmenu(void) {
+  preview_snap("quickmenu_1_open");
+  preview_snap("quickmenu_2_stats");
+  preview_snap("quickmenu_3_quit");
+  preview_wait(1);
+
+  vita2d_texture *game = vita2d_load_PNG_file(ASSET_PREFIX "../sce_sys/livearea/contents/bg.png");
+  const unsigned combo = SCE_CTRL_SELECT | SCE_CTRL_L1 | SCE_CTRL_R1;
+  static const unsigned script[3][6] = {
+    {combo, 0},
+    {SCE_CTRL_DOWN, 0, SCE_CTRL_CROSS, 0},
+    {SCE_CTRL_UP, 0, SCE_CTRL_UP, 0, SCE_CTRL_CROSS, 0},
+  };
+  static const int lengths[3] = {2, 4, 6};
+  quickmenu_set_context("MINI-PC", "Final Fantasy IX");
+  quickmenu_reset();
+  config.show_fps = false;
+  for (int f = 0; f < 4; f++) {
+    for (int i = 0; f < 3 && i < lengths[f]; i++)
+      quickmenu_handle_input(script[f][i]);
+    ui_start();
+    if (game)
+      vita2d_draw_texture_scale(game, 0, 0, 960.0f / 840.0f, 544.0f / 500.0f);
+    quickmenu_draw();
+    ui_end();
+  }
+}
+
 static void scenario_pairing(void) {
   preview_snap("pairing_code");   /* the screen is drawn once: capture that frame */
   flash_pairing_code("MINI-PC", "4821", "https://192.168.1.24:47990");
@@ -374,6 +407,10 @@ int main(int argc, char **argv) {
   int lang = !strcmp(argv[2], "fr") ? LANG_FR : (!strcmp(argv[2], "es") ? LANG_ES : LANG_EN);
   config.language = lang;
   i18n_set_language(lang);
+  // Colour theme (THEME_* index), for the theme pages of run.sh.
+  const char *theme = getenv("PREVIEW_THEME");
+  if (theme)
+    config.theme = atoi(theme);
 
   extern void gui_init(void);
   extern int ui_main_menu(void);
@@ -393,6 +430,7 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "dialogs")) scenario_dialogs();
   else if (!strcmp(s, "restart")) scenario_restart();
   else if (!strcmp(s, "reconnect")) scenario_reconnect();
+  else if (!strcmp(s, "quickmenu")) scenario_quickmenu();
   else {
     fprintf(stderr, "unknown scenario %s\n", s);
     return 2;

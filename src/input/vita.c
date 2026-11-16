@@ -47,6 +47,7 @@
 #include "touchabsolute.h"
 #include "shortcuts.h"
 #include "../connection_overlay.h"
+#include "../gui/quickmenu.h"
 
 #include <Limelight.h>
 
@@ -801,6 +802,8 @@ void process_touch() {
  * thread must pause before the next pass. */
 static bool input_needs_delay = true;
 
+static void release_host_input(void);
+
 inline void vitainput_process(void) {
   memset(&pad, 0, sizeof(pad));
   memset(&touch, 0, sizeof(TouchData));
@@ -819,6 +822,19 @@ inline void vitainput_process(void) {
   update_touch_points();
   // Always process the rear corners
   read_backscreen();
+
+  // In-game quick menu (L + R + SELECT): while it is open, and until every
+  // button is released after it closed, the buttons drive the menu and the
+  // game receives nothing (what it held is released once).
+  static bool quickmenu_released = false;
+  if (quickmenu_handle_input(pad.buttons)) {
+    if (!quickmenu_released) {
+      release_host_input();
+      quickmenu_released = true;
+    }
+    return;
+  }
+  quickmenu_released = false;
 
   sceRtcGetCurrentTick(&current);
   // analog triggers: only when the rear touch is not driving them
@@ -1113,6 +1129,7 @@ void vitainput_start(void) {
   // let it finish before the thread reads the controls again.
   for (int i = 0; i < 50 && release_pending; i++)
     sceKernelDelayThread(1000);
+  quickmenu_reset();
   active_input_thread = true;
   active_motion_threads = true;
 }

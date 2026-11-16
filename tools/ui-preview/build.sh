@@ -13,7 +13,7 @@ ln -sfn "$VITASDK/arm-vita-eabi/include/vita2d.h" "$out/inc/vita2d.h"
 
 srcs="$here/fake_vita2d.c $here/preview_sys.c $here/preview_main.c
   $root/src/gui/guilib.c $root/src/gui/theme.c $root/src/gui/ui_settings.c $root/src/gui/ui_library.c
-  $root/src/gui/ui.c $root/src/gui/ui_connect.c
+  $root/src/gui/ui.c $root/src/gui/ui_connect.c $root/src/gui/quickmenu.c
   $root/src/i18n.c $root/src/config.c $root/third_party/inih/ini.c"
 # PREVIEW_SANITIZE=1 builds with AddressSanitizer and UBSan: every scenario then
 # also checks the menus for memory errors and undefined behaviour (shifts

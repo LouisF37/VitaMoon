@@ -24,6 +24,7 @@
 #include "../power/vita.h"
 #include "../input/vita.h"
 #include "../reconnect.h"
+#include "quickmenu.h"
 
 #include <stdbool.h>
 #include <stdio.h>
@@ -303,6 +304,8 @@ static reconnect_result reconnect_stream(int id) {
   return RECONNECT_FAILED;
 }
 
+static int ui_quit_app(void);
+
 /* Start (or resume) an app and wait for the stream to end. Returns QUIT_RELOAD
  * to show the library/menu again, 1 if the connection was lost. */
 static int ui_launch_app(int id) {
@@ -311,6 +314,15 @@ static int ui_launch_app(int id) {
                  display_confirm(tr("Some settings you changed only apply to a new stream.\nRestart the stream now? The game keeps running on the PC."));
   vitapower_config(config);
   vitainput_config(config);
+  // Header of the in-game quick menu: this PC and this game.
+  const char *game = "";
+  for (PAPP_LIST app = server_applist; app; app = app->next) {
+    if (app->id == id) {
+      game = app->name;
+      break;
+    }
+  }
+  quickmenu_set_context(connected_host_name, game);
   // The stream draws from its own thread: no menu frame may be left open.
   ui_end();
 
@@ -357,6 +369,13 @@ static int ui_launch_app(int id) {
       display_error(tr("Could not reconnect.\nThe game should still be running on the PC: connect again to resume it."));
     break;
   }
+
+  // Asked from the in-game quick menu: keep the statistics setting, quit the game.
+  if (quickmenu_take_config_changed())
+    config_save(config_path, &config);
+  bool quit = quickmenu_take_quit_request();
+  if (quit && connection_get_status() == LI_MINIMIZED)
+    return ui_quit_app();
 
   if (connection_get_status() == LI_DISCONNECTED) {
     flash_message(tr("Disconnecting..."));

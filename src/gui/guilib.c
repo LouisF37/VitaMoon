@@ -495,7 +495,7 @@ static void draw_dialog_hints(const char *message, const theme_hint_item *hints,
   if (h < 132) h = 132;
   int x = (WIDTH - DIALOG_W) / 2, y = (HEIGHT - h) / 2;
 
-  theme_rect(0, 0, WIDTH, HEIGHT, RGBA8(2, 5, 14, 110));   /* dim what is behind */
+  theme_rect(0, 0, WIDTH, HEIGHT, theme_alpha(TH_INK, 110));   /* dim what is behind */
   theme_glass(x, y, DIALOG_W, h, 16);
 
   int area_h = h - (hints_count ? 60 : 0);
@@ -651,7 +651,7 @@ void flash_pairing_code(const char *host, const char *code, const char *url) {
   ui_end();
   ui_start();
   theme_topbar(NULL);
-  theme_rect(0, 0, WIDTH, HEIGHT, RGBA8(2, 5, 14, 110));
+  theme_rect(0, 0, WIDTH, HEIGHT, theme_alpha(TH_INK, 110));
   theme_glass(x, y, DIALOG_W, h, 16);
   theme_text_fit_center(WIDTH / 2.0f, y + 42, TH_TEXT, TS_LEAD, title, DIALOG_W - 72);
 

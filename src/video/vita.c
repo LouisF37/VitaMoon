@@ -36,6 +36,7 @@
 #include <psp2/kernel/threadmgr.h>
 #include <psp2/display.h>
 #include <psp2/videodec.h>
+#include "../gui/quickmenu.h"
 #include <vita2d.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -767,6 +768,7 @@ static uint64_t draw_and_flip(vita2d_texture *tex, uint32_t *render_us, uint32_t
   draw_streaming(tex);
   draw_fps();
   draw_indicators();
+  quickmenu_draw();                   // over everything, when it is open
   vita2d_end_drawing();
   vita2d_wait_rendering_done();       // the GPU has finished reading the texture
   uint64_t t1 = LiGetMicroseconds();

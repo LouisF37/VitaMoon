@@ -75,6 +75,21 @@ problem on the PC that a new stream would meet again (capture, DRM, picture conv
 reconnected, nor is a stream lost during the pause. Three streams in a row lost within 20 s of starting
 stop the reconnection.
 
+The in-game quick menu (`src/gui/quickmenu.c`) lives inside the stream: the input thread calls
+`quickmenu_handle_input()` with each sample before anything is sent to the PC, which opens the menu on
+L + R + SELECT, moves in it and carries out the action (statistics, keyboard, `connection_minimize()`
+for the pause; the quit is a request that the menu thread carries out once the stream is paused).
+While the menu is open, and until every button is released after it closed, the game receives nothing;
+what it held is released once. The display thread draws the menu over each frame in `draw_and_flip()`,
+from a copy of the state published by the input thread; Sunshine sends at least half the stream's frame
+rate even on a still picture, so the menu is redrawn often enough. The decisions are in
+`quickmenu_logic.h`, tested on a PC.
+
+Colour themes: `src/gui/theme.c` holds five palettes (`k_themes`); `theme_select()` copies one into
+`th_pal`, which the theme-dependent `TH_*` colours read, and loads its background
+(`assets/bg_<theme>.png`, drawn by `tools/make_background.py`). Colours that carry a meaning (OK,
+warning, error, the PlayStation symbols) are the same in every theme.
+
 ## Data on the memory card
 
 The data folder is the first that can be created among `ux0:data/lune`, `ux0:lune` and

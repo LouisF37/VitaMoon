@@ -110,7 +110,7 @@ static void free_items(void) {
 static int draw_chip(int x, int y, const char *value, const char *label, unsigned int value_color) {
   int vw = theme_text_width(TS_SMALL, value), lw = theme_text_width(TS_SMALL, label);
   int w = vw + lw + 24;
-  theme_rounded_rect(x, y, w, 26, 13, RGBA8(6, 12, 28, 150));
+  theme_rounded_rect(x, y, w, 26, 13, theme_alpha(TH_PANEL, 150));
   theme_rounded_outline(x, y, w, 26, 13, TH_DIVIDER);
   theme_text(x + 12, y + 18, value_color, TS_SMALL, value);
   theme_text(x + 12 + vw, y + 18, TH_TEXT2, TS_SMALL, label);
@@ -142,7 +142,7 @@ static void draw_cover(lib_item *it, float x, float bottom, float w, float h, bo
     theme_rounded_rect(x, y, w, h, 10, it->tint);
     /* the initials move down when the "running" badge takes the top-left corner */
     theme_text(x + 12, y + (running ? 66 : 42), RGBA8(255, 255, 255, 225), TS_TITLE, it->initials);
-    theme_rounded_rect(x + 6, y + h - 30, w - 12, 24, 7, RGBA8(2, 5, 14, 120));
+    theme_rounded_rect(x + 6, y + h - 30, w - 12, 24, 7, theme_alpha(TH_INK, 120));
     theme_text_fit(x + 13, y + h - 13, TH_TEXT, TS_MICRO, it->name, (int)w - 26);
   }
   if (running) {

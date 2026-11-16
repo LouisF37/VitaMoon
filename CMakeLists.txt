@@ -108,6 +108,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/video/stream_stats.c
 	src/gui/boxart.c
 	src/gui/ui_library.c
+	src/gui/quickmenu.c
 	src/input/vita.c
 	src/input/shortcuts.c
 	src/power/vita.c
@@ -210,7 +211,11 @@ add_custom_target(${PROJECT_NAME}.vpk ALL
 			--add ../assets/nerdfont.ttf=assets/nerdfont.ttf
 			--add ../assets/Roboto-Regular.ttf=assets/Roboto-Regular.ttf
 			--add ../assets/Roboto-Light.ttf=assets/Roboto-Light.ttf
-			--add ../assets/bg_ocean.png=assets/bg_ocean.png
+			--add ../assets/bg_night.png=assets/bg_night.png
+			--add ../assets/bg_dawn.png=assets/bg_dawn.png
+			--add ../assets/bg_aurora.png=assets/bg_aurora.png
+			--add ../assets/bg_twilight.png=assets/bg_twilight.png
+			--add ../assets/bg_eclipse.png=assets/bg_eclipse.png
 			${PROJECT_NAME}.vpk
 )
 
