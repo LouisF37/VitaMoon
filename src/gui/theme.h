@@ -39,6 +39,8 @@ extern theme_palette th_pal;
 
 /* Applies a theme (THEME_*): its colours and its background picture. */
 void theme_select(int index);
+/* Copies text into out, cut with an ellipsis to fit max_w pixels at size. */
+void theme_ellipsize(int size, const char *text, int max_w, char *out, int outlen);
 /* Frees what theme_select() replaced; ui_end() calls it once the GPU has
  * finished the frame. */
 void theme_end_frame(void);

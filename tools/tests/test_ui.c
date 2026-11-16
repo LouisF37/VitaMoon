@@ -1,14 +1,17 @@
 /*
  * Menu helpers kept free of Vita calls: whether the title font has every
  * character of a text (src/gui/text_cover.h with the table that
- * tools/art/make_fonts.py writes) and which picture of the waiting moon to show
- * (src/gui/moon.h).
+ * tools/art/make_fonts.py writes), which picture of the waiting moon to show
+ * (src/gui/moon.h), and that the characters rendered at start-up
+ * (src/gui/prewarm.h) hold every character of the translations (src/i18n.c).
  */
 #include "test.h"
 #include "text_cover.h"
 #include "title_font_cover.h"
 #include "moon.h"
 #include "reconnect.h"
+#include "prewarm.h"
+#include "i18n.c"   /* its table, to read every translation */
 
 #include <Limelight.h>
 
@@ -51,5 +54,28 @@ int main(void) {
   CHECK(!moon_should_draw(1000000, 1020000, 4), "not again 20 ms later");
   CHECK(moon_should_draw(1000000, 1050000, 4), "again 50 ms later");
   CHECK(moon_should_draw(1000000, 1001000, MOON_PHASES - 1), "the full moon is never skipped");
+
+  /* A character missing from the start-up set is rendered the first time it
+   * is drawn: in the middle of an animation, or by the stream's display thread
+   * for the quick menu and the statistics. */
+  TEST_BEGIN("characters rendered at start-up");
+  int missing = 0, entries = (int)(sizeof(table) / sizeof(table[0]));
+  for (int i = 0; i < entries; i++) {
+    const char *texts[3] = {table[i].en, table[i].fr, table[i].es};
+    for (int t = 0; t < 3; t++) {
+      for (const char *p = texts[t]; p && *p;) {
+        const char *start = p;
+        unsigned int c = utf8_next(&p);
+        if (c == '\n')
+          continue;
+        bool found = false;
+        for (const char *q = k_prewarm; *q && !found;)
+          found = utf8_next(&q) == c;
+        if (!found && missing++ < 5)
+          printf("    not rendered at start-up: U+%04X in \"%.40s\"\n", c, start);
+      }
+    }
+  }
+  CHECK(missing == 0, "every character of the translations is rendered at start-up");
   return TEST_END();
 }

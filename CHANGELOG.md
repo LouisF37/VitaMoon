@@ -3,12 +3,37 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
-## Unreleased
+## 1.0.0-beta.7 "Nouvelle Lune" (2026-11-16)
+
+Fixes from a review of what the PC preview cannot see: the limits of the Vita and of the network.
+
+### Fixed
+
+- **Pairing could wait without end.** The Vita waited for the code to be typed on the PC with no time
+  limit and no way out (inherited from upstream): a PC that went to sleep or a lost Wi-Fi left the
+  code on screen for good. The pairing screen now has *Cancel* (O, or X with the buttons swapped),
+  and the Vita gives up after 5 min 30 s. Sunshine 2026.914 itself drops a request after 5 minutes
+  and says so; VitaMoon now explains that case, and the one where a request from this Vita is still
+  waiting on the PC (after a cancel: remove it on Sunshine's PIN page, or wait 5 minutes).
+- **The reason of a failed pairing was lost.** After a failure the Vita asks the PC to forget it;
+  Sunshine has no such request and answers 404, whose curl message ("HTTP response code said error")
+  replaced the PC's own reason on screen.
+- **Stack of the stream's display thread**: 64 KB, now 256 KB as moonlight-common-c's threads. That
+  thread draws the quick menu and the statistics; rendering a glyph not drawn before took FreeType up
+  to 69 KB on a PC (Poppins, through its auto-hinter).
+- **Glyphs rendered during play.** The no-break spaces of the French quick menu and the "oe" ligature
+  were not among the characters rendered at start-up; the network and sprint icons were rendered the
+  first time they showed; a long game name was cut to the quick menu's width by the display thread.
+  All of it now happens before the game.
 
 ### Tests
 
+- `test_ui`: every character of the translations is among those rendered at start-up (it found the
+  no-break spaces). 228 PC checks.
 - The PC preview also counts what each frame takes from vita2d's vertex pool, which vita2d does not
   check: peak 9% of it, on the settings screen.
+- Pairing cancel and time limit tried on a PC against a server that never answers: cancelled at
+  once, limit reached on time, the next request on the same connection runs without the check.
 
 ## 1.0.0-beta.6 "Nouvelle Lune" (2026-11-16)
 

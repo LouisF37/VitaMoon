@@ -210,6 +210,7 @@ int xml_modelist(char* data, size_t len, PDISPLAY_MODE *mode_list) {
 
 int xml_status(char* data, size_t len) {
   int status = 0;
+  gs_status_code = 0;
   XML_Parser parser = XML_ParserCreate("UTF-8");
   XML_SetUserData(parser, &status);
   XML_SetElementHandler(parser, _xml_start_status_element, _xml_end_status_element);
@@ -221,5 +222,6 @@ int xml_status(char* data, size_t len) {
   }
 
   XML_ParserFree(parser);
+  gs_status_code = status;
   return status == STATUS_OK ? GS_OK : GS_ERROR;
 }

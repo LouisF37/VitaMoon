@@ -40,4 +40,7 @@ PHTTP_DATA http_create_data();
 int http_request(char* url, PHTTP_DATA data);
 /* As http_request, with its own limit in seconds (0 waits for ever). */
 int http_request_timeout(char* url, PHTTP_DATA data, long timeout_s);
+/* As http_request_timeout, and cancel() is asked at least once a second while the
+ * request waits (on the calling thread): true stops it, GS_CANCELLED. */
+int http_request_cancelable(char* url, PHTTP_DATA data, long timeout_s, bool (*cancel)(void));
 void http_free_data(PHTTP_DATA data);

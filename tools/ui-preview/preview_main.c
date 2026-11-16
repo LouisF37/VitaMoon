@@ -44,6 +44,7 @@ struct host_status g_host_status[MAX_HOSTS];
 volatile int g_host_scan_thread_status = 0;
 volatile int g_host_status_changed = 0;
 const char *gs_error = "";
+int gs_status_code = 0;
 CONNECTION_LISTENER_CALLBACKS connection_callbacks;
 static int fake_status = LI_DISCONNECTED;
 static int fake_running_game = 0;
@@ -127,7 +128,7 @@ int gs_applist(PSERVER_DATA server, PAPP_LIST *list) {
   return GS_OK;
 }
 void sort_app_list(PAPP_LIST list) {}
-int gs_pair(PSERVER_DATA server, char *pin) { return GS_OK; }
+int gs_pair(PSERVER_DATA server, char *pin, bool (*cancel)(void)) { return GS_OK; }
 int gs_unpair(PSERVER_DATA server) { return GS_OK; }
 int gs_start_app(PSERVER_DATA s, PSTREAM_CONFIGURATION c, int id, bool sops, bool local, int mask) { return -1; }
 int gs_quit_app(PSERVER_DATA server) { return GS_OK; }

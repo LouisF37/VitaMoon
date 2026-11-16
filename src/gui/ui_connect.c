@@ -521,9 +521,26 @@ static int ui_quit_app(void) {
   return 0;
 }
 
+/* The cancel button, read while gs_pair() waits for the PC (curl asks at least
+ * once a second). A press counts, not a button still held from before the wait. */
+static bool pair_cancel_armed;
+
+static bool pair_cancel_pressed(void) {
+  SceCtrlData pad;
+  if (sceCtrlPeekBufferPositive(0, &pad, 1) < 0)
+    return false;
+  bool down = (pad.buttons & config.btn_cancel) != 0;
+  if (!down) {
+    pair_cancel_armed = true;
+    return false;
+  }
+  return pair_cancel_armed;
+}
+
 /* Shows a four-digit code and waits until it has been typed on the PC (Sunshine
- * holds the request until then). Sunshine's web page listens on the port after
- * the one Moonlight connects to (47990 by default). */
+ * holds the request until then, 5 minutes at most) or the user cancels.
+ * Sunshine's web page listens on the port after the one Moonlight connects to
+ * (47990 by default). */
 static int pair_with_code(const char *host_name) {
   char pin[5] = {0};
   for (int i = 0; i < 4; i++)
@@ -533,11 +550,25 @@ static int pair_with_code(const char *host_name) {
   flash_pairing_code(host_name, pin, url);
   LOGI("pair", "%s: waiting for the code to be typed on the PC", host_name);
   vitapower_busy_begin();
-  int ret = gs_pair(&server, pin);
+  pair_cancel_armed = false;
+  pair_cancel_pressed();   // arms it unless the button is still held
+  int ret = gs_pair(&server, pin, pair_cancel_pressed);
   vitapower_busy_end();
-  log_write(ret == GS_OK ? LOG_INFO : LOG_ERROR, "pair", "%s: %s (%d) %s", host_name,
-            ret == GS_OK ? "paired" : "failed", ret, ret == GS_OK || !gs_error ? "" : gs_error);
-  if (ret != GS_OK)
+  if (ret == GS_CANCELLED) {
+    LOGI("pair", "%s: cancelled on the Vita", host_name);
+    read_buttons();   // the cancel press is not seen again by the menu ("back")
+    return ret;
+  }
+  log_write(ret == GS_OK ? LOG_INFO : LOG_ERROR, "pair", "%s: %s (%d, PC status %d) %s", host_name,
+            ret == GS_OK ? "paired" : "failed", ret, gs_status_code, ret == GS_OK || !gs_error ? "" : gs_error);
+  if (ret == GS_OK)
+    return ret;
+  // Sunshine's refusals with their own explanation (nvhttp.cpp, 2026.914).
+  if (gs_status_code == 409)
+    display_error(tr("A pairing request from this Vita is still waiting on the PC.\nCancel it on Sunshine's PIN page, or wait 5 minutes, then try again."));
+  else if (gs_status_code == 408)
+    display_error(tr("The code was not typed on the PC within 5 minutes.\nTry again."));
+  else
     display_error(tr("Pairing failed (error %d).\n%s\nCheck the code typed on the PC, then try again."),
                   ret, gs_error ? gs_error : "");
   return ret;

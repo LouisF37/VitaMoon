@@ -114,6 +114,32 @@ int http_request_timeout(char* url, PHTTP_DATA data, long timeout_s) {
   return ret;
 }
 
+/* curl calls it at least once a second while nothing arrives, more often during a
+ * transfer; non-zero aborts the transfer (CURLE_ABORTED_BY_CALLBACK). */
+static int cancel_progress(void *clientp, curl_off_t dltotal, curl_off_t dlnow, curl_off_t ultotal,
+                           curl_off_t ulnow) {
+  bool (*cancel)(void) = (bool (*)(void))clientp;
+  return cancel && cancel() ? 1 : 0;
+}
+
+int http_request_cancelable(char* url, PHTTP_DATA data, long timeout_s, bool (*cancel)(void)) {
+  pthread_mutex_lock(&curl_lock);
+  if (curl) {
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, cancel_progress);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, (void *)cancel);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+  }
+  int ret = http_request_unlocked(url, data, timeout_s);
+  if (curl) {
+    /* the handle is shared: the other requests run without the callback */
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 1L);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, NULL);
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, NULL);
+  }
+  pthread_mutex_unlock(&curl_lock);
+  return ret;
+}
+
 static int http_request_unlocked(char* url, PHTTP_DATA data, long timeout_s) {
   if (!curl) {
     gs_error = "No connection to the PC";
@@ -144,7 +170,11 @@ static int http_request_unlocked(char* url, PHTTP_DATA data, long timeout_s) {
   CURLcode res = curl_easy_perform(curl);
   unsigned ms = (unsigned)((sceKernelGetProcessTimeWide() - t0) / 1000);
 
-  if(res != CURLE_OK) {
+  if (res == CURLE_ABORTED_BY_CALLBACK) {
+    gs_error = "Cancelled";
+    LOGI("http", "%s cancelled after %u ms", what, ms);
+    return GS_CANCELLED;
+  } else if(res != CURLE_OK) {
     gs_error = curl_easy_strerror(res);
     LOGW("http", "%s failed after %u ms: %s", what, ms, gs_error);
     return GS_FAILED;

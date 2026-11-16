@@ -667,7 +667,8 @@ void flash_moon_release(void) {
 }
 
 /* Pairing screen, drawn once: the code in large digits and where to type it.
- * The caller then blocks in gs_pair() until the PC has accepted the code. */
+ * The caller then blocks in gs_pair() until the PC has accepted the code, or
+ * the cancel button shown at the bottom is pressed. */
 void flash_pairing_code(const char *host, const char *code, const char *url) {
   char title[160], lines[3][256];
   snprintf(title, sizeof(title), tr("Pairing with %s"), host);
@@ -708,6 +709,8 @@ void flash_pairing_code(const char *host, const char *code, const char *url) {
   ty += n * 22 + 6;
   theme_text_fit_center(WIDTH / 2.0f, ty, TH_ACCENT, TS_HINT, url, DIALOG_W - 72);
   theme_text_center(WIDTH / 2.0f, y + h - 22, TH_TEXT3, TS_SMALL, tr("Waiting for the PC..."));
+  theme_hint_item cancel = {theme_cancel_glyph(), tr("Cancel")};
+  theme_hints(&cancel, 1);
   ui_end();
 }
 
@@ -739,6 +742,12 @@ void guilib_init(gui_loop_callback global_loop_cb, gui_draw_callback global_draw
                                  msaa_active ? SCE_GXM_MULTISAMPLE_4X : SCE_GXM_MULTISAMPLE_NONE);
   vita2d_set_clear_color(0xff000000);
   font = vita2d_load_font_file(ASSET_PREFIX "nerdfont.ttf");
+  if (font) {
+    // The stream's two icons (draw_indicators), rendered now rather than by the
+    // display thread the first time the Wi-Fi weakens.
+    vita2d_font_text_width(font, 64, ICON_NETWORK);
+    vita2d_font_text_width(font, 48, ICON_SPRINTING);
+  }
   theme_init();
 
   gui_global_draw_callback = global_draw_cb;

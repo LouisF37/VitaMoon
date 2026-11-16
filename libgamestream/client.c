@@ -66,6 +66,7 @@ static char cert_hex[8192];
 static EVP_PKEY *privateKey;
 
 const char* gs_error;
+int gs_status_code;
 
 #define LEN_AS_HEX_STR(x) ((x) * 2 + 1)
 #define SIZEOF_AS_HEX_STR(x) LEN_AS_HEX_STR(sizeof(x))
@@ -458,8 +459,16 @@ int gs_unpair(PSERVER_DATA server) {
   return ret;
 }
 
-int gs_pair(PSERVER_DATA server, char* pin) {
+/* Sunshine (2026.914) drops a pairing request whose PIN was not typed after
+ * 5 minutes and answers 408 (nvhttp.h, PAIRING_SESSION_TIMEOUT); the Vita gives
+ * up 30 s later, so that this answer normally arrives first. The limit is for a
+ * PC that went silent (asleep, Wi-Fi lost), which would otherwise be waited for
+ * without end. */
+#define PAIR_WAIT_S 330L
+
+int gs_pair(PSERVER_DATA server, char* pin, bool (*cancel)(void)) {
   int ret = GS_OK;
+  gs_status_code = 0;
   char* result = NULL;
   char url[5120];
   uuid_t uuid;
@@ -481,8 +490,8 @@ int gs_pair(PSERVER_DATA server, char* pin) {
   PHTTP_DATA data = http_create_data();
   if (data == NULL)
     return GS_OUT_OF_MEMORY;
-  // The PC answers once the code has been typed there: no time limit.
-  else if ((ret = http_request_timeout(url, data, 0)) != GS_OK)
+  // The PC answers once the code has been typed there; the user can give up.
+  else if ((ret = http_request_cancelable(url, data, PAIR_WAIT_S, cancel)) != GS_OK)
     goto cleanup;
 
   if (((ret = xml_status(data->memory, data->size)) != GS_OK))
@@ -709,8 +718,15 @@ int gs_pair(PSERVER_DATA server, char* pin) {
   }
 
   cleanup:
-  if (ret != GS_OK)
+  if (ret != GS_OK) {
+    /* Sunshine has no /unpair (it answers 404): the reason of the failure would
+     * be replaced by curl's "HTTP response code said error". */
+    const char *reason = gs_error;
+    int status = gs_status_code;
     gs_unpair(server);
+    gs_error = reason;
+    gs_status_code = status;
+  }
 
   if (result != NULL)
     free(result);
@@ -718,8 +734,10 @@ int gs_pair(PSERVER_DATA server, char* pin) {
   http_free_data(data);
 
   // If we failed when attempting to pair with a game running, that's likely the issue.
-  // Sunshine supports pairing with an active session, but GFE does not.
-  if (ret != GS_OK && server->currentGame != 0) {
+  // Sunshine supports pairing with an active session, but GFE does not. Not when
+  // the user gave up or the PC said why it refused.
+  bool pc_said_why = gs_status_code != 0 && gs_status_code != 200;
+  if (ret != GS_OK && ret != GS_CANCELLED && !pc_said_why && server->currentGame != 0) {
     gs_error = "The computer is currently in a game. You must close the game before pairing.";
     ret = GS_WRONG_STATE;
   }

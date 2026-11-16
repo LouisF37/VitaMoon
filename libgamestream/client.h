@@ -49,7 +49,10 @@ int gs_start_app(PSERVER_DATA server, PSTREAM_CONFIGURATION config, int appId, b
 int gs_applist(PSERVER_DATA server, PAPP_LIST *app_list);
 int gs_app_boxart(PSERVER_DATA server, int appId, char **png, size_t *size);
 int gs_unpair(PSERVER_DATA server);
-int gs_pair(PSERVER_DATA server, char* pin);
+/* Pairs with the PIN the user types on the PC. cancel (may be NULL) is asked
+ * at least once a second while the PC waits for the PIN: true gives up,
+ * GS_CANCELLED. */
+int gs_pair(PSERVER_DATA server, char* pin, bool (*cancel)(void));
 int gs_quit_app(PSERVER_DATA server);
 int gs_get_server_mac(PSERVER_DATA server, char *mac, unsigned int size);
 // Name sent to the PC when pairing (plain text, URL-encoded here). Empty or

@@ -28,15 +28,25 @@ static volatile bool shown_confirm_quit = false;
 static volatile bool quit_request = false;
 static volatile bool config_changed = false;
 
+#define QM_X      TH_MARGIN
+#define QM_Y      80
+#define QM_W      480
+#define QM_HEAD   76
+#define QM_ROW_H  44
+#define QM_H      (QM_HEAD + 10 + QM_COUNT * QM_ROW_H + 64)
+#define QM_NAME_W (QM_W - 48)
+
+/* The names in the header, already cut to QM_NAME_W (quickmenu_set_context). */
 static char host_name[64] = "";
 static char game_name[128] = "";
 
 void quickmenu_set_context(const char *host, const char *game) {
-  snprintf(host_name, sizeof(host_name), "%s", host ? host : "");
-  snprintf(game_name, sizeof(game_name), "%s", game ? game : "");
   // Called on the menu thread before the stream: the names the menu will draw
-  // over the game are prepared here, not by the display thread during play.
-  theme_prepare_text(TS_LEAD, game_name[0] ? game_name : tr("Game"));
+  // over the game are cut to its width and their glyphs rendered here, so that
+  // the display thread only draws them during play.
+  theme_ellipsize(TS_LEAD, game && game[0] ? game : tr("Game"), QM_NAME_W, game_name, sizeof(game_name));
+  theme_ellipsize(TS_SMALL, host ? host : "", QM_NAME_W, host_name, sizeof(host_name));
+  theme_prepare_text(TS_LEAD, game_name);
   theme_prepare_text(TS_SMALL, host_name);
 }
 
@@ -103,12 +113,6 @@ bool quickmenu_take_config_changed(void) {
 
 /* ---------------- drawing ---------------- */
 
-#define QM_X      TH_MARGIN
-#define QM_Y      80
-#define QM_W      480
-#define QM_HEAD   76
-#define QM_ROW_H  44
-#define QM_H      (QM_HEAD + 10 + QM_COUNT * QM_ROW_H + 64)
 
 void quickmenu_draw(void) {
   if (!shown_open)
@@ -122,8 +126,8 @@ void quickmenu_draw(void) {
 
   const int x = QM_X, y = QM_Y, w = QM_W, h = QM_H;
   theme_glass(x, y, w, h, 14);
-  theme_text_fit(x + 24, y + 38, TH_TEXT, TS_LEAD, game_name[0] ? game_name : tr("Game"), w - 48);
-  theme_text_fit(x + 24, y + 60, TH_TEXT3, TS_SMALL, host_name, w - 48);
+  theme_text(x + 24, y + 38, TH_TEXT, TS_LEAD, game_name);
+  theme_text(x + 24, y + 60, TH_TEXT3, TS_SMALL, host_name);
   theme_rect(x + 24, y + QM_HEAD, w - 48, 1, TH_DIVIDER);
 
   for (int i = 0; i < QM_COUNT; i++) {

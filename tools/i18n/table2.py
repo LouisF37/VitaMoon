@@ -296,6 +296,12 @@ T2 = {
     ("Échec de l'appairage (erreur %d).\\n%s\\nVérifiez le code saisi sur le PC, puis réessayez.",
      "Error al emparejar (error %d).\\n%s\\nComprueba el código escrito en el PC e inténtalo de nuevo."),
 "%s is paired with this Vita.": ("%s est appairé avec cette Vita.", "%s está emparejado con esta Vita."),
+"A pairing request from this Vita is still waiting on the PC.\\nCancel it on Sunshine's PIN page, or wait 5 minutes, then try again.":
+    ("Une demande d'appairage de cette Vita attend encore sur le PC.\\nAnnulez-la sur la page PIN de Sunshine, ou attendez 5 minutes, puis réessayez.",
+     "Una solicitud de emparejamiento de esta Vita sigue pendiente en el PC.\\nCancélala en la página PIN de Sunshine o espera 5 minutos y vuelve a intentarlo."),
+"The code was not typed on the PC within 5 minutes.\\nTry again.":
+    ("Le code n'a pas été saisi sur le PC dans les 5 minutes.\\nRéessayez.",
+     "No se escribió el código en el PC en 5 minutos.\\nVuelve a intentarlo."),
 "Could not get the list of games (error %d).\\n%s":
     ("Impossible d'obtenir la liste des jeux (erreur %d).\\n%s", "No se pudo obtener la lista de juegos (error %d).\\n%s"),
 "Contacting %s...": ("Contact de %s...", "Contactando con %s..."),

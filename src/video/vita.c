@@ -919,7 +919,10 @@ static bool display_start(void) {
     return false;
   ready_seq = 0;
   display_running = true;
-  display_thread = sceKernelCreateThread("vid_display", display_thread_main, STREAM_THREAD_PRIORITY, 0x10000, 0, 0, NULL);
+  // 256 KB of stack, as moonlight-common-c's threads: this thread draws the quick
+  // menu and the statistics, and a glyph not drawn before is rendered here by
+  // FreeType, whose auto-hinter took up to 69 KB on a PC (Poppins).
+  display_thread = sceKernelCreateThread("vid_display", display_thread_main, STREAM_THREAD_PRIORITY, 0x40000, 0, 0, NULL);
   if (display_thread < 0) {
     display_running = false;
     return false;

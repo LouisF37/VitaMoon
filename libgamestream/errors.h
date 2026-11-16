@@ -30,5 +30,9 @@
 #define GS_NOT_SUPPORTED_MODE -8
 #define GS_ERROR -9
 #define GS_NOT_SUPPORTED_SOPS_RESOLUTION -10
+#define GS_CANCELLED -11   /* stopped by the user (http_request_cancelable) */
 
 extern const char* gs_error;
+/* status_code of the last XML answer read by xml_status() (200 when it went
+ * well, 0 before any): tells apart the refusals of the PC. */
+extern int gs_status_code;
