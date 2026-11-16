@@ -283,7 +283,20 @@ int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *
       focus = tapped;
     } else if (((buttons & config.btn_confirm) && !hold) || tapped == focus || tap_play) {
       if (other_running) {
-        display_error(tr("Another game is already running on the PC.\nQuit it first with the square button."));
+        // Offer to quit the running game and start this one (NowaLone/vita-moonlight).
+        const char *running_name = "?";
+        for (int i = 0; i < item_count; i++)
+          if (items[i].id == running_id)
+            running_name = items[i].name;
+        char question[320];
+        snprintf(question, sizeof(question), tr("%s is running on the PC.\nQuit it and start %s?"),
+                 running_name, cur->name);
+        if (display_confirm(question)) {
+          *app_id = cur->id;
+          result = LIBRARY_SWITCH;
+          break;
+        }
+        gui_touch_reset();
       } else {
         *app_id = cur->id;
         result = LIBRARY_LAUNCH;

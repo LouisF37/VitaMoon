@@ -45,6 +45,8 @@
 
 #include <psp2/kernel/rng.h>
 #include <psp2/kernel/threadmgr.h>
+#include <psp2/kernel/modulemgr.h>
+#include <psp2/kernel/sysmem.h>
 
 #include <psp2/net/net.h>
 
@@ -68,6 +70,7 @@
 #include "input/motion.h"
 
 #include "debug.h"
+#include "log.h"
 #include "check_dir.h"
 #include "i18n.h"
 
@@ -135,11 +138,6 @@ static void vita_init() {
     loop_forever();
   }
 
-  ret = vita_debug_init();
-  if (ret != true) {
-    printf("Debug log mutex init failed!");
-    loop_forever();
-  }
 }
 
 
@@ -155,7 +153,7 @@ static void set_pairing_device_name(void) {
   SceChar8 nickname[SCE_SYSTEM_PARAM_USERNAME_MAXSIZE] = {0};
   int ret = sceAppUtilSystemParamGetString(SCE_SYSTEM_PARAM_ID_USERNAME, nickname, sizeof(nickname));
   if (ret < 0 || nickname[0] == '\0') {
-    vita_debug_log("Vita nickname not readable (0x%08X): pairing as PS Vita\n", ret);
+    LOGW("app", "Vita nickname not readable (0x%08X): pairing as PS Vita", ret);
     return;
   }
   gs_set_device_name((const char *)nickname);
@@ -185,9 +183,20 @@ int main(int argc, char* argv[]) {
   check_and_create_data_dir(out_path, out_key_dir);
   config_path = out_path;
   strcpy(config.key_dir, out_key_dir);
-  vita_debug_log("[" APP_NAME "] Data folder: %s", config.key_dir);
+  // The log opens first, so that everything after it is recorded.
+  log_init(config.key_dir);
   // The config is not saved before every value is initialized
   config_parse(argc, argv, &config);
+  log_set_detailed(config.save_debug_log);
+  {
+    SceKernelSystemSwVersion fw;
+    memset(&fw, 0, sizeof(fw));
+    fw.size = sizeof(fw);
+    sceKernelGetSystemSwVersion(&fw);
+    LOGI("app", "firmware %s, %s, data folder %s, language %d, detailed log %s", fw.versionString,
+         sceKernelGetModel() == SCE_KERNEL_MODEL_VITATV ? "PS TV" : "PS Vita", config.key_dir,
+         config.language, config.save_debug_log ? "on" : "off");
+  }
 
   // Interface language (English unless the user picked another one in Settings).
   i18n_set_language(config.language);
@@ -201,13 +210,10 @@ int main(int argc, char* argv[]) {
   vitapower_config(config);
   vitainput_config(config);
 
-  char log_path[MOONLIGHT_PATH_MAX] = {0};
-  snprintf(log_path, sizeof(log_path), "%s" APP_DATA_DIR ".log", config.key_dir);
-  config.log_file = fopen(log_path, "w");
-  // After the log opens, so that a failure to read the nickname is recorded.
   set_pairing_device_name();
 
   load_all_known_devices();
+  log_system_state("start-up");
 
   gui_loop();
 }

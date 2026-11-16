@@ -17,64 +17,21 @@
  * along with Moonlight; if not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <stdbool.h>
-#include <stdio.h>
 #include <stdarg.h>
-#include <psp2/rtc.h>
-#include <stdlib.h>
-#include "../src/gui/mdns_log.h"
+#include <stdbool.h>
 #include "debug.h"
-#include "config.h"
-#include "app_info.h"
+#include "log.h"
 
-pthread_mutex_t print_mutex;
-
+/* Kept for the many detail lines of the original code and of libgamestream:
+ * they go to the detailed log (src/log.c), written only when the setting
+ * "Detailed log" is on. */
 bool vita_debug_init() {
-  if (pthread_mutex_init(&print_mutex, NULL) != 0) {
-    return false;
-  }
   return true;
 }
 
 void vita_debug_log(const char *s, ...) {
-  if (!config.save_debug_log) {
-    return;
-  }
-
-  pthread_mutex_lock(&print_mutex);
-
-  // One buffer for all callers, protected by print_mutex: no allocation per line.
-  static char buffer[8192];
-
-  SceDateTime time;
-  sceRtcGetCurrentClock(&time, 0);
-
-  snprintf(buffer, 26, "%04d%02d%02d %02d:%02d:%02d.%06d ",
-           time.year, time.month, time.day,
-           time.hour, time.minute, time.second,
-           time.microsecond);
-
   va_list va;
   va_start(va, s);
-  int len = vsnprintf(&buffer[25], 8000, s, va);
+  log_vwrite(LOG_DEBUG, "detail", s, va);
   va_end(va);
-
-  if (config.log_file) {
-    fprintf(config.log_file, "%s", buffer);
-    if (buffer[len + 24] != '\n') {
-        fprintf(config.log_file, "\n");
-    }
-    fflush(config.log_file);
-  } else {
-    // If the log could not be opened, print to the screen
-    printf("[" APP_NAME "] Could not open the log file. Message: %s\n", &buffer[25]);
-  }
-
-#ifdef __vita__
-  // Also print through mdns_log (sceClibPrintf)
-  mdns_log("%s", &buffer[25]);
-#endif
-
-  pthread_mutex_unlock(&print_mutex);
 }
-

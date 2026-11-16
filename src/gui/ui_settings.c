@@ -1,3 +1,4 @@
+#include "../log.h"
 #include "ui_settings.h"
 #include "theme.h"
 
@@ -512,8 +513,8 @@ static const setting_row k_rows[] = {
    N_("The screen does not dim and the Vita does not go to sleep during a stream.")},
   {S_AUTO_RECONNECT, CAT_GENERAL, ROW_TOGGLE, N_("Reconnect automatically"),
    N_("After a Wi-Fi drop or a sleep during a stream, the game starts again on its own.")},
-  {S_DEBUG_LOG, CAT_GENERAL, ROW_TOGGLE, N_("Save a debug log"),
-   N_("Detailed log in Lune's folder. It slows the stream down: for troubleshooting only.")},
+  {S_DEBUG_LOG, CAT_GENERAL, ROW_TOGGLE, N_("Detailed log"),
+   N_("Adds every detail to lune.log, which always keeps the main events. For troubleshooting.")},
 
   /* Video */
   {S_RESOLUTION, CAT_VIDEO, ROW_CHOICE, N_("Resolution"),
@@ -569,7 +570,7 @@ static const setting_row k_rows[] = {
   {S_MOTION_Y, CAT_CONTROLS, ROW_CHOICE, N_("Motion sensitivity, vertical"),
    N_("X: type a value. 1 is the normal sensitivity.")},
   {S_KEYBOARD_LAYOUT, CAT_CONTROLS, ROW_CHOICE, N_("Keyboard layout"),
-   N_("Layout of the PC keyboard, used when typing with the Vita's on-screen keyboard.")},
+   N_("Text: characters arrive as typed, whatever the PC keyboard. Or the PC's layout, for games that read keys.")},
 
   /* Touch */
   {S_TOUCH_MODE, CAT_TOUCH, ROW_CHOICE, N_("Front touch screen"),
@@ -588,8 +589,8 @@ static const setting_row k_rows[] = {
    N_("For playing away from home. Leave off on your home network.")},
   {S_RFI, CAT_ADVANCED, ROW_TOGGLE, N_("Reference frame invalidation"),
    N_("Recovers from lost frames without a key frame. NVIDIA hosts only: leave off otherwise.")},
-  {S_SOPS, CAT_ADVANCED, ROW_TOGGLE, N_("Let the PC adjust game settings"),
-   N_("GeForce Experience only: the PC changes the game's graphics settings for the stream.")},
+  {S_SOPS, CAT_ADVANCED, ROW_TOGGLE, N_("Let the PC adapt its screen"),
+   N_("Sunshine can switch the PC screen to the stream's resolution (Display device options).")},
   {S_FRAME_PACER, CAT_ADVANCED, ROW_TOGGLE, N_("Frame pacer"),
    N_("Original frame pacing. Only used by the Direct display.")},
   {S_VBLANK, CAT_ADVANCED, ROW_TOGGLE, N_("Wait for the screen refresh"),
@@ -615,7 +616,8 @@ static const int k_packet_values[] = {1024, 1200, 1392};
 static const int k_reorder_values[] = {0, 10, 20, 30};
 /* 0 is the original behaviour: the screen works like a laptop trackpad */
 static const char *k_touch_names[] = {N_("Trackpad"), N_("PS touch pad"), N_("Direct pointing"), N_("Pen tablet")};
-static const char *k_keyboard_names[] = {N_("English (US)"), N_("Spanish (Spain)"), N_("Spanish (Latin America)")};
+static const char *k_keyboard_names[] = {N_("English (US)"), N_("Spanish (Spain)"), N_("Spanish (Latin America)"),
+                                          N_("Text, any PC layout")};
 
 static const int k_fps_values[] = {24, 30, 40, 50, 60};
 /* kbps; 0 stands for the automatic bitrate */
@@ -836,7 +838,11 @@ static bool row_change(int id, int dir) {
       return true;
     case S_KEEP_AWAKE: config.disable_powersave = !config.disable_powersave; return true;
     case S_AUTO_RECONNECT: config.auto_reconnect = !config.auto_reconnect; return true;
-    case S_DEBUG_LOG: config.save_debug_log = !config.save_debug_log; return true;
+    case S_DEBUG_LOG:
+      config.save_debug_log = !config.save_debug_log;
+      log_set_detailed(config.save_debug_log);
+      LOGI("app", "detailed log %s", config.save_debug_log ? "on" : "off");
+      return true;
     case S_CROP: config.center_region_only = !config.center_region_only; return true;
     case S_LOCAL_AUDIO: config.localaudio = !config.localaudio; return true;
     case S_LL_AUDIO: config.low_latency_audio = !config.low_latency_audio; return true;

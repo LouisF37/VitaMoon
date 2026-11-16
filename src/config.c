@@ -235,6 +235,8 @@ void config_sanitize(PCONFIGURATION config) {
     config->language = 0;
   if (config->theme < 0 || config->theme >= CONFIG_THEME_COUNT)
     config->theme = 0;
+  if (config->keyboard_layout < 0 || config->keyboard_layout >= CONFIG_KEYBOARD_LAYOUT_COUNT)
+    config->keyboard_layout = CONFIG_KEYBOARD_TEXT;
 }
 
 void config_save(const char* filename, PCONFIGURATION config) {
@@ -428,6 +430,9 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->auto_reconnect = true;
   config->language = 0; // English
   config->theme = 0;    // Night
+  // Text typing works whatever the PC's keyboard layout (an AZERTY PC turns
+  // the US key positions into other letters).
+  config->keyboard_layout = CONFIG_KEYBOARD_TEXT;
   config->enable_psbutton_capture = true;
   config->enable_double_tap_sprint = false;
 

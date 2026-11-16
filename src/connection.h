@@ -57,6 +57,8 @@ void connection_close_idle();
  * rather than ended by the PC or the user (src/reconnect.h decides), and the
  * moonlight-common-c error it ended with. Cleared when a stream starts. */
 bool connection_was_lost();
+/* Short English description of a moonlight-common-c end-of-stream code, for the log. */
+const char *connection_error_name(int error_code);
 int connection_last_error();
 
 bool connection_is_ready();

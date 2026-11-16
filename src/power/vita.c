@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with Moonlight; if not, see <http://www.gnu.org/licenses/>.
  */
+#include "../log.h"
 #include <stdbool.h>
 
 #include <psp2/kernel/processmgr.h>
@@ -101,7 +102,7 @@ static void boost_clocks() {
   scePowerSetGpuXbarClockFrequency(166);
   int ret = scePowerSetUsingWireless(SCE_TRUE);
   if (ret < 0)
-    vita_debug_log("scePowerSetUsingWireless: 0x%x\n", ret);
+    LOGW("power", "Wi-Fi boost refused (scePowerSetUsingWireless 0x%x)", (unsigned)ret);
   clocks_boosted = true;
 }
 

@@ -147,3 +147,13 @@ int sceVideodecInitLibrary(SceVideodecType type, const SceVideodecQueryInitInfoH
 int sceVideodecTermLibrary(SceVideodecType type) { return 0; }
 
 int sceClibPrintf(const char *fmt, ...) { return 0; }
+
+/* The log (src/log.c) is not part of the preview: lines go nowhere. */
+#include "log.h"
+void log_write(log_level level, const char *tag, const char *fmt, ...) {}
+void log_vwrite(log_level level, const char *tag, const char *fmt, va_list va) {}
+void log_set_detailed(bool on) {}
+bool log_detailed(void) { return false; }
+void log_flush(void) {}
+void log_system_state(const char *when) {}
+void log_mcc(const char *fmt, ...) {}

@@ -24,6 +24,9 @@
 #include <string.h>
 #include <curl/curl.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <psp2/kernel/processmgr.h>
+#include "../src/log.h"
 
 static CURL *curl;
 /* One curl handle is shared by every request; the box-art downloader runs on its
@@ -121,8 +124,14 @@ static int http_request_unlocked(char* url, PHTTP_DATA data, long timeout_s) {
   curl_easy_setopt(curl, CURLOPT_TIMEOUT, timeout_s);
   curl_easy_setopt(curl, CURLOPT_FORBID_REUSE, reuse_connections ? 0L : 1L);
 
-  if (debug)
-    printf("Request %s\n", url);
+  // The log names the request without its query, which holds the client's
+  // identifiers and, for a launch, the stream's key.
+  char what[96];
+  const char *path = strstr(url, "://");
+  path = path ? strchr(path + 3, '/') : NULL;
+  snprintf(what, sizeof(what), "%.*s", path ? (int)strcspn(path, "?") : 0, path ? path : "");
+  LOGD("http", "request %s", what);
+  uint64_t t0 = sceKernelGetProcessTimeWide();
 
   if (data->size > 0) {
     free(data->memory);
@@ -133,16 +142,17 @@ static int http_request_unlocked(char* url, PHTTP_DATA data, long timeout_s) {
     data->size = 0;
   }
   CURLcode res = curl_easy_perform(curl);
+  unsigned ms = (unsigned)((sceKernelGetProcessTimeWide() - t0) / 1000);
 
   if(res != CURLE_OK) {
     gs_error = curl_easy_strerror(res);
+    LOGW("http", "%s failed after %u ms: %s", what, ms, gs_error);
     return GS_FAILED;
   } else if (data->memory == NULL) {
     return GS_OUT_OF_MEMORY;
   }
 
-  if (debug)
-    printf("Response:\n%s\n\n", data->memory);
+  LOGD("http", "%s answered in %u ms, %u bytes: %.600s", what, ms, (unsigned)data->size, data->memory);
 
   return GS_OK;
 }

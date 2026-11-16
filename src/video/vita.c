@@ -43,6 +43,7 @@
 #include <string.h>
 
 
+#include "../log.h"
 #define printf vita_debug_log
 
 extern double_click_tracker dc_tracker;
@@ -423,7 +424,7 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
     decoder_buffer_size = DECODER_BUFFER_SIZE + SPS_GROWTH_MAX + AV_INPUT_BUFFER_PADDING_SIZE;
     decoder_buffer = malloc(decoder_buffer_size);
     if (decoder_buffer == NULL) {
-      printf("decoder_buffer: not enough memory\n");
+      LOGE("video", "decoder buffer: not enough memory");
       ret = VITA_VIDEO_ERROR_NO_MEM;
       goto cleanup;
     } 
@@ -449,7 +450,7 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
                                                                  decode_yuv ? SCE_GXM_TEXTURE_FORMAT_YVU420P2_CSC0
                                                                             : SCE_GXM_TEXTURE_FORMAT_U8U8U8U8_ABGR);
       if (slots[slot_count].tex == NULL) {
-        printf("frame_texture: not enough memory\n");
+        LOGE("video", "frame textures: not enough video memory (%d of %d made)", slot_count, wanted);
         ret = VITA_VIDEO_ERROR_NO_MEM;
         goto cleanup;
       }
@@ -466,7 +467,7 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
     if (init == NULL) {
       init = calloc(1, sizeof(SceVideodecQueryInitInfoHwAvcdec));
       if (init == NULL) {
-        printf("init_framebuffer: not enough memory\n");
+        LOGE("video", "decoder setup: not enough memory");
         ret = VITA_VIDEO_ERROR_NO_MEM;
         goto cleanup;
       }
@@ -479,7 +480,7 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
 
     ret = sceVideodecInitLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC, init);
     if (ret < 0) {
-      printf("sceVideodecInitLibrary 0x%x\n", ret);
+      LOGE("video", "sceVideodecInitLibrary failed: 0x%x", ret);
       ret = VITA_VIDEO_ERROR_INIT_LIB;
       goto cleanup;
     }
@@ -492,7 +493,7 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
     if (decoder_info == NULL) {
       decoder_info = calloc(1, sizeof(SceAvcdecQueryDecoderInfo));
       if (decoder_info == NULL) {
-        printf("decoder_info: not enough memory\n");
+        LOGE("video", "decoder info: not enough memory");
         ret = VITA_VIDEO_ERROR_NO_MEM;
         goto cleanup;
       }
@@ -505,14 +506,14 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
 
     ret = sceAvcdecQueryDecoderMemSize(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder_info, &decoder_info_out);
     if (ret < 0) {
-      printf("sceAvcdecQueryDecoderMemSize 0x%x size 0x%x\n", ret, decoder_info_out.frameMemSize);
+      LOGE("video", "sceAvcdecQueryDecoderMemSize failed: 0x%x", ret);
       ret = VITA_VIDEO_ERROR_QUERY_DEC_MEMSIZE;
       goto cleanup;
     }
 
     decoder = calloc(1, sizeof(SceAvcdecCtrl));
     if (decoder == NULL) {
-      printf("not enough memory\n");
+      LOGE("video", "decoder control: not enough memory");
       ret = VITA_VIDEO_ERROR_ALLOC_MEM;
       goto cleanup;
     }
@@ -523,14 +524,14 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
 
     decoderblock = sceKernelAllocMemBlock("decoder", SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_NC_RW, sz, NULL);
     if (decoderblock < 0) {
-      printf("decoderblock: 0x%08x\n", decoderblock);
+      LOGE("video", "decoder memory block of %u KiB refused: 0x%08x", (unsigned)(sz / 1024), decoderblock);
       ret = VITA_VIDEO_ERROR_ALLOC_MEM;
       goto cleanup;
     }
 
     ret = sceKernelGetMemBlockBase(decoderblock, &decoder->frameBuf.pBuf);
     if (ret < 0) {
-      printf("sceKernelGetMemBlockBase: 0x%x\n", ret);
+      LOGE("video", "sceKernelGetMemBlockBase failed: 0x%x", ret);
       ret = VITA_VIDEO_ERROR_GET_MEMBASE;
       goto cleanup;
     }
@@ -543,7 +544,7 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
 
     ret = sceAvcdecCreateDecoder(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder, decoder_info);
     if (ret < 0) {
-      printf("sceAvcdecCreateDecoder 0x%x\n", ret);
+      LOGE("video", "sceAvcdecCreateDecoder failed: 0x%x", ret);
       ret = VITA_VIDEO_ERROR_CREATE_DEC;
       goto cleanup;
     }
@@ -554,7 +555,7 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
     // INIT_FRAME_PACER_THREAD
     ret = sceKernelCreateThread("frame_pacer", vita_pacer_thread_main, 0, 0x10000, 0, 0, NULL);
     if (ret < 0) {
-      printf("sceKernelCreateThread 0x%x\n", ret);
+      LOGE("video", "frame pacer thread not created: 0x%x", ret);
       ret = VITA_VIDEO_ERROR_CREATE_PACER_THREAD;
       goto cleanup;
     }
@@ -591,7 +592,7 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
   pull_floor_change_us = 0;
 
   if (display_mode != DISPLAY_MODE_DIRECT && !display_start()) {
-    printf("display thread failed, falling back to direct mode\n");
+    LOGW("video", "display thread not created: direct display instead");
     display_stop();
     display_mode = DISPLAY_MODE_DIRECT;
   }
@@ -600,6 +601,15 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
     vblank_clock_start();
 
   stream_stats_session_start(width, height, redrawRate);
+  {
+    static const char *const mode_names[] = { "direct (original)", "low latency", "smooth", "paced" };
+    LOGI("video", "%dx%d at %d fps, decoder %ux%u with %u reference frames, frame memory %u KiB, %s, "
+         "display %s with %d frame slots, screen %.3f Hz",
+         width, height, redrawRate, (unsigned)init->horizontal, (unsigned)init->vertical,
+         (unsigned)init->numOfRefFrames, (unsigned)(decoder->frameBuf.size / 1024),
+         decode_yuv ? "YUV converted by the GPU" : "RGBA from the decoder",
+         mode_names[display_mode >= 0 && display_mode <= 3 ? display_mode : 0], slot_count, refresh_hz);
+  }
 
   return VITA_VIDEO_INIT_OK;
 
@@ -969,7 +979,7 @@ static pull_result decoder_pull(const SceAvcdecAu *fed_au, SceAvcdecArrayPicture
   int ret = sceAvcdecDecode(decoder, &pull_au, array_picture);
   if (ret < 0) {
     pull_disabled = true;
-    printf("decoder catch-up: error 0x%x, turned off for this stream\n", ret);
+    LOGW("video", "decoder catch-up: error 0x%x, turned off for this stream", ret);
     return PULL_FAILED;
   }
   if (array_picture->numOfOutput == 1) {
@@ -1025,7 +1035,7 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     char *bigger = realloc(decoder_buffer, needed);
     if (bigger == NULL) {
       // Keep the old buffer and skip this frame: the next key frame resynchronises.
-      printf("Out of memory: could not grow the decoder buffer");
+      LOGE("video", "could not grow the decoder buffer to %u bytes", (unsigned)needed);
       return DR_NEED_IDR;
     }
     decoder_buffer = bigger;
@@ -1087,7 +1097,7 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
     if (display_mode != DISPLAY_MODE_DIRECT)
       slot_set_free(slot);
     stream_stats_on_decode(dec_us, ret, false, STREAM_STATS_HOLD_UNKNOWN);
-    printf("sceAvcdecDecode (len=0x%x): 0x%x numOfOutput %d\n", length, ret, array_picture.numOfOutput);
+    LOGW("video", "decode error 0x%x on frame %d (%u bytes)", ret, decodeUnit->frameNumber, (unsigned)length);
     return DR_NEED_IDR;
   }
 

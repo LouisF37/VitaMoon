@@ -13,6 +13,7 @@
 #include "input/keyboardkeys.h"
 #include "config.h"
 #include "../src/debug.h"
+#include "log.h"
 
 #define WORK_BUFFER_SIZE (SCE_IME_WORK_BUFFER_SIZE)
 
@@ -22,8 +23,10 @@ static SceWChar16 output_text[4];      // receives the typed text (never display
 #include "input/keyboard.h"
 #include <stddef.h>
 
-// Selected layout (EN_US by default)
-static KeyboardLayout g_keyboard_layout = KB_LAYOUT_EN_US;
+// Selected layout (text by default)
+static KeyboardLayout g_keyboard_layout = KB_LAYOUT_TEXT;
+_Static_assert(KB_LAYOUT_COUNT == CONFIG_KEYBOARD_LAYOUT_COUNT && KB_LAYOUT_TEXT == CONFIG_KEYBOARD_TEXT,
+               "config.h keyboard constants");
 
 
 // Internal state of the on-screen keyboard overlay
@@ -49,6 +52,29 @@ static int find_vk_for_char(wchar_t ch, int* vk, int* needs_shift) {
         }
     }
     return 0;
+}
+
+/* Text mode: one character sent as UTF-8 (Sunshine types it as a character,
+ * whatever the PC's keyboard layout; NowaLone/vita-moonlight sends text too). */
+static void send_text_char(unsigned ch) {
+    char utf8[3];
+    int n;
+    if (ch < 0x80) {
+        utf8[0] = (char)ch;
+        n = 1;
+    } else if (ch < 0x800) {
+        utf8[0] = (char)(0xC0 | (ch >> 6));
+        utf8[1] = (char)(0x80 | (ch & 0x3F));
+        n = 2;
+    } else {
+        utf8[0] = (char)(0xE0 | (ch >> 12));
+        utf8[1] = (char)(0x80 | ((ch >> 6) & 0x3F));
+        utf8[2] = (char)(0x80 | (ch & 0x3F));
+        n = 3;
+    }
+    int ret = LiSendUtf8TextEvent(utf8, (unsigned)n);
+    if (ret != 0)
+        vita_debug_log("[IME] text U+%04X not sent (%d)", ch, ret);
 }
 
 static int prev_caret_index = 1;
@@ -104,7 +130,14 @@ static void keyboardsystem_ime_event_handler(void *arg, const SceImeEventData *e
             forzar_centro = 1;
             return;
         }
-        // TECLA LETRA NORMAL (a-z, A-Z)
+        // Text mode: any printable character goes as text.
+        if (g_keyboard_layout == KB_LAYOUT_TEXT && ch >= 0x20 && ch != 0x7F && (ch < 0xD800 || ch > 0xDFFF)) {
+            send_text_char((unsigned)ch);
+            for (int i = 0; i < 4; ++i) output_text[i] = 1;
+            forzar_centro = 1;
+            return;
+        }
+        // Normal letter key (a-z, A-Z)
         if (caret == 1 && ch && ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'))) {
             int vk = 0, needs_shift = 0;
             if (find_vk_for_char(ch, &vk, &needs_shift)) {
@@ -187,7 +220,7 @@ void keyboardsystem_open_keyboard(void) {
 
     // Sync the global layout with the config before opening the IME
     keyboardsystem_set_layout((KeyboardLayout)config.keyboard_layout);
-    sceClibPrintf("[IME] Keyboard opened\n");
+    vita_debug_log("[IME] keyboard opened");
     // Initialize the IME buffer and caret so the caret can move forever
     ime_working_buffer[0] = 1;
     ime_working_buffer[1] = 1;
@@ -221,11 +254,15 @@ void keyboardsystem_open_keyboard(void) {
         case KB_LAYOUT_ES_LATAM:
             param.supportedLanguages = SCE_IME_LANGUAGE_SPANISH;
             break;
+        case KB_LAYOUT_TEXT:
+            // The Vita's own keyboard languages (system settings).
+            param.supportedLanguages = 0;
+            break;
         default:
             param.supportedLanguages = SCE_IME_LANGUAGE_ENGLISH;
             break;
     }
-    param.languagesForced   = SCE_TRUE;
+    param.languagesForced   = layout == KB_LAYOUT_TEXT ? SCE_FALSE : SCE_TRUE;
     param.type              = SCE_IME_TYPE_DEFAULT;
     param.option            = SCE_IME_OPTION_NO_ASSISTANCE;
     param.work              = work_buffer;
@@ -238,7 +275,7 @@ void keyboardsystem_open_keyboard(void) {
     // 4) Open the on-screen keyboard
     int res = sceImeOpen(&param);
     if (res < 0) {
-        sceClibPrintf("Could not open the IME: 0x%08X\n", res);
+        LOGW("input", "on-screen keyboard did not open (0x%08X)", (unsigned)res);
         _keyboard_overlay_open = false;
         return;
     }
@@ -261,10 +298,12 @@ void keyboardsystem_open_keyboard(void) {
         }
         int status = sceImeUpdate();
         if (status < 0) {
-            sceClibPrintf("[IME] Keyboard closed\n");
+            vita_debug_log("[IME] keyboard closed");
             break;
         }
-        sceKernelDelayThread(1000); // wait 1 ms
+        // 8 ms (125 updates a second) is plenty for typing; this runs on the
+        // input thread, on the display thread's core, while the stream goes on.
+        sceKernelDelayThread(8000);
     }
     // Mark the overlay closed when leaving the loop
     _keyboard_overlay_open = false;

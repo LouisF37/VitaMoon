@@ -45,7 +45,7 @@ Architecture rework tested on a Vita, plus a relay mode for play over the intern
 | Defaults 30 fps, 4 Mbps, 1200-byte packets | no | not measured; 30 fps and lower bitrates stay available |
 | Relay mode (TLS over TCP through a PC companion) | no | for play outside the home network |
 | Relative trackpad, four rear-touch zones, START + Right display switching | not yet | desktop use |
-| Fixed 64 KiB log buffer | not yet | only matters with the debug log on |
+| Fixed 64 KiB log buffer | yes, reworked | 64 KiB ring written by a low-priority thread, always on (`src/log.c`) |
 
 ## alex4580/vita-moonlight
 
@@ -69,8 +69,8 @@ streaming code.
 | Settings validated against their choices | yes | with alex4580's sanitising |
 | Unsafe PC folder names refused | partly | renaming to "." or ".." refused; other separators already were |
 | PAF interface | no | a different interface technology |
-| Offer to quit the running game and launch another | not yet | the library only allows the running game today |
-| Text typed with the system keyboard sent as UTF-8 | not yet | |
+| Offer to quit the running game and launch another | yes | library: confirm, then quit and start |
+| Text typed with the system keyboard sent as UTF-8 | yes | keyboard layout *Text, any PC layout*, the default for new settings |
 | Motion units corrected (rad/s to deg/s, g to m/s²) | not yet | our scaling and axes are the original ones: to check on a Vita before changing |
 
 ## Others
@@ -79,5 +79,24 @@ streaming code.
   the background (battery) and a Bluetooth keyboard; that source is not in the public repository.
   Not taken.
 - **MetalfaceScout / AorsiniYT vita-moonlight-motion**: motion controls, already in xyzz 0.13.2.
-- **VitaRPS5** (PS5 Remote Play, not Moonlight): decoder catch-up, input thread priority, output
-  buffer rotation and interface ideas were taken earlier.
+- **VitaRPS5** (PS5 Remote Play, not Moonlight): see below.
+
+## VitaRPS5 (mauricio-gg/vitaki-vitarps5)
+
+A PS5 Remote Play client for the Vita (Chiaki's protocol, not Moonlight's), compared on 16 November
+2026 at commit e0a2fe8. Its protocol, PSN sign-in and microphone have no Moonlight counterpart; the
+rest was read for what a Vita client needs whatever the protocol.
+
+| Item | In Lune | Notes |
+|---|---|---|
+| Decoder catch-up, input thread priority, output buffer rotation | yes | taken earlier |
+| 8 MiB network memory pool (4 MiB ran out under load) | yes | `src/main.c` |
+| Reconnection after a lost stream, with an overlay | yes | `src/reconnect.h`, `ui_connect.c` |
+| Wi-Fi power saving and Bluetooth warnings | yes | home screen |
+| Colour themes | yes, own palettes | five themes |
+| Log written from a queue by its own thread, per-run files, drop counters | yes, reworked | a byte ring with no allocation per line, levels, token buckets, repeat folding, the four previous runs kept |
+| Time per stream stage, settings and device state in the log | yes | `stream` and `system` lines |
+| Delay probes: decoder hold, receive backlog, audio gaps, presentation order | mostly | Lune's per-second CSV has decoder hold, receive and queue times, audio buffer and gaps, late and repeated frames |
+| Button-press-to-picture meter (`PIPE/PRESS`: matches a press to the next big frame) | not yet | worth adding: the only end-to-end measure of the delay a player feels; needs care (quiet screen, ambiguous matches), as its own documentation shows |
+| Microphone, PSN, console wake-up over the Internet | no | not in the Moonlight protocol, or done by Sunshine |
+| Latency presets that change several settings at once | yes | *Profile* (Smooth, Paced, Lowest latency, Original) |

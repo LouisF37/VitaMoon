@@ -3,6 +3,7 @@
  * in quickmenu_logic.h. The input thread owns the state; the display thread
  * only reads the copy published after each sample.
  */
+#include "../log.h"
 #include "quickmenu.h"
 #include "quickmenu_logic.h"
 #include "theme.h"
@@ -49,29 +50,29 @@ void quickmenu_reset(void) {
 bool quickmenu_handle_input(uint32_t buttons) {
   if (!st.open && !st.wait_release && qm_combo(buttons)) {
     qm_open(&st, buttons);
-    vita_debug_log("[QUICKMENU] opened");
+    LOGI("menu", "quick menu opened");
   }
   if (st.open) {
     qm_action action = qm_input(&st, buttons, config.btn_confirm, config.btn_cancel);
     publish();
     switch (action) {
       case QM_ACT_CLOSE:
-        vita_debug_log("[QUICKMENU] back to the game");
+        LOGI("menu", "quick menu: back to the game");
         break;
       case QM_ACT_TOGGLE_STATS:
         config.show_fps = !config.show_fps;
         config_changed = true;
         break;
       case QM_ACT_KEYBOARD:
-        vita_debug_log("[QUICKMENU] keyboard");
+        LOGI("menu", "quick menu: keyboard");
         keyboardsystem_open_keyboard();
         break;
       case QM_ACT_PAUSE:
-        vita_debug_log("[QUICKMENU] pause");
+        LOGI("menu", "quick menu: pause");
         connection_minimize();
         break;
       case QM_ACT_QUIT:
-        vita_debug_log("[QUICKMENU] quit the game");
+        LOGI("menu", "quick menu: quit the game");
         quit_request = true;
         connection_minimize();
         break;

@@ -139,7 +139,8 @@ int main(void) {
   write_text("width = 5000\nheight = 10\nfps = 240\nbitrate = 900000\ndisplay_mode = 9\n"
              "touchscreen_mode = -2\ncontroller_type = 0\nmouse_acceleration = 4000\n"
              "motion_controls_scalar_x = nan\nmotion_controls_scalar_y = 99\n"
-             "double_tap_sprint_step_time = 5\nlanguage = 7\npacket_size = 1300\ntheme = 9\n");
+             "double_tap_sprint_step_time = 5\nlanguage = 7\npacket_size = 1300\ntheme = 9\n"
+             "keyboard_layout = 12\n");
   config_file_parse((char *)k_file, &c);
   config_sanitize(&c);
   CHECK(c.stream.width == 960 && c.stream.height == 544, "sanitize: resolution back to 960x544");
@@ -153,6 +154,7 @@ int main(void) {
   CHECK(c.double_tap_sprint_step_time == 200, "sanitize: sprint tap time");
   CHECK(c.language == 0, "sanitize: unknown language back to English");
   CHECK(c.theme == 0, "sanitize: unknown theme back to Night");
+  CHECK(c.keyboard_layout == CONFIG_KEYBOARD_TEXT, "sanitize: unknown keyboard layout back to text");
   CHECK(c.stream.packetSize == 1300, "sanitize: a valid packet size is kept");
   CONFIGURATION good = sample();
   CONFIGURATION copy = good;

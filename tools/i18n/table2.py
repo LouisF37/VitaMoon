@@ -105,10 +105,10 @@ T2 = {
 "The screen does not dim and the Vita does not go to sleep during a stream.":
     ("L'écran ne s'assombrit pas et la Vita ne se met pas en veille pendant un stream.",
      "La pantalla no se atenúa y la Vita no entra en reposo durante un stream."),
-"Save a debug log": ("Enregistrer un journal de débogage", "Guardar un registro de depuración"),
-"Detailed log in Lune's folder. It slows the stream down: for troubleshooting only.":
-    ("Journal détaillé dans le dossier de Lune. Il ralentit le stream" + NB + ": à réserver au dépannage.",
-     "Registro detallado en la carpeta de Lune. Ralentiza el stream: solo para diagnosticar."),
+"Detailed log": ("Journal détaillé", "Registro detallado"),
+"Adds every detail to lune.log, which always keeps the main events. For troubleshooting.":
+    ("Ajoute tous les détails à lune.log, qui garde toujours les événements principaux. Pour le dépannage.",
+     "Añade todos los detalles a lune.log, que siempre guarda los eventos principales. Para diagnosticar."),
 
 # --- settings: Video ---
 "960 x 544 is the Vita screen itself: the sharpest picture and the lightest stream.":
@@ -246,10 +246,10 @@ T2 = {
 "Recovers from lost frames without a key frame. NVIDIA hosts only: leave off otherwise.":
     ("Récupère après des images perdues sans image clé. Hôtes NVIDIA uniquement" + NB + ": sinon, laisser sur Non.",
      "Se recupera de imágenes perdidas sin imagen clave. Solo hosts NVIDIA: en otro caso, déjalo en No."),
-"Let the PC adjust game settings": ("Laisser le PC régler les jeux", "Dejar que el PC ajuste los juegos"),
-"GeForce Experience only: the PC changes the game's graphics settings for the stream.":
-    ("GeForce Experience uniquement" + NB + ": le PC modifie les réglages graphiques du jeu pour le stream.",
-     "Solo GeForce Experience: el PC cambia los ajustes gráficos del juego para el stream."),
+"Let the PC adapt its screen": ("Laisser le PC adapter son écran", "Dejar que el PC adapte su pantalla"),
+"Sunshine can switch the PC screen to the stream's resolution (Display device options).":
+    ("Sunshine peut passer l'écran du PC à la résolution du stream (options des périphériques d'affichage).",
+     "Sunshine puede poner la pantalla del PC a la resolución del stream (opciones de dispositivos de pantalla)."),
 "Frame pacer": ("Cadenceur d'images", "Regulador de imágenes"),
 "Original frame pacing. Only used by the Direct display.":
     ("Cadencement d'origine. Utilisé seulement par l'affichage Direct.",
@@ -384,4 +384,11 @@ T2 = {
 "Quit the game? Press again.": ("Quitter le jeu" + NB + "? Appuyez à nouveau.", "¿Cerrar el juego? Pulsa otra vez."),
 "START + Left": ("START + Gauche", "START + Izquierda"),
 "Game": ("Jeu", "Juego"),
+"%s is running on the PC.\\nQuit it and start %s?":
+    ("%s est en cours sur le PC.\\nLe quitter et lancer %s" + NB + "?",
+     "%s se está ejecutando en el PC.\\n¿Cerrarlo e iniciar %s?"),
+"Text, any PC layout": ("Texte, tout clavier de PC", "Texto, cualquier teclado"),
+"Text: characters arrive as typed, whatever the PC keyboard. Or the PC's layout, for games that read keys.":
+    ("Texte" + NB + ": les caractères arrivent tels quels, quel que soit le clavier du PC. Ou la disposition du PC, pour les jeux qui lisent les touches.",
+     "Texto: los caracteres llegan tal cual, sea cual sea el teclado del PC. O la distribución del PC, para juegos que leen las teclas."),
 }

@@ -15,6 +15,9 @@ typedef enum {
     KB_LAYOUT_EN_US = 0,
     KB_LAYOUT_ES_ES,
     KB_LAYOUT_ES_LATAM,
+    // Characters sent as text (UTF-8), typed on the PC whatever its keyboard
+    // layout; keys such as Enter or Backspace are still sent as keys.
+    KB_LAYOUT_TEXT,
     KB_LAYOUT_COUNT
 } KeyboardLayout;
 

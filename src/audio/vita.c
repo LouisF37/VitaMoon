@@ -17,6 +17,7 @@
  * along with Moonlight; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../log.h"
 #include "../audio.h"
 #include "../config.h"
 #include "../debug.h"
@@ -252,7 +253,7 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
   // overflow their buffers. The stream is always set up as stereo
   // (config.c), so this only guards against a future change there.
   if (opusConfig->channelCount != 2) {
-    vita_debug_log("audio: %d channels, only stereo is supported\n", opusConfig->channelCount);
+    LOGE("audio", "%d channels: only stereo is supported", opusConfig->channelCount);
     return VITA_AUDIO_ERROR_BAD_OPUS;
   }
   decoder = opus_multistream_decoder_create(opusConfig->sampleRate,
@@ -263,6 +264,7 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
                                             &rc);
 
   if (rc < 0) {
+      LOGE("audio", "Opus decoder not created (%d)", rc);
       return VITA_AUDIO_ERROR_BAD_OPUS;
   }
 
@@ -275,7 +277,7 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
   // Classic mode fills 20 ms blocks with whole packets: the packet length must
   // divide 960 frames (5, 10 and 20 ms packets do).
   if (!ll_mode && (VITA_SAMPLES % samples_per_frame) != 0) {
-    vita_debug_log("audio: %d-frame packets do not fit 20 ms blocks\n", samples_per_frame);
+    LOGW("audio", "%d-sample packets do not fit 20 ms blocks", samples_per_frame);
     opus_multistream_decoder_destroy(decoder);
     decoder = NULL;
     return VITA_AUDIO_ERROR_BAD_OPUS;
@@ -284,6 +286,7 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
                              48000, SCE_AUDIO_OUT_MODE_STEREO);
 
   if (port < 0) {
+      LOGE("audio", "audio output port refused (0x%x)", (unsigned)port);
       vita_renderer_cleanup();
       return VITA_AUDIO_ERROR_PORT;
   }
@@ -297,14 +300,16 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
       sceKernelStartThread(ll_thread, 0, NULL);
     } else {
       // Could not start the output thread: fall back to the classic mode.
-      vita_debug_log("audio: output thread failed (0x%x), classic mode\n", ll_thread);
+      LOGW("audio", "output thread not created (0x%x): classic sound instead", (unsigned)ll_thread);
       ll_running = false;
       ll_mode = false;
       sceAudioOutSetConfig(port, VITA_SAMPLES, -1, (SceAudioOutMode)-1);
     }
   }
 
-  vita_debug_log("open port 0x%x, low latency %d\n", port, ll_mode);
+  LOGI("audio", "%d Hz, %d channels, %d-sample packets (%.1f ms), %s", opusConfig->sampleRate,
+       opusConfig->channelCount, samples_per_frame, samples_per_frame * 1000.0 / opusConfig->sampleRate,
+       ll_mode ? "low-latency output (5.33 ms blocks, adaptive buffer)" : "classic output (20 ms blocks)");
   return VITA_AUDIO_INIT_OK;
 }
 
@@ -314,7 +319,7 @@ static void ll_queue_packet(char* data, int length) {
                : opus_multistream_decode(decoder, NULL, 0, ll_packet, samples_per_frame, 0);
   stream_stats_on_audio_packet(data != NULL && n > 0);
   if (n <= 0) {
-    vita_debug_log("Opus error from decode: %d\n", n);
+    LOGW("audio", "Opus decode error %d", n);
     return;
   }
   uint32_t head = ll_head;
@@ -372,7 +377,7 @@ static void vita_renderer_decode_and_play_sample(char* data, int length) {
       }
     }
   } else {
-    vita_debug_log("Opus error from decode: %d\n", decodeLen);
+    LOGW("audio", "Opus decode error %d", decodeLen);
   }
 }
 

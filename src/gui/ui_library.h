@@ -19,6 +19,7 @@ enum {
   LIBRARY_OPTIONS,      /* triangle: classic menu (pairing, disconnect, ...) */
   LIBRARY_QUIT_APP,     /* square: quit the game running on the host */
   LIBRARY_SETTINGS,     /* start: settings */
+  LIBRARY_SWITCH,       /* another game runs: quit it, then start *app_id */
 };
 
 int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *app_id);

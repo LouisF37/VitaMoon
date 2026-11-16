@@ -1,7 +1,7 @@
 #!/bin/bash
 # PC-side tests of the parts of the app that do not need a Vita: pacing of
 # the "Paced" display, settings file, SPS rewrite, URL encoding, session
-# percentiles.
+# percentiles, quick menu, log ring.
 # Built with AddressSanitizer and UBSan.
 #   VITASDK=/path/to/vitasdk tools/tests/run.sh
 set -e
@@ -25,6 +25,7 @@ $cc -w -fcommon -D__vita__ -I"$here" -I"$out/inc" -I"$root/src" -I"$root/third_p
     "$root/third_party/inih/ini.c" -o "$out/test_config"
 
 $cc -I"$here" -I"$out/inc" -I"$root/src/gui" "$here/test_quickmenu.c" -o "$out/test_quickmenu"
+$cc -I"$here" -I"$root/src" "$here/test_log.c" "$root/src/log_core.c" -o "$out/test_log"
 
 hb="$root/third_party/h264bitstream"
 $cc -w -I"$here" -I"$root/libgamestream" -I"$hb" -I"$root/third_party/moonlight-common-c/src" \
@@ -32,7 +33,7 @@ $cc -w -I"$here" -I"$root/libgamestream" -I"$hb" -I"$root/third_party/moonlight-
     -o "$out/test_sps"
 
 status=0
-for t in test_pacing test_misc test_config test_sps test_quickmenu; do
+for t in test_pacing test_misc test_config test_sps test_quickmenu test_log; do
   "$out/$t" || status=1
 done
 if [ $status -eq 0 ]; then echo "all tests passed"; else echo "SOME TESTS FAILED"; fi

@@ -18,6 +18,28 @@ milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELE
 - Five colour themes for the menus, *Settings > General > Theme*: Night (the former look), Dawn,
   Aurora, Twilight, Eclipse; each with its own background. The idea of a few presets comes from
   VitaRPS5; the palettes are Lune's own (`src/gui/theme.c`, `tools/make_background.py`).
+- A log on every run, `ux0:data/lune/lune.log` (the four previous runs kept as `lune.1.log` to
+  `lune.4.log`): start-up and device state, each PC and its Sunshine version, each stream (settings,
+  timed start stages, video, audio and controller set-up, how and when it ended), reconnections, quick
+  menu, errors, and one health line per minute of play. Lines are written by a low-priority thread
+  from a memory ring, so no stream thread waits for the memory card; repeated lines are folded and
+  floods bounded (`src/log.c`, pure part tested on a PC). VitaRPS5 also writes its log from a queue.
+- Starting a game while another runs on the PC now offers to quit that one and start the new one,
+  instead of asking to quit it first (NowaLone/vita-moonlight).
+- Keyboard layout *Text, any PC layout*, the default for new settings: what is typed on the Vita's
+  keyboard is sent as characters (UTF-8), so it arrives right whatever the PC's keyboard layout (a US
+  key position on a French AZERTY PC gave another letter). The PC layouts stay for games that read
+  keys (NowaLone/vita-moonlight sends text too).
+
+### Changed
+
+- *Save a debug log* becomes *Detailed log*: it adds the detail lines to the log, which is always
+  written, and no longer slows the stream (the old one wrote each line to the card from the thread
+  that logged it).
+- *Let the PC adjust game settings* becomes *Let the PC adapt its screen*: with Sunshine, this option
+  ("Optimize game settings" in Moonlight) is what lets the PC switch its screen to the stream's
+  resolution; the old help said it only mattered for GeForce Experience.
+- HTTP requests are logged without their query, which holds the client's identifiers and the stream key.
 
 ## 1.0.0-beta.1 "Nouvelle Lune" (2026-11-15)
 

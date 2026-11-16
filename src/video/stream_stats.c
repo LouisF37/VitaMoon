@@ -13,6 +13,7 @@
 #include "../app_info.h"
 #include "../config.h"
 #include "../debug.h"
+#include "../log.h"
 #include "../gui/guilib.h"
 #include "../gui/theme.h"
 #include "../power/vita.h"
@@ -340,6 +341,32 @@ static const char *k_legend =
   "values are below p50, 95 % below p95, 99 % below p99. Intervals between\n"
   "shown frames over 1.5 frame times are frames shown late or repeated.\n";
 
+/* One line in the log each minute of stream: the CSV has every second, the
+ * log keeps the shape of the session (src/log.h). */
+typedef struct {
+  uint32_t seconds, shown, recv, lost, idr, dec_err, late, aud_underrun, poor_s;
+  uint64_t kbps, rtt, host_us, dec_us, r2p_us;
+  uint32_t r2p_max_us;
+  int wifi_min;
+} minute_acc;
+static minute_acc s_min;
+
+static void minute_log(const char *what) {
+  minute_acc *m = &s_min;
+  if (m->seconds == 0)
+    return;
+  uint32_t n = m->seconds;
+  LOGI("health", "%s %u s: %.1f fps shown of %.1f received, %u lost, %u key frames, %u decode errors, %u late, "
+       "%u Mbps, ping %u ms, PC %.1f ms, decode %.1f ms, to screen %.1f ms (max %.1f), sound gaps %u, "
+       "poor link %u s, Wi-Fi min %d %%",
+       what, n, m->shown / (float)n, m->recv / (float)n, m->lost, m->idr, m->dec_err, m->late,
+       (unsigned)((m->kbps / n + 500) / 1000), (unsigned)(m->rtt / n), m->host_us / (float)n / 1000.0f,
+       m->dec_us / (float)n / 1000.0f, m->r2p_us / (float)n / 1000.0f, m->r2p_max_us / 1000.0f,
+       m->aud_underrun, m->poor_s, m->wifi_min);
+  memset(m, 0, sizeof(*m));
+  m->wifi_min = 100;
+}
+
 /* Creates <data>/stats/session-<date>.csv (integers only, ';' separated so that
  * Excel in a French locale opens it with a double click) and session-<date>.txt
  * (settings of the session + column legend). */
@@ -479,6 +506,27 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   SceNetCtlInfo net;
   int wifi_pct = sceNetCtlInetGetInfo(SCE_NETCTL_INFO_GET_RSSI_PERCENTAGE, &net) >= 0 ? (int)net.rssi_percentage : -1;
 
+  s_min.seconds++;
+  s_min.shown += shown;
+  s_min.recv += recv;
+  s_min.lost += lost;
+  s_min.idr += idr;
+  s_min.dec_err += dec_err;
+  s_min.late += late;
+  s_min.aud_underrun += aud_underrun;
+  s_min.poor_s += poor ? 1 : 0;
+  s_min.kbps += kbps;
+  s_min.rtt += rtt;
+  s_min.host_us += host.avg;
+  s_min.dec_us += dec.avg;
+  s_min.r2p_us += r2p.avg;
+  if (r2p.max > s_min.r2p_max_us)
+    s_min.r2p_max_us = r2p.max;
+  if (wifi_pct >= 0 && wifi_pct < s_min.wifi_min)
+    s_min.wifi_min = wifi_pct;
+  if (s_min.seconds >= 60)
+    minute_log("last");
+
   /* One CSV line: integers only, so no decimal-separator issue in Excel. */
   char line[768];
   snprintf(line, sizeof(line),
@@ -585,7 +633,11 @@ void stream_stats_session_start(int width, int height, int fps) {
   s_width = width;
   s_height = height;
   s_fps = fps;
+  memset(&s_min, 0, sizeof(s_min));
+  s_min.wifi_min = 100;
   open_session_files();
+  if (s_info_path[0])
+    LOGI("stats", "this stream's statistics: %s and .csv", s_info_path);
 
   s_running = true;
   pthread_attr_t attr;
@@ -613,6 +665,13 @@ void stream_stats_session_end(void) {
     s_fd = -1;
   }
   s_overlay_valid = false;
+  if (was_running) {
+    minute_log("last");
+    if (sess_ms >= 1000)
+      LOGI("stats", "whole stream %u s: %.1f frames shown a second, %u lost, to screen %.1f ms on average",
+           (unsigned)(sess_ms / 1000), sess_shown * 1000.0f / (float)sess_ms, (unsigned)sess_lost,
+           sess_r2p_n ? (float)(sess_r2p_sum / sess_r2p_n) / 1000.0f : 0.0f);
+  }
 
   /* Percentiles of the whole session, at the end of its description file. */
   if (was_running && s_info_path[0]) {

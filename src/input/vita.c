@@ -17,6 +17,7 @@
  * along with Moonlight; if not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "../log.h"
 #include <psp2common/ctrl.h>
 #include <psp2/shellutil.h>
 #include <stdint.h>
@@ -871,10 +872,10 @@ inline void vitainput_process(void) {
     curr.lx = 128; curr.ly = 128; curr.rx = 128; curr.ry = 128;
     curr.lt = 0;
     curr.rt = 0;
-    vita_debug_log("[VITA.C] Overlay active: keyboard OPEN, input blocked (sticks centred, no empty frame sent)");
+    LOGI("input", "on-screen keyboard open: controls held");
     keyboard_overlay_active = true;
   } else if (!keyboard_now && keyboard_overlay_active) {
-    vita_debug_log("[VITA.C] Keyboard CLOSED: snapshot restored (no empty frame sent)");
+    LOGI("input", "on-screen keyboard closed");
     memcpy(&pad, &pad_snapshot, sizeof(SceCtrlData));
     memcpy(&curr, &curr_snapshot, sizeof(input_data));
     keyboard_overlay_active = false;
@@ -1115,7 +1116,12 @@ void vitainput_start(void) {
     case 4: controller_type = LI_CTYPE_UNKNOWN; break;
     default: controller_type = LI_CTYPE_PS; break;
   }
-  LiSendControllerArrivalEvent(0, gamepadMask, controller_type, gamepadSupportedButtonFlags, gamepadCapabilites);
+  int arrival = LiSendControllerArrivalEvent(0, gamepadMask, controller_type, gamepadSupportedButtonFlags, gamepadCapabilites);
+  LOGI("input", "controller announced as %s (%d), motion sensors %s, front touch mode %d, PS button %s",
+       controller_type == LI_CTYPE_XBOX ? "Xbox" : controller_type == LI_CTYPE_PS ? "PlayStation"
+       : controller_type == LI_CTYPE_NINTENDO ? "Nintendo" : "unknown", arrival,
+       config.enable_motion_controls ? "on" : "off", config.touchscreen_mode,
+       config.enable_psbutton_capture ? "sent to the PC" : "kept by the Vita");
 
   LiSendControllerBatteryEvent(0, LI_BATTERY_STATE_FULL, 100);
 

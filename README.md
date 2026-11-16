@@ -60,7 +60,10 @@ measurements).</sub>
   with the battery and the clock, without leaving the game.
 - **Controls**: Xbox or PlayStation layout, rear touch, front touch as DS4 touchpad, mouse or tablet,
   motion controls, on-screen keyboard, button mapping files, PS button forwarding.
-- Wake-on-LAN, restart of the stream from the pause menu when a setting needs it.
+- Wake-on-LAN, restart of the stream from the pause menu when a setting needs it, quit-and-start
+  when another game runs on the PC, typing as text whatever the PC's keyboard layout.
+- **Log** on every run, with the main events and a health line per minute of play, written without
+  slowing the stream.
 - Automatic reconnection after a Wi-Fi drop or a sleep of the Vita, back into the same game.
 
 ## Requirements
@@ -119,7 +122,8 @@ The French user and test guide, with every option and the test plan, is in
 
 - Each stream writes `ux0:data/lune/stats/session-<date>.csv` and `.txt`: the files to attach to
   a bug report, with the build shown at the bottom left of the home screen.
-- *Settings > General > Save a debug log* writes `ux0:data/lune/lune.log`.
+- Every run writes `ux0:data/lune/lune.log` (the four previous runs: `lune.1.log` to `lune.4.log`):
+  attach it too. *Settings > General > Detailed log* adds every detail line.
 - A crash leaves `ux0:data/psp2core-*.psp2dmp`; `tools/dev/crash-dump.sh` decodes it.
 - Bugs and ideas: [Issues](../../issues).
 

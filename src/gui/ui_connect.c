@@ -16,6 +16,7 @@
 #include "../util.h"
 #include "../device.h"
 #include "../debug.h"
+#include "../log.h"
 
 #include "client.h"
 #include "http.h"
@@ -101,7 +102,15 @@ static int host_open(const char *name, char *address, uint16_t port) {
   vitapower_busy_end();
   if (ret == GS_UNSUPPORTED_VERSION && config.unsupported_version)
     ret = GS_OK;
-  vita_debug_log("[CONNECT] %s (%s:%d): status %d", name, address, port, ret);
+  if (ret == GS_OK) {
+    LOGI("host", "%s at %s:%d: %s %s, GPU %s, %s, game running %d, codecs 0x%x, MAC %s", name, address, port,
+         server.isNvidiaSoftware ? "GeForce Experience" : "Sunshine",
+         server.serverInfo.serverInfoAppVersion ? server.serverInfo.serverInfoAppVersion : "?",
+         server.gpuType ? server.gpuType : "?", server.paired ? "paired" : "not paired", server.currentGame,
+         (unsigned)server.serverInfo.serverCodecModeSupport, server.mac[0] ? server.mac : "unknown");
+  } else {
+    LOGW("host", "%s at %s:%d: no usable answer (%d) %s", name, address, port, ret, gs_error ? gs_error : "");
+  }
   return ret;
 }
 
@@ -149,14 +158,23 @@ static bool start_settings_changed(void) {
  * Returns 0 when the stream runs; on failure, explains it on screen when
  * report_errors is set (a reconnection retries quietly instead). */
 static int start_stream(int appId, bool report_errors) {
-  // TODO support force controller id
-  vita_debug_log("Running gs_start_app...");
+  const SceUInt64 began = sceKernelGetProcessTimeWide();
+  LOGI("stream", "%s app %d: %dx%d at %d fps, %d kbps%s, packets %d bytes, %s, adapt the PC screen %d, sound on the PC %d",
+       server.currentGame == appId ? "resuming" : "launching", appId, config.stream.width, config.stream.height,
+       config.stream.fps, config.stream.bitrate, config.auto_bitrate ? " (auto)" : "", config.stream.packetSize,
+       config.stream.streamingRemotely == STREAM_CFG_REMOTE ? "Internet" : "home network", config.sops, config.localaudio);
+  LOGI("stream", "display mode %d, low-latency sound %d, decoder catch-up %d, fast colour %d, reorder wait %d ms, "
+       "cores %d, controls in step %d, clocks %d, reference frame invalidation %d, controller type %d, touch mode %d",
+       config.display_mode, config.low_latency_audio, config.decoder_catchup, config.decode_yuv,
+       config.video_reorder_wait_ms, config.thread_pinning, config.input_sync, config.boost_clocks,
+       config.enable_ref_frame_invalidation, config.controller_type, config.touchscreen_mode);
+  log_system_state("before the stream");
   // Clocks up from the launch request to the end of the stream setup (RTSP).
   vitapower_busy_begin();
   int ret = gs_start_app(&server, &config.stream, appId, config.sops, config.localaudio, 1);
   if (ret < 0) {
     vitapower_busy_end();
-    vita_debug_log("gs_start_app failed: %d (%s)", ret, gs_error ? gs_error : "");
+    LOGE("stream", "the PC refused to start the app: %d %s", ret, gs_error ? gs_error : "");
     if (!report_errors)
       return ret;
     if (ret == GS_NOT_SUPPORTED_4K)
@@ -169,7 +187,7 @@ static int start_stream(int appId, bool report_errors) {
 
     return ret;
   }
-  vita_debug_log("App started.");
+  LOGI("stream", "the PC started the app in %u ms", (unsigned)((sceKernelGetProcessTimeWide() - began) / 1000));
 
   enum platform system = VITA;
   int drFlags = 0;
@@ -205,12 +223,12 @@ static int start_stream(int appId, bool report_errors) {
           config.stream.clientRefreshRateX100 = (int)(target * 100.0f + 0.5f);
       }
     }
-    vita_debug_log("screen %.4f Hz -> clientRefreshRateX100 = %d\n", screen_hz, config.stream.clientRefreshRateX100);
+    LOGI("stream", "Vita screen %.4f Hz: rate sent to the PC %d (x100, 0 = not sent)", screen_hz,
+         config.stream.clientRefreshRateX100);
   }
 
   stream_stats_set_app(appId);
   read_start_settings(&started_with, orig_width, orig_height);
-  vita_debug_log("Running LiStartConnection...");
   // Wait for late video packets before giving a frame up (juanjsebgarcia's
   // reorder window, third_party/patches/moonlight-common-c).
   LiSetVideoReorderWaitUs((uint32_t)(config.video_reorder_wait_ms > 0 ? config.video_reorder_wait_ms : 0) * 1000);
@@ -218,7 +236,6 @@ static int start_stream(int appId, bool report_errors) {
                           video_callback, platform_get_audio(system),
                           NULL, drFlags, NULL, 0);
   vitapower_busy_end();
-  vita_debug_log("Connection started.");
 
   // Restore the requested resolution
   config.stream.width = orig_width;
@@ -226,9 +243,10 @@ static int start_stream(int appId, bool report_errors) {
 
   if (ret == 0) {
     server.currentGame = appId;
+    LOGI("stream", "started in %u ms", (unsigned)((sceKernelGetProcessTimeWide() - began) / 1000));
     return 0;
   }
-  vita_debug_log("LiStartConnection failed at %s: %d", LiGetStageName(connection_stage), ret);
+  LOGE("stream", "could not start: step %s, error %d", LiGetStageName(connection_stage), ret);
   if (report_errors)
     display_error(tr("The stream could not start.\nFailed step: %s (error %d)"),
                   LiGetStageName(connection_stage), ret);
@@ -261,16 +279,22 @@ typedef enum { RECONNECTED, RECONNECT_CANCELLED, RECONNECT_FAILED } reconnect_re
  * which resumes it. Tries every RECONNECT_RETRY_MS for RECONNECT_GIVE_UP_MS,
  * until the user cancels. */
 static reconnect_result reconnect_stream(int id) {
-  vita_debug_log("[CONNECT] stream lost (error %d): reconnecting", connection_last_error());
+  LOGW("reconn", "stream lost (%s, code %d): reconnecting", connection_error_name(connection_last_error()),
+       connection_last_error());
   const SceUInt64 start = sceKernelGetProcessTimeWide();
   // The first try waits a moment: the PC has to notice that the old stream is gone.
   SceUInt64 next_try = start + 1000 * 1000ULL;
   int attempt = 0;
   char message[256];
   read_buttons();   // a button held from the game does not count as a press
+  bool wifi_logged = true;
 
   while (sceKernelGetProcessTimeWide() - start < RECONNECT_GIVE_UP_MS * 1000ULL) {
     bool wifi = wifi_connected();
+    if (wifi != wifi_logged) {
+      LOGI("reconn", "Wi-Fi %s", wifi ? "back" : "not connected");
+      wifi_logged = wifi;
+    }
     if (wifi && attempt > 0)
       snprintf(message, sizeof(message), tr("Connection lost.\nReconnecting to %s (try %d)..."),
                connected_host_name, attempt);
@@ -282,25 +306,27 @@ static reconnect_result reconnect_stream(int id) {
 
     int buttons = read_buttons();
     if ((buttons & config.btn_cancel) && !(buttons & SCE_CTRL_HOLD)) {
-      vita_debug_log("[CONNECT] reconnection cancelled after %d tries", attempt);
+      LOGI("reconn", "cancelled after %d tries", attempt);
       return RECONNECT_CANCELLED;
     }
 
     if (wifi && sceKernelGetProcessTimeWide() >= next_try) {
       attempt++;
-      vita_debug_log("[CONNECT] reconnection, try %d", attempt);
+      LOGI("reconn", "try %d, %u ms after the loss", attempt,
+           (unsigned)((sceKernelGetProcessTimeWide() - start) / 1000));
       if (connection_get_status() == LI_DISCONNECTED)
         connection_reset();
       connection_paired();
       if (start_stream(id, false) == 0) {
-        vita_debug_log("[CONNECT] reconnected after %d tries", attempt);
+        LOGI("reconn", "reconnected after %d tries, %u ms after the loss", attempt,
+             (unsigned)((sceKernelGetProcessTimeWide() - start) / 1000));
         return RECONNECTED;
       }
       next_try = sceKernelGetProcessTimeWide() + RECONNECT_RETRY_MS * 1000ULL;
     }
     sceKernelDelayThread(100 * 1000);
   }
-  vita_debug_log("[CONNECT] reconnection failed after %d tries", attempt);
+  LOGW("reconn", "gave up after %d tries", attempt);
   return RECONNECT_FAILED;
 }
 
@@ -330,7 +356,7 @@ static int ui_launch_app(int id) {
     // Settings that apply to a new stream changed during the pause: end this
     // stream (the game keeps running on the PC) and start a new one.
     flash_message(tr("Restarting the stream..."));
-    vita_debug_log("[CONNECT] restarting the stream to apply new settings");
+    LOGI("stream", "restarting the stream to apply new settings");
     connection_terminate();
     sceKernelDelayThread(1000 * 1000);
     connection_reset();
@@ -357,7 +383,7 @@ static int ui_launch_app(int id) {
       break;
     unsigned ran_ms = (unsigned)((sceKernelGetProcessTimeWide() - began) / 1000);
     if (!reconnect_should_retry(&quick_losses, ran_ms)) {
-      vita_debug_log("[CONNECT] stream lost %d times soon after starting: no more reconnection", quick_losses);
+      LOGW("reconn", "stream lost %d times soon after starting: no more reconnection", quick_losses);
       display_error(tr("The connection keeps dropping.\nThe game should still be running on the PC: connect again to resume it."));
       break;
     }
@@ -401,6 +427,8 @@ static int ui_quit_app(void) {
   vitapower_busy_begin();
   int ret = gs_quit_app(&server);
   vitapower_busy_end();
+  log_write(ret == GS_OK ? LOG_INFO : LOG_ERROR, "host", "quit the game: %s (%d) %s",
+            ret == GS_OK ? "done" : "failed", ret, ret == GS_OK || !gs_error ? "" : gs_error);
   if (ret == GS_OK) {
     connection_paired();
     server.currentGame = 0;
@@ -420,11 +448,12 @@ static int pair_with_code(const char *host_name) {
   char url[320];
   snprintf(url, sizeof(url), "https://%s:%d", server.serverInfo.address, server.httpPort + 1);
   flash_pairing_code(host_name, pin, url);
-  vita_debug_log("[PAIR] waiting for the code to be typed on the PC");
+  LOGI("pair", "%s: waiting for the code to be typed on the PC", host_name);
   vitapower_busy_begin();
   int ret = gs_pair(&server, pin);
   vitapower_busy_end();
-  vita_debug_log("[PAIR] gs_pair returned %d", ret);
+  log_write(ret == GS_OK ? LOG_INFO : LOG_ERROR, "pair", "%s: %s (%d) %s", host_name,
+            ret == GS_OK ? "paired" : "failed", ret, ret == GS_OK || !gs_error ? "" : gs_error);
   if (ret != GS_OK)
     display_error(tr("Pairing failed (error %d).\n%s\nCheck the code typed on the PC, then try again."),
                   ret, gs_error ? gs_error : "");
@@ -437,9 +466,9 @@ static void remember_pairing(device_info_t *dev) {
   char mac[18] = {0};
   if (gs_get_server_mac(&server, mac, sizeof(mac)) == GS_OK && mac[0]) {
     snprintf(dev->mac, sizeof(dev->mac), "%s", mac);
-    vita_debug_log("[PAIR] MAC saved for %s: %s", dev->name, dev->mac);
+    LOGI("pair", "MAC saved for %s: %s", dev->name, dev->mac);
   } else {
-    vita_debug_log("[PAIR] the PC did not report a MAC");
+    LOGI("pair", "the PC did not report a MAC (no Wake-on-LAN)");
   }
   save_device_info(dev);
 }
@@ -499,6 +528,7 @@ int ui_connected_menu() {
     ret = gs_applist(&server, &server_applist);
     vitapower_busy_end();
     if (ret != GS_OK) {
+      LOGE("host", "game list: error %d %s", ret, gs_error ? gs_error : "");
       display_error(tr("Could not get the list of games (error %d).\n%s"), ret, gs_error ? gs_error : "");
       return 0;
     }
@@ -525,6 +555,11 @@ int ui_connected_menu() {
         return ui_launch_app(app_id);
       case LIBRARY_QUIT_APP:
         ui_quit_app();
+        return QUIT_RELOAD;
+      case LIBRARY_SWITCH:
+        LOGI("host", "switching from app %d to app %d", server.currentGame, app_id);
+        if (ui_quit_app() == QUIT_RELOAD && connection_get_status() == LI_PAIRED)
+          return ui_launch_app(app_id);
         return QUIT_RELOAD;
       case LIBRARY_SETTINGS:
         ui_settings_menu();

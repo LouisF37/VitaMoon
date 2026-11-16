@@ -162,10 +162,17 @@ avec le Wi-Fi (juanjsebgarcia : pertes d'images d'environ 50 par minute à 0 ave
 Bluetooth coupé). Lune lit ces deux réglages et affiche un avertissement sur l'accueil s'il les
 trouve activés (lecture du registre non encore vérifiée sur console).
 
-**Sunshine** (interface web : `https://localhost:47990`).
-- `minimum_fps_target` = 60 : cadence régulière, même quand l'image bouge peu.
-- `lan_encryption_mode` = 0 (valeur par défaut) : pas de chiffrement en réseau local.
-- À tester ensuite, un par un : `qsv_preset` = veryfast, `qsv_coder` = cavlc, `fec_percentage` = 30 si des images sont perdues.
+**Sunshine** (interface web : `https://localhost:47990`), en résumé ; le pas-à-pas complet est dans le
+tutoriel Sunshine fourni avec cette version.
+- Installer **ViGEmBus** (1.17 ou plus récent), puis *Input* > *Pilotes de la manette Windows* = ViGEmBus :
+  sans pilote, Sunshine 2026.914 ne crée pas de manette virtuelle.
+- *Input* > *Mapper Retour/Sélection au clic du pavé tactile* : décoché (sinon SELECT appuie aussi sur
+  le pavé de la DualShock 4 virtuelle quand Lune annonce une manette PlayStation).
+- *Audio / Vidéo* > options des périphériques d'affichage : *Vérifier que l'écran est activé*, puis une
+  entrée de remplacement 960x544 → 1280x720 ; côté Lune, *Laisser le PC adapter son écran* activé.
+- *Encodeur Intel QuickSync* > préréglage : la **première** ligne (veryfast ; la traduction donne le
+  même libellé à la deuxième). `cavlc` et `fec_percentage` = 30 restent des essais, un par un.
+- `lan_encryption_mode` = 0 et `minimum_fps_target` = 0 : les valeurs par défaut.
 
 ## Ajouter ses jeux Steam (et PS1) à Sunshine
 
@@ -186,6 +193,12 @@ Pour des jeux PS1 avec DuckStation, ajouter :
 Fichiers reconnus : `.cue`, `.chd`, `.m3u`, `.pbp`. Une image `.png` ou `.jpg` du même nom à côté du jeu sert de jaquette.
 
 ## En cas de problème
+
+Chaque lancement écrit `ux0:data/lune/lune.log` (les quatre précédents : `lune.1.log` à `lune.4.log`) :
+démarrage, PC contactés et version de Sunshine, chaque stream (réglages, étapes chronométrées, fin et
+cause), reconnexions, erreurs, et une ligne de santé par minute de jeu. L'heure des lignes est celle de
+la Vita, pour la rapprocher du journal de Sunshine (*Dépannage* > *Journaux*). *Réglages* > *Général* >
+*Journal détaillé* ajoute tous les détails. Pour un rapport : `lune.log` et les fichiers `stats/session-*`.
 
 - Image saccadée, figée ou absente : profil **Original**. Couleurs fausses : désactiver
   `Décodage rapide des couleurs`.

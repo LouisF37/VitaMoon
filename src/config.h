@@ -51,6 +51,9 @@ struct special_keys {
 
 /* Number of colour themes (THEME_COUNT in src/gui/theme.h, checked there). */
 #define CONFIG_THEME_COUNT 5
+/* Keyboard layouts: KeyboardLayout in input/keyboardkeys.h (checked there). */
+#define CONFIG_KEYBOARD_LAYOUT_COUNT 4
+#define CONFIG_KEYBOARD_TEXT 3
 
 typedef struct _CONFIGURATION {
   // static configuration, value will be saved to config file
@@ -101,13 +104,12 @@ typedef struct _CONFIGURATION {
   uint32_t double_tap_sprint_step_time; //** -IN MILLISECONDS
   float motion_controls_scalar_x;//**
   float motion_controls_scalar_y;// **/
-  FILE *log_file;
   // runtime configuration, value will be recreated at launch
   SceCtrlButtons btn_confirm;
   SceCtrlButtons btn_cancel;
   int pin;
   uint16_t port;
-  int keyboard_layout; // 0=EN_US, 1=ES_ES, 2=ES_LATAM
+  int keyboard_layout; // 0=EN_US, 1=ES_ES, 2=ES_LATAM, 3=text (KeyboardLayout, input/keyboardkeys.h)
   int language; // interface language: LANG_EN / LANG_FR / LANG_ES (see i18n.h)
   int theme;    // colour theme of the menus: THEME_* in src/gui/theme.h
   int touchscreen_mode; // 0=off, 1=DS4, 2=Mouse absoluto, 3=Tableta multitouch

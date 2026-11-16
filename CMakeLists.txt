@@ -96,6 +96,8 @@ add_executable(${PROJECT_NAME}.elf
 	src/input/mapping.c
 	src/connection.c
 	src/debug.c
+	src/log.c
+	src/log_core.c
 	src/main.c
 	src/platform.c
 	src/util.c

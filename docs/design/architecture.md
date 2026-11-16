@@ -9,7 +9,8 @@ Embedded.
 
 | Folder | Content |
 |---|---|
-| `src/main.c` | start-up: data folder, settings, pairing name, network, then the menus |
+| `src/main.c` | start-up: data folder, log, settings, pairing name, network, then the menus |
+| `src/log.c`, `src/log_core.c` | the log: levels, ring, writer thread, budgets (pure part tested on a PC) |
 | `src/app_info.h` | name of the app and of its data folder (package identity: top of `CMakeLists.txt`) |
 | `src/config.c` | settings file `lune.conf`: defaults, reading, sanitising, writing |
 | `src/connection.c` | stream state machine (ready, paired, connected, paused) and moonlight-common-c callbacks |
@@ -48,6 +49,7 @@ them. Priorities: smaller is more urgent; 64 is the highest for applications, 16
 | motion, stats (pthreads) | input/motion.c, stream_stats.c | default | 0 | gyro/accelerometer, statistics once a second |
 | `frame_pacer` | video/vita.c | 0, as in the original code | any | original frame pacer: in direct display mode with *Frame pacer* on, drops frames above the stream rate |
 | `boxart` (pthread) | gui/boxart.c | 176 | any | cover art download, paused while streaming |
+| `log_writer` | log.c | 191 | any | writes the log ring to the memory card, once a second or sooner |
 
 moonlight-common-c calls `LiVitaThreadStarted()` (patch 0003) from each thread it starts, which sets
 the priority and core by thread name (`src/thread_policy.c`). Threads that call into
@@ -103,4 +105,27 @@ Moonlight, which keeps `ux0:data/moonlight`.
 | `stats/session-<date>.csv`, `.txt` | per stream: one line per second, settings and percentiles |
 | `stats/last_<app>.txt` | figures of the last session of each game, for the library |
 | `boxart/<PC>/<app>.cover` | cover art, resized for the library |
-| `lune.log` | debug log, when *Save a debug log* is on |
+| `lune.log`, `lune.1.log` .. `lune.4.log` | the log of this run and of the four before (`src/log.c`) |
+
+## Log
+
+`src/log.c` writes `lune.log` in the data folder on every run; the previous four runs are kept as
+`lune.1.log` (newest) to `lune.4.log`. A line reads `14:03:27.512 I stream  started in 412 ms`: local
+time (to match the PC's Sunshine log), level (E error, W warning, I information, D detail), subject.
+
+- **Normal log** (always): start-up (version, firmware, model, free memory, battery, Wi-Fi), each PC
+  contacted (Sunshine version, GPU, pairing, running game, codecs), each stream (settings, each start
+  stage with its time, video, audio and controller set-up, how it ended and after how long),
+  reconnections, pause and quick menu, errors, moonlight-common-c's own messages, and one *health* line
+  per minute of play (frames, losses, bitrate, ping, PC, decode and display times, sound gaps, Wi-Fi).
+  By design a start-up and a ten-minute game come to about a hundred lines (not yet measured on a Vita).
+- **Detailed log** (*Settings > General > Detailed log*): every debug line of the code and of the
+  HTTP requests (their query, which holds the stream key, is never written).
+
+Callers format the line under a lightweight lock and copy it into a 64 KiB ring (`log_core.c`); the
+low-priority `log_writer` thread puts the ring on the card once a second, at once after an error, and
+reopens the file if a sleep closed it. No stream thread waits for the memory card. Floods are bounded:
+the same line repeated is written once and then counted; each kind of line has a token bucket (a burst,
+then a few lines a second; moonlight-common-c's loss messages 3 a second), and the next line written
+says how many were left out; a full ring drops whole lines and says so; a file stops at 4 MiB.
+

@@ -18,6 +18,7 @@ by CI on every push.
 | `test_sps.c` | the SPS rewrite sets the low-latency hints, stays within the room the renderer keeps, passes anything it cannot parse through unchanged |
 | `test_misc.c` | URL encoding of the pairing name, percentiles of the session summary, the decisions of the automatic reconnection |
 | `test_quickmenu.c` | the in-game quick menu: what opens it, moves in it, acts and closes it, when the game gets its buttons back |
+| `test_log.c` | the log's ring (order, wrap-around, whole lines refused when full), its token buckets (burst, refill, report of the lines left out) and the folding of repeated lines |
 
 ## Interface preview (`tools/ui-preview`)
 

@@ -13,3 +13,4 @@ __pycache__/
 *.whl
 # Address of the Vita for tools/dev
 tools/dev/vita_ip.txt
+tools/tests/out/

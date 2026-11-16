@@ -1,6 +1,7 @@
 /*
  * Thread placement and priorities for streaming. See thread_policy.h.
  */
+#include "log.h"
 #include "thread_policy.h"
 #include "config.h"
 #include "debug.h"
@@ -20,7 +21,7 @@ void thread_place(SceUID thid, int core) {
                                                              : SCE_KERNEL_CPU_MASK_USER_ALL;
   int ret = sceKernelChangeThreadCpuAffinityMask(thid, mask);
   if (ret < 0)
-    vita_debug_log("thread 0x%x: affinity 0x%x refused (0x%x)\n", thid, mask, ret);
+    LOGW("thread", "thread 0x%x: core mask 0x%x refused (0x%x)", (unsigned)thid, (unsigned)mask, (unsigned)ret);
 }
 
 /*
@@ -47,8 +48,11 @@ void LiVitaThreadStarted(const char *name) {
     core = CORE_UI;
   }
 
-  if (critical)
-    sceKernelChangeThreadPriority(sceKernelGetThreadId(), STREAM_THREAD_PRIORITY);
+  if (critical) {
+    int pret = sceKernelChangeThreadPriority(sceKernelGetThreadId(), STREAM_THREAD_PRIORITY);
+    if (pret < 0)
+      LOGW("thread", "%s: priority %d refused (0x%x)", name, STREAM_THREAD_PRIORITY, (unsigned)pret);
+  }
   if (core >= 0)
     thread_place(0, core);
   vita_debug_log("thread %s: core %d%s, priority %s\n", name, config.thread_pinning ? core : -1,

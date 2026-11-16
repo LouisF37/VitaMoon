@@ -55,6 +55,7 @@ int connection_reset(void) { return 0; }
 void connection_close_idle(void) {}
 bool connection_was_lost(void) { return false; }
 int connection_last_error(void) { return 0; }
+const char *connection_error_name(int error_code) { return "preview"; }
 void http_set_reuse(bool reuse) {}
 int connection_resume(void) { return 0; }
 int connection_minimize(void) { return 0; }
@@ -311,6 +312,10 @@ static void scenario_library_running(void) {
   preview_snap("library_running_1_resume");
   preview_press(SCE_CTRL_RIGHT);
   preview_snap("library_running_2_other");
+  preview_press(SCE_CTRL_CROSS);
+  preview_wait(8);
+  preview_snap("library_running_3_switch");
+  preview_press(SCE_CTRL_CIRCLE);
   preview_wait(4);
   fake_status = LI_PAIRED;
   ui_library(&server, apps, "MINI-PC", &app_id);

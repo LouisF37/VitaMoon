@@ -30,6 +30,8 @@
 #include <pthread.h>
 #include "connection_overlay.h"
 #include "debug.h"
+#include "log.h"
+#include <psp2/kernel/processmgr.h>
 #include "reconnect.h"
 
 static int connection_status = LI_DISCONNECTED;
@@ -67,12 +69,28 @@ void start_output() {
   vitaaudio_start();
 }
 
+/* When the stream started, for its duration in the log. */
+static SceUInt64 stream_started_us;
+
+const char *connection_error_name(int error_code) {
+  switch (error_code) {
+    case ML_ERROR_GRACEFUL_TERMINATION: return "ended normally";
+    case ML_ERROR_NO_VIDEO_TRAFFIC: return "no video received (firewall?)";
+    case ML_ERROR_NO_VIDEO_FRAME: return "no complete video frame (network too weak)";
+    case ML_ERROR_UNEXPECTED_EARLY_TERMINATION: return "ended by the PC early (capture error)";
+    case ML_ERROR_PROTECTED_CONTENT: return "ended by the PC (protected content)";
+    case ML_ERROR_FRAME_CONVERSION: return "ended by the PC (picture conversion error)";
+    default: return "connection lost or failed";
+  }
+}
+
 void connection_connection_started() {
   if (connection_status != LI_PAIRED) {
-    vita_debug_log("connection_connection_started error: %d\n", connection_status);
+    LOGW("stream", "started in an unexpected state (%d)", connection_status);
     return;
   }
-  vita_debug_log("connection started\n");
+  stream_started_us = sceKernelGetProcessTimeWide();
+  LOGI("stream", "running");
   stream_lost = false;
   connection_status = LI_CONNECTED;
   start_output();
@@ -94,25 +112,11 @@ static void connection_connection_terminated(int error_code) {
     return;
   }
 
-  switch (error_code) {
-    case ML_ERROR_GRACEFUL_TERMINATION:
-      break;
-    case ML_ERROR_NO_VIDEO_TRAFFIC:
-      vita_debug_log("No video received from host. Check the host PC's firewall and port forwarding rules.\n");
-      break;
-    case ML_ERROR_NO_VIDEO_FRAME:
-      vita_debug_log("Your network connection isn't performing well. Reduce your video bitrate setting or try a faster connection.\n");
-      break;
-    case ML_ERROR_UNEXPECTED_EARLY_TERMINATION:
-      vita_debug_log("The connection was unexpectedly terminated by the host due to a video capture error. Make sure no DRM-protected content is playing on the host.\n");
-      break;
-    case ML_ERROR_PROTECTED_CONTENT:
-      vita_debug_log("The connection was terminated by the host due to DRM-protected content. Close any DRM-protected content on the host and try again.\n");
-      break;
-    default:
-      vita_debug_log("Connection terminated with error: %d\n", error_code);
-      break;    
-  }
+  unsigned ran_s = stream_started_us && connection_status != LI_PAIRED
+                     ? (unsigned)((sceKernelGetProcessTimeWide() - stream_started_us) / 1000000ULL) : 0;
+  log_write(error_code == ML_ERROR_GRACEFUL_TERMINATION ? LOG_INFO : LOG_WARN, "stream",
+            "ended: %s (code %d) after %u s, %s", connection_error_name(error_code), error_code, ran_s,
+            connection_status == LI_MINIMIZED ? "while paused" : connection_status == LI_PAIRED ? "while starting" : "while playing");
 
   LiStopConnection();
 
@@ -128,9 +132,11 @@ static void connection_connection_terminated(int error_code) {
     // must still put them back (juanjsebgarcia/vita-moonlight).
     vitapower_stop();
   }
-  vita_debug_log("connection terminated\n");
   connection_status = LI_DISCONNECTED;
+  stream_started_us = 0;
   pthread_mutex_unlock(&terminate_lock);
+  log_system_state("after the stream");
+  log_flush();
 }
 
 int connection_reset() {
@@ -168,6 +174,7 @@ int connection_minimize() {
   }
   pause_output();
   connection_status = LI_MINIMIZED;
+  LOGI("stream", "paused");
   return 0;
 }
 
@@ -178,6 +185,7 @@ int connection_resume() {
   }
   start_output();
   connection_status = LI_CONNECTED;
+  LOGI("stream", "resumed");
   return 0;
 }
 
@@ -198,21 +206,25 @@ void connection_close_idle() {
     connection_status = LI_DISCONNECTED;
 }
 
+/* Stages of the stream start (RTSP, control, video, audio...), each timed. */
+static SceUInt64 stage_started_us;
+
 void connection_stage_starting(int stage) {
   connection_stage = stage;
-  const char* connection_stage_name = LiGetStageName(stage);
-  vita_debug_log("connection_stage_starting - stage: %s\n", connection_stage_name);
+  stage_started_us = sceKernelGetProcessTimeWide();
+  LOGD("stream", "stage %s...", LiGetStageName(stage));
 }
+
 void connection_stage_complate(int stage) {
   connection_stage = stage;
-  const char* connection_stage_name = LiGetStageName(stage);
-  vita_debug_log("connection_stage_complete - stage: %s\n", connection_stage_name);
+  LOGI("stream", "stage %s: done in %u ms", LiGetStageName(stage),
+       (unsigned)((sceKernelGetProcessTimeWide() - stage_started_us) / 1000));
 }
 
 void connection_stage_failed(int stage, int code) {
   connection_stage = stage;
-  const char* connection_stage_name = LiGetStageName(stage);
-  vita_debug_log("connection_stage_failed - stage: %s, %d\n", connection_stage_name, code);
+  LOGE("stream", "stage %s failed after %u ms: error %d", LiGetStageName(stage),
+       (unsigned)((sceKernelGetProcessTimeWide() - stage_started_us) / 1000), code);
 }
 
 bool connection_is_ready() {
@@ -229,6 +241,7 @@ int connection_get_status() {
 
 void connection_status_update(int status) {
   stream_stats_on_conn_status(status == CONN_STATUS_POOR);
+  LOGI("net", "connection quality: %s", status == CONN_STATUS_POOR ? "poor" : "okay");
   switch (status) {
     case CONN_STATUS_POOR:
       vitavideo_show_poor_net_indicator();
@@ -240,13 +253,13 @@ void connection_status_update(int status) {
 }
 
 void connection_set_motion_state(uint16_t controller, uint8_t motion_type, uint16_t report_rate) {
-  vita_debug_log("Set motion state called, controller: %u, Type: %u, Report rate: %u", controller, motion_type, report_rate);
+  LOGI("input", "the PC asks for %s at %u Hz (controller %u)%s",
+       motion_type == LI_MOTION_TYPE_GYRO ? "the gyroscope" : "the accelerometer", report_rate, controller,
+       config.enable_motion_controls ? "" : ": motion sensors are off in the settings");
 
   //TODO: Multicontroller support here someday? Can't afford pstv tho
-  if (config.enable_motion_controls == false) {
-    vita_debug_log("Ignored gyro request due to config");
+  if (config.enable_motion_controls == false)
     return;
-  }
 
   if (report_rate == 0) {
     switch (motion_type) {
@@ -283,6 +296,6 @@ CONNECTION_LISTENER_CALLBACKS connection_callbacks = {
   .connectionStarted = connection_connection_started,
   .connectionTerminated = connection_connection_terminated,
   .connectionStatusUpdate = connection_status_update,
-  .logMessage = vita_debug_log,
+  .logMessage = log_mcc,
   .setMotionEventState = connection_set_motion_state
 };
