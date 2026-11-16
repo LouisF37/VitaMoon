@@ -257,6 +257,8 @@
   ok    not again 20 ms later
   ok    again 50 ms later
   ok    the full moon is never skipped
-[waiting moon] 23 checks, 0 failed
+[characters rendered at start-up]
+  ok    every character of the translations is rendered at start-up
+[characters rendered at start-up] 24 checks, 0 failed
 
 all tests passed
