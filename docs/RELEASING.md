@@ -12,11 +12,11 @@ set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
 set(VERSION_MAJOR "1")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "0")
-set(VERSION_LABEL "beta.11")        # empty for a final release
+set(VERSION_LABEL "")               # empty for a final release, e.g. "beta.1" before one
 set(VERSION_NAME "Nouvelle Lune")  # milestone name
 ```
 
-From them the build derives the version shown on the home screen (`v1.0.0-beta.11`, followed by the
+From them the build derives the version shown on the home screen (`v1.0.0`, followed by the
 branch and commit), the LiveArea text (generated from `sce_sys/livearea/contents/template.xml.in` into
 the build folder) and the `APP_VER` of the VPK (`01.00`).
 
@@ -28,7 +28,8 @@ bubble, gate and background, the mark of the top bar, the README logo, the GitHu
 by `tools/art/make_brand.py`.
 
 The app was named *Lune* (title ID `LUNE00001`, folder `ux0:data/lune`) for 1.0.0-beta.1, and
-*VitaMoon* from 1.0.0-beta.2.
+*VitaMoon* from 1.0.0-beta.2. The eleven pre-releases of 1.0.0 (beta.1 to beta.11) keep their GitHub
+releases; their changelog is in [history/betas.md](history/betas.md).
 
 Numbering follows [Semantic Versioning](https://semver.org): the patch number for fixes, the minor
 for features, the major for changes that break settings or pairing. Milestones are named after the

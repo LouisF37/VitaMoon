@@ -527,7 +527,7 @@ static const setting_row k_rows[] = {
   {S_AUTO_RECONNECT, CAT_GENERAL, ROW_TOGGLE, N_("Reconnect automatically"),
    N_("After a Wi-Fi drop or a sleep during a stream, the game starts again on its own.")},
   {S_DEBUG_LOG, CAT_GENERAL, ROW_TOGGLE, N_("Detailed log"),
-   N_("Adds every detail to vitamoon.log, which always keeps the main events. For troubleshooting.")},
+   N_("Adds every detail to the log (data folder, logs), which always keeps the main events. For troubleshooting.")},
 
   /* Video */
   {S_RESOLUTION, CAT_VIDEO, ROW_CHOICE, N_("Resolution"),

@@ -637,7 +637,9 @@ static void *stats_thread_main(void *argp) {
 
     uint64_t now = sceKernelGetProcessTimeWide();
     int vc = sceDisplayGetVcount();
-    emit_second(now - t_start, now - t_prev, vc - vc_prev);
+    /* The count wraps at 16 bits (every 65536 refreshes, about 18 min 13 s:
+     * seen as -65476 in sessions of 1.0.0-beta.11). */
+    emit_second(now - t_start, now - t_prev, (vc - vc_prev) & 0xFFFF);
     t_prev = now;
     vc_prev = vc;
   }

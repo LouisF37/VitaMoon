@@ -3,6 +3,7 @@
  */
 #include "test.h"
 #include "log_core.h"
+#include "log_files.h"
 
 #include <string.h>
 
@@ -71,6 +72,43 @@ int main(void) {
   CHECK(log_repeat_expire(&r, 2005000, 2000000) == 1, "and reported once it has stopped");
   CHECK(!log_repeat_check(&r, "video  decoder ok", 2006000, &report) && report == 0,
         "after that report the message is written again");
+
+  /* Log files: one per run, dated; the newest LOG_KEEP_RUNS kept (log_files.h) */
+  char name[64];
+  log_file_name(name, sizeof(name), 2026, 11, 17, 0, 53, 7);
+  CHECK(strcmp(name, "vitamoon-20261117-005307.log") == 0, "a run's log is named after its start");
+  CHECK(log_file_stamp(name) && strncmp(log_file_stamp(name), "20261117-005307", 15) == 0,
+        "its stamp is read back");
+  CHECK(!log_file_stamp("vitamoon.log") && !log_file_stamp("vitamoon.1.log") &&
+            !log_file_stamp("vitamoon-2026111-005307.log") && !log_file_stamp("vitamoon-20261117-005307.txt") &&
+            !log_file_stamp("vitamoon-20261117x005307.log") && !log_file_stamp("session-20261117-005307.log") &&
+            !log_file_stamp("vitamoon-2026111a-005307.log"),
+        "other names are not logs of a run");
+  static char names[64][48];
+  const char *list[64];
+  bool del[64];
+  int files = 0;
+  for (int r = 0; r < 33; r++) {   /* 33 runs, listed in no order */
+    int k = (r * 7) % 33;
+    log_file_name(names[files], sizeof(names[files]), 2026, 11, 1 + k / 10, k % 10, 0, 0);
+    list[files] = names[files]; files++;
+  }
+  snprintf(names[files], sizeof(names[files]), "notes.txt"); list[files] = names[files]; files++;
+  snprintf(names[files], sizeof(names[files]), "vitamoon.log"); list[files] = names[files]; files++;
+  int marked = log_prune_choose(list, files, LOG_KEEP_RUNS - 1, del);
+  bool right = marked == 4;
+  for (int i = 0; i < files; i++) {
+    const char *stamp = log_file_stamp(list[i]);
+    bool oldest = stamp && strncmp(stamp, "20261101-04", 11) < 0;   /* runs 0 to 3 */
+    if (del[i] != oldest)
+      right = false;
+  }
+  CHECK(right, "33 runs: the 4 oldest are deleted to keep 29 and make room for the new one");
+  bool others_kept = true;
+  for (int i = 0; i < files; i++)
+    if (!log_file_stamp(list[i]) && del[i])
+      others_kept = false;
+  CHECK(others_kept, "nothing else in the folder is ever deleted");
 
   return TEST_END();
 }

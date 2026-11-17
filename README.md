@@ -24,11 +24,11 @@ interface, and the tools to measure what the Vita actually does. What was taken 
 what was measured by whom, is listed in [docs/design/performance.md](docs/design/performance.md). Up to
 1.0.0-beta.1 it was called *Lune*.
 
-> **Status: beta.** Everything builds, the menus are checked on a PC in three languages, every
-> journey from opening a PC to the end of a game is replayed on a PC against an imitation of
-> Sunshine, and the stream logic is covered by PC tests; the video, the sound and the timings have
-> not yet been measured on a Vita. See
-> [the checkpoint report](docs/checkpoints/2026-11-16.md), with the test plan for the Vita.
+> **Status: 1.0.0.** Measured on a Vita with Sunshine at 1280x720, 60 fps: 96 % of the frames the PC
+> sends are shown, 97 ms median from a frame's arrival to the screen, no crash over 34 minutes. Known:
+> short gaps in the sound (cause not found yet). On a PC, the menus are checked in three languages,
+> every journey from opening a PC to the end of a game is replayed against an imitation of Sunshine,
+> and the stream logic is covered by tests. See [the checkpoint report](docs/checkpoints/2026-11-17.md).
 
 ## Screenshots
 
@@ -132,8 +132,9 @@ The French user and test guide, with every option and the test plan, is in
 
 - Each stream writes `ux0:data/vitamoon/stats/session-<date>.csv` and `.txt`: the files to attach to
   a bug report, with the build shown at the bottom left of the home screen.
-- Every run writes `ux0:data/vitamoon/vitamoon.log` (the four previous runs: `vitamoon.1.log` to
-  `vitamoon.4.log`): attach it too. *Settings > General > Detailed log* adds every detail line.
+- Every run writes its log, `ux0:data/vitamoon/logs/vitamoon-<date>.log` (the last 30 runs are
+  kept): attach the one of the run with the problem. *Settings > General > Detailed log* adds every
+  detail line.
 - A crash leaves `ux0:data/psp2core-*.psp2dmp`; `tools/dev/crash-dump.sh` decodes it.
 - Bugs and ideas: [Issues](../../issues).
 

@@ -1,14 +1,15 @@
 # VitaMoon : guide d'utilisation et de test
 
-VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 bêta 10 « Nouvelle Lune ». Jusqu'à la
-bêta 1, le projet s'appelait Lune.
+VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 « Nouvelle Lune », préparée par onze
+versions d'essai (bêta 1 à 11, les 15 et 16 novembre 2026 ; la bêta 1 s'appelait Lune), détaillées dans
+[history/betas.md](history/betas.md).
 
 Téléchargement :
 - versions publiées : https://github.com/LouisF37/VitaMoon/releases
 - dernière compilation de la branche `main` :
   https://github.com/LouisF37/VitaMoon/releases/download/build-main/vitamoon-main.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0-beta.11  main-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0  main-xxxxxxx`.
 
 **Installation à côté de Moonlight.** VitaMoon a son propre identifiant (`VMOON0001`), sa propre bulle et
 son propre dossier (`ux0:data/vitamoon`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc
@@ -20,16 +21,15 @@ d'essai précédente de ce projet y est peut-être installée.
 `ux0:data/vitamoon` : les PC appairés, les réglages, les statistiques et les journaux suivent, sans
 nouvel appairage. La bulle Lune peut ensuite être supprimée.
 
-**État des vérifications.** Le code compile pour la Vita, les 280 vérifications des tests sur PC
-passent (affichage cadencé simulé, fichier de réglages, réécriture du SPS, menu rapide, journal,
-reconnexion, police des titres, lune d'attente, recherche des PC sur le réseau, écran de démarrage), tous les écrans ont
-été rendus hors console (outil `tools/ui-preview`) en anglais, français et espagnol, et 29 parcours
+**État des vérifications.** Mesuré sur une Vita le 16 novembre (8 sessions, Sunshine, 1280x720 à
+60 images/s, 10 Mb/s, affichage *Fluide*, la plus longue de 34 minutes) : 96 % des images envoyées
+par le PC sont affichées, 97 ms médian entre l'arrivée d'une image et l'écran (environ 170 ms quand le
+PC n'envoie qu'environ 20 images/s, sur un écran fixe), aucun plantage. Reste à comprendre : de
+courtes coupures du son, environ 6 par minute. Sur PC : 349 vérifications de la logique, tous les
+écrans rendus hors console (outil `tools/ui-preview`) en anglais, français et espagnol, et 29 parcours
 complets (ouvrir le PC, jouer, pause, reprise, perte du Wi-Fi, changement de jeu, réglages,
-appairage) passent sur PC avec le vrai code de connexion face à une imitation de Sunshine. Le code a
-été relu en entier en bêta 9 (voir [le point d'étape](checkpoints/2026-11-16.md)). Sur une vraie Vita, seuls le démarrage, le
-changement de thème (il bloquait la Vita, corrigé en bêta 6) et l'ouverture du PC ont été essayés
-(« Jouer » dans la bibliothèque ne lançait rien, corrigé en bêta 8) : la fluidité, la latence et le
-son restent à mesurer avec le plan de test ci-dessous.
+appairage) avec le vrai code de connexion face à une imitation de Sunshine. Détail : [le point
+d'étape de la 1.0.0](checkpoints/2026-11-17.md).
 
 **Bibliothèque réseau.** moonlight-common-c est intégré au dépôt (`third_party/moonlight-common-c`, version
 amont e2722dc) avec trois correctifs listés dans `third_party/patches/moonlight-common-c/` : attente des
@@ -170,7 +170,8 @@ Rubrique Avancé, deux autres options de test :
 ## Plan de test
 
 Le plan complet, avec les essais de robustesse (pauses répétées, coupure du Wi-Fi, mise en veille),
-est dans [le point d'étape](checkpoints/2026-11-16.md). L'essentiel :
+est dans [le point d'étape du 16 novembre](checkpoints/2026-11-16.md) ; les premières mesures sur la
+Vita sont dans [celui de la 1.0.0](checkpoints/2026-11-17.md). L'essentiel :
 
 Même jeu, même endroit, 3 à 5 minutes par session, statistiques affichées (Général → Statistiques
 pendant le stream) :
@@ -240,11 +241,13 @@ Fichiers reconnus : `.cue`, `.chd`, `.m3u`, `.pbp`. Une image `.png` ou `.jpg` d
 
 ## En cas de problème
 
-Chaque lancement écrit `ux0:data/vitamoon/vitamoon.log` (les quatre précédents : `vitamoon.1.log` à `vitamoon.4.log`) :
-démarrage, PC contactés et version de Sunshine, chaque stream (réglages, étapes chronométrées, fin et
+Chaque lancement écrit son journal, `ux0:data/vitamoon/logs/vitamoon-<date>.log` (daté de son
+démarrage ; les 30 derniers sont gardés) : démarrage, PC contactés et version de Sunshine, chaque stream (réglages, étapes chronométrées, fin et
 cause), reconnexions, erreurs, et une ligne de santé par minute de jeu. L'heure des lignes est celle de
 la Vita, pour la rapprocher du journal de Sunshine (*Dépannage* > *Journaux*). *Réglages* > *Général* >
-*Journal détaillé* ajoute tous les détails. Pour un rapport : `vitamoon.log` et les fichiers `stats/session-*`.
+*Journal détaillé* ajoute tous les détails. Pour un rapport : le journal du lancement concerné et les
+fichiers `stats/session-*` de la session. Les journaux des bêtas (`vitamoon.log`, `vitamoon.1.log` à
+`.4.log`) sont rangés dans `logs/` au premier lancement de la 1.0.0.
 
 - Image saccadée, figée ou absente : profil **Original**. Couleurs fausses : désactiver
   `Décodage rapide des couleurs`.

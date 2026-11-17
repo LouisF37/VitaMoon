@@ -28,16 +28,18 @@ static int stats_compare_names(const void *a, const void *b) {
   return strcmp(*(const char *const *)a, *(const char *const *)b);
 }
 
-/* Sorts names (count entries) and marks in delete[] the session files of all
- * but the newest `keep` stamps. Other names are never marked. Returns how many
- * are marked. */
-static inline int stats_prune_choose(const char **names, int count, int keep, bool *delete_it) {
+/* Sorts names (count entries) and marks in delete[] the files of all but the
+ * newest `keep` stamps, a file's stamp being given by stamp_of() (NULL: not one
+ * of these files, never marked). Stamps of STATS_STAMP_LEN characters sort as
+ * dates do. Returns how many are marked. Used for the logs too (log_files.h). */
+static inline int dated_prune_choose(const char **names, int count, int keep, bool *delete_it,
+                                     const char *(*stamp_of)(const char *name)) {
   qsort(names, count, sizeof(names[0]), stats_compare_names);
   int marked = 0, stamps = 0;
   const char *last = NULL;
   for (int i = count - 1; i >= 0; i--) {   /* newest first */
     delete_it[i] = false;
-    const char *stamp = stats_session_stamp(names[i]);
+    const char *stamp = stamp_of(names[i]);
     if (!stamp)
       continue;
     if (!last || strncmp(stamp, last, STATS_STAMP_LEN) != 0) {
@@ -50,4 +52,9 @@ static inline int stats_prune_choose(const char **names, int count, int keep, bo
     }
   }
   return marked;
+}
+
+/* The statistics files of all but the newest `keep` streams. */
+static inline int stats_prune_choose(const char **names, int count, int keep, bool *delete_it) {
+  return dated_prune_choose(names, count, keep, delete_it, stats_session_stamp);
 }

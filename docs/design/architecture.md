@@ -165,12 +165,15 @@ Moonlight, which keeps `ux0:data/moonlight`.
 | `stats/last_<app>.txt` | figures of the last session of each game, for the library (when it was last played, its order, its figures) |
 | `favorites.txt` | the library's favourites, one app id per line |
 | `boxart/<PC>/<app>.cover` | cover art, resized for the library |
-| `vitamoon.log`, `vitamoon.1.log` .. `vitamoon.4.log` | the log of this run and of the four before (`src/log.c`) |
+| `logs/vitamoon-<date>.log` | the log of each run, named after its start; the last 30 kept (`src/log.c`, `src/log_files.h`) |
 
 ## Log
 
-`src/log.c` writes `vitamoon.log` in the data folder on every run; the previous four runs are kept as
-`vitamoon.1.log` (newest) to `vitamoon.4.log`. A line reads `14:03:27.512 I stream  started in 412 ms`: local
+`src/log.c` writes one file per run, `logs/vitamoon-<YYYYMMDD-HHMMSS>.log` in the data folder (the
+start of the run, as the statistics files are stamped), and deletes the oldest beyond 30 runs
+(`log_files.h`, which shares its choice with the statistics files' `stats_prune.h`). Up to
+1.0.0-beta.11 it wrote `vitamoon.log` and kept `vitamoon.1.log` .. `vitamoon.4.log`; those are moved
+into `logs/`, named after their last change, on the first start of 1.0.0. A line reads `14:03:27.512 I stream  started in 412 ms`: local
 time (to match the PC's Sunshine log), level (E error, W warning, I information, D detail), subject.
 
 - **Normal log** (always): start-up (version, firmware, model, free memory, battery, Wi-Fi), each PC

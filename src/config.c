@@ -434,7 +434,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->boost_clocks = true;
   config->match_refresh_rate = true;
   config->low_latency_audio = true;
-  config->display_mode = DISPLAY_MODE_SMOOTH; // beta default
+  config->display_mode = DISPLAY_MODE_SMOOTH;
   config->decoder_catchup = true;
   config->http_keepalive = false;
   config->ui_msaa = true;

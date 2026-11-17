@@ -7,9 +7,11 @@
 #include "log.h"
 #include "log_core.h"
 #include "app_info.h"
+#include "log_files.h"
 #include "config.h"
 #include "power/vita.h"
 
+#include <psp2/io/dirent.h>
 #include <psp2/io/fcntl.h>
 #include <psp2/io/stat.h>
 #include <psp2/kernel/clib.h>
@@ -31,7 +33,6 @@
 #define BUILD_ID "local"
 #endif
 
-#define LOG_KEEP 4                      /* vitamoon.1.log .. vitamoon.4.log */
 #define LOG_FILE_MAX (4 * 1024 * 1024)  /* a file stops growing past this */
 #define LOG_LINE_MAX 1024
 #define LOG_WAKE_BYTES (16 * 1024)      /* the writer is woken past this */
@@ -42,7 +43,7 @@ static SceKernelLwMutexWork s_lock;
 static SceUID s_sema = -1;
 static SceUID s_thread = -1;
 static SceUID s_fd = -1;
-static char s_path[256];
+static char s_path[320];
 static unsigned s_file_bytes;
 static bool s_file_full;
 static volatile bool s_ready;
@@ -146,18 +147,65 @@ static int writer_main(SceSize args, void *argp) {
   return 0;
 }
 
-static void rotate(const char *dir) {
-  char from[256], to[256];
-  snprintf(to, sizeof(to), "%s" APP_DATA_DIR ".%d.log", dir, LOG_KEEP);
-  sceIoRemove(to);
-  for (int i = LOG_KEEP - 1; i >= 1; i--) {
-    snprintf(from, sizeof(from), "%s" APP_DATA_DIR ".%d.log", dir, i);
-    snprintf(to, sizeof(to), "%s" APP_DATA_DIR ".%d.log", dir, i + 1);
-    sceIoRename(from, to);
+/* A file's last change, as local time (the memory card keeps it in UTC). */
+static void file_local_time(const SceDateTime *utc, SceDateTime *local) {
+  SceRtcTick tick, local_tick;
+  *local = *utc;
+  if (sceRtcGetTick(utc, &tick) >= 0 && sceRtcConvertUtcToLocalTime(&tick, &local_tick) >= 0)
+    sceRtcSetTick(local, &local_tick);
+}
+
+/* Up to 1.0.0-beta.11 the log was vitamoon.log in the data folder, the four
+ * runs before it vitamoon.1.log .. vitamoon.4.log: they go into logs/, named
+ * after their last change. Once: afterwards there are none left. */
+static void move_old_logs(const char *dir, const char *logs) {
+  static const char *const old[] = {APP_DATA_DIR ".log", APP_DATA_DIR ".1.log", APP_DATA_DIR ".2.log",
+                                    APP_DATA_DIR ".3.log", APP_DATA_DIR ".4.log"};
+  char from[256], to[320], name[64];
+  for (unsigned i = 0; i < sizeof(old) / sizeof(old[0]); i++) {
+    snprintf(from, sizeof(from), "%s%s", dir, old[i]);
+    SceIoStat st;
+    if (sceIoGetstat(from, &st) < 0)
+      continue;
+    SceDateTime t;
+    file_local_time(&st.st_mtime, &t);
+    log_file_name(name, sizeof(name), t.year, t.month, t.day, t.hour, t.minute, t.second);
+    snprintf(to, sizeof(to), "%s/%s", logs, name);
+    if (sceIoGetstat(to, &st) >= 0 || sceIoRename(from, to) < 0)
+      sceIoRemove(from);   /* same second as a log already there, or cannot move: an old copy */
   }
-  snprintf(from, sizeof(from), "%s" APP_DATA_DIR ".log", dir);
-  snprintf(to, sizeof(to), "%s" APP_DATA_DIR ".1.log", dir);
-  sceIoRename(from, to);
+}
+
+/* Deletes the logs of all but the newest LOG_KEEP_RUNS - 1 runs, to make room
+ * for this one. */
+static void prune_logs(const char *logs) {
+  enum { MAX_NAMES = 256 };
+  static char names[MAX_NAMES][48];
+  static const char *list[MAX_NAMES];
+  static bool del[MAX_NAMES];
+  int count = 0;
+  SceUID d = sceIoDopen(logs);
+  if (d < 0)
+    return;
+  SceIoDirent ent;
+  memset(&ent, 0, sizeof(ent));
+  while (count < MAX_NAMES && sceIoDread(d, &ent) > 0) {
+    if (log_file_stamp(ent.d_name)) {
+      snprintf(names[count], sizeof(names[count]), "%s", ent.d_name);
+      list[count] = names[count];
+      count++;
+    }
+    memset(&ent, 0, sizeof(ent));
+  }
+  sceIoDclose(d);
+  log_prune_choose(list, count, LOG_KEEP_RUNS - 1, del);
+  char path[320];
+  for (int i = 0; i < count; i++) {
+    if (del[i]) {
+      snprintf(path, sizeof(path), "%s/%s", logs, list[i]);
+      sceIoRemove(path);
+    }
+  }
 }
 
 void log_init(const char *dir) {
@@ -166,8 +214,16 @@ void log_init(const char *dir) {
   log_ring_init(&s_ring);
   if (sceKernelCreateLwMutex(&s_lock, "log", 0, 0, NULL) < 0)
     return;
-  rotate(dir);
-  snprintf(s_path, sizeof(s_path), "%s" APP_DATA_DIR ".log", dir);
+  /* <data>/logs/vitamoon-<start>.log, one per run (log_files.h) */
+  char logs[200], name[64];
+  snprintf(logs, sizeof(logs), "%s" LOG_FOLDER, dir);
+  sceIoMkdir(logs, 0777);   /* ignore "already exists" */
+  move_old_logs(dir, logs);
+  prune_logs(logs);
+  SceDateTime now;
+  sceRtcGetCurrentClockLocalTime(&now);
+  log_file_name(name, sizeof(name), now.year, now.month, now.day, now.hour, now.minute, now.second);
+  snprintf(s_path, sizeof(s_path), "%s/%s", logs, name);
   s_fd = sceIoOpen(s_path, SCE_O_WRONLY | SCE_O_CREAT | SCE_O_TRUNC, 0777);
   s_sema = sceKernelCreateSema("log_wake", 0, 0, 1, NULL);
   /* Low priority (191; 64 is the most urgent): it never delays the stream. */

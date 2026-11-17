@@ -106,9 +106,9 @@ T2 = {
     ("L'écran ne s'assombrit pas et la Vita ne se met pas en veille pendant un stream.",
      "La pantalla no se atenúa y la Vita no entra en reposo durante un stream."),
 "Detailed log": ("Journal détaillé", "Registro detallado"),
-"Adds every detail to vitamoon.log, which always keeps the main events. For troubleshooting.":
-    ("Ajoute tous les détails à vitamoon.log, qui garde toujours les événements principaux. Pour le dépannage.",
-     "Añade todos los detalles a vitamoon.log, que siempre guarda los eventos principales. Para diagnosticar."),
+"Adds every detail to the log (data folder, logs), which always keeps the main events. For troubleshooting.":
+    ("Ajoute tous les détails au journal (dossier de données, logs), qui garde toujours les événements principaux. Pour le dépannage.",
+     "Añade todos los detalles al registro (carpeta de datos, logs), que siempre guarda los eventos principales. Para diagnosticar."),
 
 # --- settings: Video ---
 "960 x 544 is the Vita screen itself: the sharpest picture and the lightest stream.":
