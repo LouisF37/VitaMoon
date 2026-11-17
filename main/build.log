@@ -26,11 +26,11 @@ to suppress it.
 -- Check for working CXX compiler: /home/runner/work/VitaMoon/VitaMoon/vitasdk/bin/arm-vita-eabi-g++ - skipped
 -- Detecting CXX compile features
 -- Detecting CXX compile features - done
--- Configuring done (0.5s)
+-- Configuring done (0.6s)
 -- Generating done (0.0s)
 -- Build files have been written to: /home/runner/work/VitaMoon/VitaMoon/build
 [  1%] Building C object third_party/CMakeFiles/inih.dir/inih/ini.c.obj
-[  3%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/clear.c.obj
+[  2%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/clear.c.obj
 [  3%] Building C object third_party/CMakeFiles/enet.dir/enet/callbacks.c.obj
 [  4%] Building C object third_party/CMakeFiles/mdnsniff.dir/mdnsniff/udp_sniffer_vita.c.obj
 [  5%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/compare.c.obj
@@ -53,27 +53,27 @@ to suppress it.
       |                                          ^~~~~~~
 [  9%] Linking C static library libinih.a
 [  9%] Built target inih
-[ 10%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/isnull.c.obj
-[ 11%] Building C object third_party/CMakeFiles/enet.dir/enet/host.c.obj
+[ 10%] Building C object third_party/CMakeFiles/enet.dir/enet/host.c.obj
+[ 11%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/isnull.c.obj
 [ 12%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/pack.c.obj
-[ 13%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/parse.c.obj
-[ 14%] Linking C static library libmdnsniff.a
+[ 13%] Linking C static library libmdnsniff.a
+[ 14%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/parse.c.obj
 [ 14%] Built target mdnsniff
-[ 15%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_nal.c.obj
+[ 15%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unpack.c.obj
 In file included from /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/parse.c:37:
 /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/parse.c: In function 'uuid_parse':
 /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/parse.c:62:31: warning: array subscript has type 'char' [-Wchar-subscripts]
    62 |                 if (!isxdigit(*cp))
       |                               ^~~
-[ 16%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unpack.c.obj
+[ 16%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_nal.c.obj
 [ 17%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unparse.c.obj
 [ 18%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/uuid_time.c.obj
-[ 19%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_sei.c.obj
-[ 20%] Linking C static library liblibuuid.a
-[ 20%] Built target param.sfo
-[ 21%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_stream.c.obj
-[ 21%] Built target libuuid
-[ 22%] Building C object third_party/CMakeFiles/enet.dir/enet/list.c.obj
+[ 19%] Linking C static library liblibuuid.a
+[ 19%] Built target libuuid
+[ 20%] Building C object third_party/CMakeFiles/enet.dir/enet/list.c.obj
+[ 21%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_sei.c.obj
+[ 21%] Built target param.sfo
+[ 22%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_stream.c.obj
 [ 23%] Building C object third_party/CMakeFiles/enet.dir/enet/packet.c.obj
 [ 24%] Building C object third_party/CMakeFiles/enet.dir/enet/peer.c.obj
 [ 25%] Building C object third_party/CMakeFiles/enet.dir/enet/protocol.c.obj
@@ -108,9 +108,9 @@ In file included from /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/sr
 [ 52%] Built target moonlight-common-c
 [ 53%] Linking C static library libh264bitstream.a
 [ 53%] Built target h264bitstream
-[ 54%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/mapping.c.obj
-[ 55%] Building C object CMakeFiles/vitamoon.elf.dir/src/connection.c.obj
-[ 56%] Building C object CMakeFiles/vitamoon.elf.dir/src/config.c.obj
+[ 54%] Building C object CMakeFiles/vitamoon.elf.dir/src/config.c.obj
+[ 56%] Building C object CMakeFiles/vitamoon.elf.dir/src/connection.c.obj
+[ 56%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/mapping.c.obj
 [ 57%] Building C object CMakeFiles/vitamoon.elf.dir/src/debug.c.obj
 [ 58%] Building C object CMakeFiles/vitamoon.elf.dir/src/log.c.obj
 [ 59%] Building C object CMakeFiles/vitamoon.elf.dir/src/log_core.c.obj
@@ -142,8 +142,9 @@ In function 'device_file_path',
 /home/runner/work/VitaMoon/VitaMoon/src/device.c:83:7: note: 'snprintf' output between 2 and 768 bytes into a destination of size 512
    83 |       snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, dirent.d_name);
       |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[ 66%] Building C object CMakeFiles/vitamoon.elf.dir/src/audio/vita.c.obj
 [ 67%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/vita.c.obj
+[ 67%] Building C object CMakeFiles/vitamoon.elf.dir/src/audio/vita.c.obj
+[ 68%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/pacing.c.obj
 /home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'device_file_path':
 /home/runner/work/VitaMoon/VitaMoon/src/device.c:123:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
   123 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
@@ -151,7 +152,6 @@ In function 'device_file_path',
 /home/runner/work/VitaMoon/VitaMoon/src/device.c:123:3: note: 'snprintf' output 12 or more bytes (assuming 4107) into a destination of size 512
   123 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[ 68%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/pacing.c.obj
 /home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'load_device_info':
 /home/runner/work/VitaMoon/VitaMoon/src/device.c:123:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
   123 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
@@ -227,7 +227,6 @@ In function 'device_file_path',
 [ 92%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/mkcert.c.obj
 [ 93%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/sps.c.obj
 [ 94%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/url.c.obj
-[ 95%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/xml.c.obj
 /home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c: In function 'gs_pair':
 /home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:517:137: warning: '%s' directive output may be truncated writing up to 8191 bytes into a region of size between 4682 and 5025 [-Wformat-truncation=]
   517 |   snprintf(url, sizeof(url), "http://%s:%u/pair?uniqueid=%s&uuid=%s&devicename=%s&updateState=1&phrase=getservercert&salt=%s&clientcert=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str, device_name, salt_hex, cert_hex);
@@ -235,6 +234,7 @@ In function 'device_file_path',
 /home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:517:3: note: 'snprintf' output 96 or more bytes (assuming 8630) into a destination of size 5120
   517 |   snprintf(url, sizeof(url), "http://%s:%u/pair?uniqueid=%s&uuid=%s&devicename=%s&updateState=1&phrase=getservercert&salt=%s&clientcert=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str, device_name, salt_hex, cert_hex);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 95%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/xml.c.obj
 [ 96%] Building C object CMakeFiles/vitamoon.elf.dir/src/keyboardsystem.c.obj
 [ 97%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/keyboardkeys.c.obj
 [ 98%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/touchabsolute.c.obj
@@ -259,14 +259,14 @@ In function 'device_file_path',
 [100%] Built target vitamoon.velf
 [100%] Built target vitamoon.vpk
 total 24M
--rw-r--r-- 1 runner runner  17K Nov 16 22:29 CMakeCache.txt
-drwxr-xr-x 9 runner runner 4.0K Nov 16 22:30 CMakeFiles
--rw-r--r-- 1 runner runner  50K Nov 16 22:29 Makefile
--rw-r--r-- 1 runner runner 2.3K Nov 16 22:29 cmake_install.cmake
--rw-r--r-- 1 runner runner 2.9M Nov 16 22:29 eboot.bin
-drwxr-xr-x 2 runner runner 4.0K Nov 16 22:29 livearea
--rw-r--r-- 1 runner runner  912 Nov 16 22:29 param.sfo
-drwxr-xr-x 3 runner runner 4.0K Nov 16 22:29 third_party
--rwxr-xr-x 1 runner runner 7.6M Nov 16 22:29 vitamoon.elf
--rw-r--r-- 1 runner runner 9.0M Nov 16 22:29 vitamoon.velf
--rw-r--r-- 1 runner runner 4.1M Nov 16 22:30 vitamoon.vpk
+-rw-r--r-- 1 runner runner  17K Nov 17 08:15 CMakeCache.txt
+drwxr-xr-x 9 runner runner 4.0K Nov 17 08:16 CMakeFiles
+-rw-r--r-- 1 runner runner  50K Nov 17 08:15 Makefile
+-rw-r--r-- 1 runner runner 2.3K Nov 17 08:15 cmake_install.cmake
+-rw-r--r-- 1 runner runner 2.9M Nov 17 08:16 eboot.bin
+drwxr-xr-x 2 runner runner 4.0K Nov 17 08:15 livearea
+-rw-r--r-- 1 runner runner  912 Nov 17 08:15 param.sfo
+drwxr-xr-x 3 runner runner 4.0K Nov 17 08:15 third_party
+-rwxr-xr-x 1 runner runner 7.6M Nov 17 08:16 vitamoon.elf
+-rw-r--r-- 1 runner runner 9.0M Nov 17 08:16 vitamoon.velf
+-rw-r--r-- 1 runner runner 4.1M Nov 17 08:16 vitamoon.vpk

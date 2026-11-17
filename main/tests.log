@@ -254,7 +254,12 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    copies are kept while the flood may go on
   ok    and reported once it has stopped
   ok    after that report the message is written again
-[log] 27 checks, 0 failed
+  ok    a run's log is named after its start
+  ok    its stamp is read back
+  ok    other names are not logs of a run
+  ok    33 runs: the 4 oldest are deleted to keep 29 and make room for the new one
+  ok    nothing else in the folder is ever deleted
+[log] 32 checks, 0 failed
 
 [title font coverage]
   ok    an empty text needs nothing
