@@ -51,6 +51,51 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    clock going back re-anchors
 [pacing] 31 checks, 0 failed
 
+[late frames]
+  ok    steady stream with 30 ms of jitter: nothing hidden
+  ok    Vita clock 150 ppm fast: drift never counts as lateness
+  ok    Vita clock 150 ppm slow: nothing hidden
+  ok    still scene at 20 fps: nothing hidden
+    freeze 700 ms: 39 of 42 frames of the freeze hidden, 0 outside, latest shown 90 ms late
+  ok    freeze: the frames over 100 ms late are hidden
+  ok    freeze: no frame hidden outside it
+  ok    freeze: no frame shown over 100 ms late
+  ok    freeze: the reference is kept
+    freeze 2.7 s: 162 hidden, 0 new reference
+  ok    long freeze: the stale frames hidden, the reference kept
+  ok    long freeze: no frame shown over 100 ms late
+    delay +300 ms for good: 59 hidden, 1 new reference
+  ok    delay grows for good: one new reference
+  ok    delay grows for good: about one second hidden
+  ok    nothing hidden during the first frames
+  ok    unknown receive time: shown
+[late frames] 14 checks, 0 failed
+
+[press-to-picture test]
+    20 presses measured, 0 missed: median 103.1 ms (min 86.4, max 103.1, mean 101.4; simulated mean 101.6)
+    parts: to packet 37.9 (PC 6.0), to decoded 53.0, to screen 11.0 ms
+  ok    full run: the test ends
+  ok    full run: every press measured, none missed
+  ok    full run: the warm-up presses are not counted
+  ok    full run: min <= median <= max
+  ok    full run: every total within the simulated chain
+  ok    full run: the mean matches the simulated delay
+  ok    full run: every first packet known
+  ok    full run: the parts add up to about the total
+  ok    full run: the PC's time is the one reported
+  ok    full run: A released at the end
+  ok    white picture from the start: page not on screen
+  ok    white picture from the start: no press made
+  ok    page that never turns white: no reaction
+  ok    page that never turns white: stops after the two warm-up presses (a game gets no more)
+  ok    page that stays white: stopped
+  ok    stopped: A is no longer held
+  ok    stopped: not running
+  ok    summary: median of four, min, max
+  ok    summary: parts only from the presses whose packet is known
+  ok    summary: nothing measured
+[press-to-picture test] 20 checks, 0 failed
+
 [url, percentiles, reconnection and PC names]
   ok    space encoded
   ok    unreserved characters kept
@@ -91,6 +136,12 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
 [url, percentiles, reconnection and PC names] 35 checks, 0 failed
 
 [config]
+  ok    round trip: rear_touch
+  ok    round trip: test_decoder_delay
+  ok    round trip: test_decoder_refs
+  ok    round trip: test_skip_late
+  ok    round trip: test_immediate_flip
+  ok    round trip: test_audio_5ms
   ok    round trip: library_stats
   ok    round trip: twinkle_stars
   ok    round trip: sky_speed
@@ -162,6 +213,8 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    sanitize: mouse acceleration
   ok    sanitize: tap time out of 100..250 back to 250
   ok    sanitize: unknown sky speed back to a still sky
+  ok    sanitize: unknown decoder delay mode back to off
+  ok    sanitize: 3 reference frames back to 4
   ok    sanitize: NaN motion scale
   ok    sanitize: huge motion scale
   ok    sanitize: sprint tap time
@@ -172,22 +225,26 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    sanitize: acceleration 0 (off) is kept
   ok    sanitize: a tap time of 100 ms is kept
   ok    sanitize: the fastest sky is kept
+  ok    sanitize: the last decoder delay mode is kept
+  ok    sanitize: one reference frame is kept
   ok    sanitize leaves valid settings alone
     auto bitrate: 960x544@60 8000, 1280x720@60 10000, 1280x720@30 6250 kbps
   ok    auto bitrate grows with the resolution
   ok    auto bitrate lower at 30 fps
   ok    auto bitrate stays within 20 Mbps
   ok    settings file that cannot be written: logged, app keeps running
-[config] 86 checks, 0 failed
+[config] 96 checks, 0 failed
 
 [sps rewrite]
   ok    test SPS built
+  ok    no reference frame count before the first SPS
     SPS 19 bytes in, 23 bytes out
   ok    nothing written before the offset
   ok    result within the room kept by the renderer
   ok    start code kept
   ok    result is a valid SPS
   ok    one reference frame
+  ok    the encoder's own reference frame count is kept for the log
   ok    bitstream restriction present
   ok    decoder buffers a single frame
   ok    no reordering
@@ -196,7 +253,7 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    missing start code: passed through
   ok    truncated SPS: passed through
   ok    not an SPS: passed through
-[sps rewrite] 14 checks, 0 failed
+[sps rewrite] 16 checks, 0 failed
 
 [quick menu]
   ok    L + R + SELECT opens it
@@ -222,9 +279,12 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    and the game gets its buttons
   ok    SELECT closes it too
   ok    keyboard closes the menu
+  ok    fourth row: the delay test
+  ok    the delay test closes the menu
+  ok    the button that started the test does not reach the game
   ok    pause closes the menu
   ok    swapped buttons: Circle confirms Back to the game
-[quick menu] 25 checks, 0 failed
+[quick menu] 28 checks, 0 failed
 
 [log]
   ok    lines go in
