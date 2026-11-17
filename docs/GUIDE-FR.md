@@ -37,13 +37,31 @@ paquets en retard (juanjsebgarcia), crochets Vita (priorité et cœur des fils, 
 
 ## Prise en main
 
-**Accueil.** La liste des PC appairés avec leur état (en ligne, hors ligne, adresse modifiée), et à droite
-le détail du PC sélectionné : adresse, appairage, réveil à distance, flux demandé, et un conseil.
+**Accueil.** Un menu à gauche (Accueil, Bibliothèque, Ordinateurs, Réglages, Quitter) et, à droite,
+l'aperçu de l'entrée sous le curseur.
+- Sur Accueil, un tableau de bord : le dernier jeu joué sur le dernier PC utilisé (✕ « Reprendre » le
+  lance directement, sans passer par la bibliothèque, ou retourne dans un stream en pause), le PC et son
+  état, la dernière partie (avec Réglages → Général → Statistiques dans la bibliothèque ; sinon le flux
+  demandé), puis une rangée de jeux (les autres joués récemment, puis la suite de la bibliothèque) et
+  « Tout voir ».
+- Les flèches passent du menu aux tuiles. ✕ sur Bibliothèque, Ordinateurs ou Réglages ouvre la page en
+  plein écran, ○ revient à l'accueil ; dans le menu, ○ remet le curseur sur Accueil.
+- Les aperçus : les douze premiers jeux de la bibliothèque, les PC appairés et leur état, les réglages
+  principaux (vidéo, profil, manette, tactile, essais bêta activés).
+- □ : menu du PC affiché (se connecter, réveiller, modifier l'adresse, renommer, oublier). △ : relance la
+  recherche des PC. START : réglages.
+- L'accueil connaît les jeux d'un PC grâce à un petit fichier que la bibliothèque laisse quand on la
+  quitte (`ux0:data/vitamoon/<nom du PC>/home.txt`) : tant que la bibliothèque d'un PC n'a pas été
+  ouverte une fois avec cette version, l'accueil propose de l'ouvrir.
+
+**Ordinateurs.** La liste des PC appairés avec leur état (en ligne, hors ligne, adresse modifiée ;
+« Vérification… » pendant les quelques secondes de la première recherche), et à droite le détail du PC
+sélectionné : adresse, appairage, réveil à distance, flux demandé, et un conseil.
 - ✕ sur un PC en ligne : connexion directe. ✕ sur un PC hors ligne : ouvre son menu.
 - □ : menu du PC (se connecter, réveiller, modifier l'adresse, renommer, oublier).
-- △ : relance la recherche des PC.
+- △ : relance la recherche des PC. ○ : retour à l'accueil.
 
-**Ajouter un PC.** « Rechercher sur le réseau » ou « Saisir une adresse ». La Vita affiche un code à
+**Ajouter un PC.** Dans Ordinateurs, « Rechercher sur le réseau » ou « Saisir une adresse ». La Vita affiche un code à
 4 chiffres et l'adresse de la page web de Sunshine (`https://adresse-du-PC:47990`, rubrique PIN) où le saisir.
 Rond annule l'attente. Sunshine garde une demande 5 minutes : après une annulation, supprimez-la sur sa
 page PIN avant de réessayer (sinon il refuse une nouvelle demande de la même Vita jusque-là).
@@ -68,7 +86,9 @@ la durée du stream et l'autonomie restante estimée par la Vita. Le jeu continu
 bouton tant que le menu est ouvert, ni avant que tous les boutons soient relâchés à sa fermeture. Rond
 (Croix si X et O sont inversés) ou SELECT referme le menu.
 
-**Pendant le stream.** START + L + R met le stream en pause et revient aux menus. La pause relâche sur le PC
+**Pendant le stream.** Les statistiques à l'écran (menu rapide ou Réglages → Général) tiennent sur une
+ligne : images affichées par seconde, délai réception → écran, débit. Tout le reste est dans les fichiers
+de statistiques. START + L + R met le stream en pause et revient aux menus. La pause relâche sur le PC
 tout ce qui était maintenu (boutons, sticks, clic souris, doigts sur l'écran tactile). Si des réglages qui ne
 s'appliquent qu'au démarrage d'un stream ont été modifiés pendant la pause (définition, débit, affichage,
 options de la rubrique Performance...), la reprise propose de relancer le stream : le jeu continue sur le PC,
@@ -273,7 +293,7 @@ du lancement (`logs/`).
 **Vita.** Paramètres → Paramètres d'économie d'énergie : décocher l'utilisation du Wi-Fi en mode économie
 d'énergie. Couper aussi le Bluetooth si aucun appareil Bluetooth ne sert : il partage la bande 2,4 GHz
 avec le Wi-Fi (juanjsebgarcia : pertes d'images d'environ 50 par minute à 0 avec un signal fort et le
-Bluetooth coupé). VitaMoon lit ces deux réglages et affiche un avertissement sur l'accueil s'il les
+Bluetooth coupé). VitaMoon lit ces deux réglages et affiche un avertissement sur la page Ordinateurs s'il les
 trouve activés (lecture du registre non encore vérifiée sur console).
 
 **Sunshine** (interface web : `https://localhost:47990`), en résumé ; le pas-à-pas complet est dans le

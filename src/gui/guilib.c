@@ -786,6 +786,9 @@ void guilib_load_icons(void) {
     vita2d_font_text_width(font, 64, ICON_NETWORK);
     vita2d_font_text_width(font, 48, ICON_SPRINTING);
     vita2d_font_text_width(font, ICON_STAR_SIZE, ICON_STAR);   // the library's favourites
+    // the home screen's
+    vita2d_font_text_width(font, ICON_HOME_SIZE, ICON_HOME ICON_GRID ICON_DESKTOP ICON_COG ICON_POWER ICON_PLAY
+                           ICON_SEARCH ICON_KEYBOARD);
   }
 }
 

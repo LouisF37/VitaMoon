@@ -24,6 +24,8 @@
 #include "errors.h"
 #include "gui/quickmenu.h"
 #include "gui/ui_connect.h"
+#include "gui/ui_home.h"
+#include "check_host.h"
 
 #define X   SCE_CTRL_CROSS
 #define O   SCE_CTRL_CIRCLE
@@ -76,6 +78,7 @@ typedef struct {
   answer answers[MAX_ITEMS];
   bg_event events[8];
   const char *expect[MAX_ITEMS];   /* log lines in order; "text*" matches a start */
+  bool from_home;              /* starts on the home screen (one paired PC), not by opening the PC */
 } journey;
 
 /* The library opens on the game last played from this Vita (preview_main.c
@@ -244,6 +247,33 @@ static const journey k_journeys[] = {
    {{"alert", {X}}},
    {{0}},
    {"open*", "alert: *", "home"}},
+
+  /* From the home screen (each ends with Quit in its menu). No home.txt at
+   * first: its large tile opens the library, which leaves the file when it is
+   * left; then the tile starts the game played last at once, without the library. */
+  {"j_home_continue", PC_IDLE, true, 0,
+   {{"home", {X}}, {"library", {O}}, {"home", {X}}, {"home", {LT, DN, DN, DN, DN, X}}},
+   {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
+   {"home", "open*", "library", "home", "open*", "launch 1000", "connect", "stop", "home"}, true},
+
+  /* A stream paused, back on the home screen: its large tile goes back into the game. */
+  {"j_home_resume_paused", PC_IDLE, true, 0,
+   {{"home", {X}}, {"library", {X}}, {"library", {O}}, {"home", {X}}, {"home", {LT, DN, DN, DN, DN, X}}},
+   {{AT_PLAYING, 3000, DO_PAUSE}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
+   {"home", "open*", "library", "launch 1000", "connect", "library", "home", "stop", "home"}, true},
+
+  /* A game of the strip (the next one played: 1002). */
+  {"j_home_strip_game", PC_IDLE, true, 0,
+   {{"home", {X}}, {"library", {O}}, {"home", {DN, X}}, {"home", {LT, DN, DN, DN, DN, X}}},
+   {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
+   {"home", "open*", "library", "home", "open*", "launch 1002", "connect", "stop", "home"}, true},
+
+  /* Another game runs on the PC: the home asks before quitting it. */
+  {"j_home_switch_game", PC_RUNNING, true, 0,
+   {{"home", {X}}, {"library", {O}}, {"home", {DN, X}}, {"confirm", {X}}, {"home", {LT, DN, DN, DN, DN, X}}},
+   {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
+   {"home", "open*", "library", "home", "open*", "confirm: *", "quit 1000", "launch 1002", "connect", "stop",
+    "home"}, true},
 };
 #define JOURNEY_COUNT ((int)(sizeof(k_journeys) / sizeof(k_journeys[0])))
 
@@ -429,6 +459,22 @@ bool journey_run(const char *name) {
     /* The journey ends on its own, in a few thousand frames at most; past this
      * it is waiting on a screen nobody answers, which check() reports. */
     preview_idle_tail(8000);
+
+    if (cur->from_home) {
+      /* the Vita knows one PC, seen on by the scan; the library has not left
+       * its file for the home yet */
+      device_info_t *d = &known_devices.devices[0];
+      memset(d, 0, sizeof(*d));
+      snprintf(d->name, sizeof(d->name), "MINI-PC");
+      snprintf(d->internal, sizeof(d->internal), "192.168.1.24");
+      d->port = 47989;
+      d->paired = cur->vita_paired;
+      known_devices.count = 1;
+      g_host_status[0].status = HOST_ONLINE;
+      remove(PREVIEW_KEY_DIR "/MINI-PC/home.txt");
+      ui_home();   /* ends with the preview (the idle tail) */
+      exit(0);
+    }
 
     device_info_t pc;
     memset(&pc, 0, sizeof(pc));

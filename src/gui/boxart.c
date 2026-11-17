@@ -231,9 +231,19 @@ void boxart_prefetch(PSERVER_DATA server, PAPP_LIST apps) {
   worker_created = true;
 }
 
+void boxart_cover_dir(PSERVER_DATA server, char *out, size_t len) {
+  host_dir(server, out, len);
+}
+
 vita2d_texture *boxart_load_texture(PSERVER_DATA server, int app_id) {
+  char dir[512];
+  host_dir(server, dir, sizeof(dir));
+  return boxart_load_texture_from(dir, app_id);
+}
+
+vita2d_texture *boxart_load_texture_from(const char *dir, int app_id) {
   char path[640];
-  cover_path(server, app_id, path, sizeof(path));
+  snprintf(path, sizeof(path), "%.500s/%d.cover", dir, app_id);
   SceUID fd = sceIoOpen(path, SCE_O_RDONLY, 0);
   if (fd < 0)
     return NULL;

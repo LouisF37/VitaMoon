@@ -13,6 +13,17 @@
 #define ICON_SPRINTING    "\xeF\xa5\xaD"
 #define ICON_STAR         "\xef\x80\x85"   /* U+F005, favourite games */
 #define ICON_STAR_SIZE    22
+/* The home screen's icons (Font Awesome, in nerdfont.ttf). The font draws them
+ * at about 0.6 of its size: 28 gives icons of about 17 px. */
+#define ICON_HOME         "\xef\x80\x95"   /* U+F015 */
+#define ICON_GRID         "\xef\x80\x89"   /* U+F009 */
+#define ICON_DESKTOP      "\xef\x84\x88"   /* U+F108 */
+#define ICON_COG          "\xef\x80\x93"   /* U+F013 */
+#define ICON_POWER        "\xef\x80\x91"   /* U+F011 */
+#define ICON_PLAY         "\xef\x81\x8b"   /* U+F04B */
+#define ICON_SEARCH       "\xef\x80\x82"   /* U+F002 */
+#define ICON_KEYBOARD     "\xef\x84\x9c"   /* U+F11C */
+#define ICON_HOME_SIZE    28
 
 
 typedef struct menu_entry {

@@ -51,7 +51,7 @@ Sources:
 | Clocks 444/222/222/166 MHz while connecting and streaming, Wi-Fi in performance mode | *Maximum CPU and GPU speed* (on) | dubleyu, juan (while connecting), VitaRPS5 | juan: battery 426 mA in his balanced preset vs 312 mA in his battery preset (about 5 h vs 7 h) |
 | Controls read once per controller sample | *Read the controls in step with the Vita* (on) | juan | no figure |
 | Ask the PC to capture at the screen's exact rate (59.94 Hz) | *Match the Vita screen rate* (on) | this project | at 60.00 fps one frame in about 1000 (every ~17 s) cannot be shown; applies if Sunshine accepts the rate |
-| Warn when Wi-Fi power saving or Bluetooth is on | home screen | this project, juan | juan: frame loss ~50 per minute → 0 with a strong signal and Bluetooth off |
+| Warn when Wi-Fi power saving or Bluetooth is on | Computers page | this project, juan | juan: frame loss ~50 per minute → 0 with a strong signal and Bluetooth off |
 
 ## Where the time goes (juan's measurements)
 

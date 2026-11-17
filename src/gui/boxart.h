@@ -18,6 +18,7 @@
 #include "client.h"
 
 #include <stdbool.h>
+#include <stddef.h>
 #include <vita2d.h>
 
 #define BOXART_W 192
@@ -28,3 +29,8 @@ void boxart_prefetch(PSERVER_DATA server, PAPP_LIST apps);
 
 /* Texture of a cached cover, or NULL if it is not downloaded yet. Caller frees it. */
 vita2d_texture *boxart_load_texture(PSERVER_DATA server, int app_id);
+
+/* Folder of a PC's covers, for boxart_load_texture_from() when the PC is not
+ * connected (the home screen keeps it in the PC's home.txt). */
+void boxart_cover_dir(PSERVER_DATA server, char *out, size_t len);
+vita2d_texture *boxart_load_texture_from(const char *dir, int app_id);

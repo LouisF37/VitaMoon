@@ -105,6 +105,6 @@ the end of a stream releases on the PC every button, stick, mouse button and tou
 ## Statistics
 
 `src/video/stream_stats.c`. Hooks on every stage update lock-free counters; a thread writes one CSV
-line per second and the overlay text. The `.txt` of each session holds the settings, the Wi-Fi state,
+line per second and the overlay's one line (frames shown per second, receive to screen, bitrate). The `.txt` of each session holds the settings, the Wi-Fi state,
 the column legend and, at the end, percentiles over the whole session (receive to screen, interval
 between shown frames, hardware decode) and the share of frames shown late or repeated.

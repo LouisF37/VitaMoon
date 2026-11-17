@@ -27,7 +27,9 @@
 #include "platform.h"
 #include "gui/guilib.h"
 #include "gui/theme.h"
-int ui_main_menu(void);
+#include "gui/ui_home.h"
+#include "gui/home_data.h"
+#include <sys/stat.h>
 #include "gui/ui_settings.h"
 #include "gui/ui_library.h"
 #include "gui/ui_connect.h"
@@ -49,8 +51,8 @@ const char *gs_error = "";
 int gs_status_code = 0;
 
 void vita_debug_log(const char *fmt, ...) {}
-void start_host_scan_thread(void) {}
-void stop_host_scan_thread(void) {}
+void start_host_scan_thread(void) { g_host_scan_thread_status = 1; }
+void stop_host_scan_thread(void) { g_host_scan_thread_status = 0; }
 /* What src/connection.c (real here) drives when a stream starts, pauses or ends. */
 motion_data_state motion_state;
 void vitainput_start(void) {}
@@ -102,6 +104,8 @@ int sceDisplayGetRefreshRate(float *fps) { *fps = 59.94f; return 0; }
 void LiInitializeStreamConfiguration(PSTREAM_CONFIGURATION c) { memset(c, 0, sizeof(*c)); }
 void boxart_prefetch(PSERVER_DATA server, PAPP_LIST apps) {}
 vita2d_texture *boxart_load_texture(PSERVER_DATA server, int app_id) { return NULL; }
+void boxart_cover_dir(PSERVER_DATA server, char *out, size_t len) { snprintf(out, len, "%s", "ux0:data/vitamoon/boxart/AA-BB-CC-DD-EE-FF"); }
+vita2d_texture *boxart_load_texture_from(const char *dir, int app_id) { return NULL; }
 /* Sessions already played, for the library (the preview's clock says
  * 2026-11-15 21:42): Final Fantasy IX today, Chrono Cross yesterday, Hollow
  * Knight five days ago. */
@@ -150,7 +154,7 @@ static void scenario_stars(void) {
   preview_snap("stars_1");
   preview_wait(150);
   preview_snap("stars_2");
-  ui_main_menu();
+  ui_home();
 }
 
 /* The moving sky (Settings > General), 12 s on the home screen: the stars turn
@@ -169,7 +173,7 @@ static void scenario_sky(void) {
   preview_snap("sky_1");
   preview_wait(708);
   preview_snap("sky_2");
-  ui_main_menu();
+  ui_home();
 }
 
 /* The moving sky in Settings > General: its speeds, then its direction. */
@@ -199,22 +203,66 @@ static void scenario_sky_setting(void) {
   ui_settings_menu();
 }
 
+/* What the library of MINI-PC leaves for the home screen when it is left
+ * (home.txt), with the sessions of stream_stats_read_last() above. */
+static void fake_home_file(void) {
+  static home_games g;
+  memset(&g, 0, sizeof(g));
+  snprintf(g.covers, sizeof(g.covers), "%s", "ux0:data/vitamoon/boxart/AA-BB-CC-DD-EE-FF");
+  snprintf(g.opened, sizeof(g.opened), "%s", "2026-11-15 21:40");
+  static const struct { int id; const char *name, *when; } shelf[] = {
+    {1000, "Final Fantasy IX", "2026-11-15 19:46"}, {1002, "Chrono Cross", "2026-11-14 21:10"},
+    {1006, "Hollow Knight", "2026-11-10 18:05"},    {1007, "Celeste", ""},
+    {1005, "Desktop", ""},                          {1004, "Steam Big Picture", ""},
+    {1003, "DuckStation", ""},                      {1001, "Final Fantasy VIII", ""},
+  };
+  g.total = 8;
+  for (int i = 0; i < 8; i++) {
+    home_game *x = &g.shelf[g.shelf_count++];
+    x->id = shelf[i].id;
+    snprintf(x->when, sizeof(x->when), "%s", shelf[i].when);
+    snprintf(x->name, sizeof(x->name), "%s", shelf[i].name);
+    home_add_recent(&g, shelf[i].id, shelf[i].when, shelf[i].name);
+  }
+  mkdir(PREVIEW_KEY_DIR, 0777);
+  mkdir(PREVIEW_KEY_DIR "/MINI-PC", 0777);
+  home_data_save("MINI-PC", &g);
+}
+
+/* Home: the dashboard and its tiles, then the side menu and the preview of
+ * each entry, then the Computers page and a PC's own menu. */
 static void scenario_home(void) {
   fake_hosts();
+  fake_home_file();
   preview_wait(12);
-  preview_snap("home_1_host_online");
+  preview_snap("home_1_dashboard");
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("home_2_pc_tile");
   preview_press(SCE_CTRL_DOWN);
-  preview_snap("home_2_host_offline");
+  preview_snap("home_3_see_all");
+  preview_press(SCE_CTRL_LEFT);
+  preview_snap("home_4_strip_game");
+  preview_press(SCE_CTRL_LEFT); preview_press(SCE_CTRL_LEFT); preview_press(SCE_CTRL_LEFT);
+  preview_snap("home_5_menu");
   preview_press(SCE_CTRL_DOWN);
-  preview_snap("home_3_host_moved");
+  preview_snap("home_6_library");
   preview_press(SCE_CTRL_DOWN);
-  preview_snap("home_4_search");
+  preview_snap("home_7_computers");
   preview_press(SCE_CTRL_DOWN);
+  preview_snap("home_8_settings");
   preview_press(SCE_CTRL_DOWN);
-  preview_snap("home_5_settings");
+  preview_snap("home_9_quit");
+  preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP);
+  preview_press(SCE_CTRL_CROSS);
+  preview_snap("computers_1_host_online");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("computers_2_host_offline");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("computers_3_host_moved");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("computers_4_search");
   /* the host's own menu */
   preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP);
-  preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP);
   preview_press(SCE_CTRL_SQUARE);
   preview_snap("host_menu");
   preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN);
@@ -222,18 +270,18 @@ static void scenario_home(void) {
   preview_press(SCE_CTRL_CROSS);
   preview_snap("dialog_confirm");
   preview_wait(4);
-  while (1)
-    ui_main_menu();
+  ui_home();
 }
 
-/* Wi-Fi power save reported on by the Vita: the advice line turns into a warning. */
+/* Wi-Fi power save reported on by the Vita: the advice line of the Computers
+ * page turns into a warning. */
 static void scenario_home_wifi(void) {
   fake_hosts();
   fake_wifi_power_save = 1;
   preview_wait(12);
-  preview_snap("home_6_wifi_power_save");
+  preview_snap("computers_5_wifi_power_save");
   preview_wait(2);
-  ui_main_menu();
+  ui_computers_page();
 }
 
 /* Bluetooth on: the advice line warns about the Wi-Fi. */
@@ -241,17 +289,70 @@ static void scenario_home_bt(void) {
   fake_hosts();
   fake_bluetooth = 1;
   preview_wait(12);
-  preview_snap("home_7_bluetooth");
+  preview_snap("computers_6_bluetooth");
   preview_wait(2);
-  ui_main_menu();
+  ui_computers_page();
 }
 
+/* No PC yet: the dashboard is one card that leads to the Computers page; the
+ * previews say what will be there. */
 static void scenario_home_empty(void) {
   known_devices.count = 0;
   preview_wait(12);
   preview_snap("home_empty");
+  preview_press(SCE_CTRL_LEFT);
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("home_empty_library");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("home_empty_computers");
   preview_wait(2);
-  ui_main_menu();
+  ui_home();
+}
+
+/* A PC whose library was never left on this version: no games known yet. */
+static void scenario_home_no_games(void) {
+  fake_hosts();
+  remove(PREVIEW_KEY_DIR "/MINI-PC/home.txt");
+  preview_wait(12);
+  preview_snap("home_no_games");
+  preview_wait(2);
+  ui_home();
+}
+
+/* A stream paused: the dashboard is about it. */
+static void scenario_home_paused(void) {
+  static PAPP_LIST apps;
+  extern SERVER_DATA server;
+  extern PAPP_LIST server_applist;
+  fake_hosts();
+  fake_home_file();
+  config.library_stats = true;
+  gs_init(&server, "192.168.1.24", 47989, PREVIEW_KEY_DIR "/MINI-PC", 0, true);
+  gs_applist(&server, &apps);
+  server_applist = apps;
+  server.currentGame = 1000;
+  connection_reset();
+  connection_paired();
+  ui_connect_preview_host("MINI-PC");
+  preview_wait(12);
+  preview_snap("home_paused");
+  preview_press(SCE_CTRL_LEFT);
+  preview_press(SCE_CTRL_DOWN);
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("home_paused_computers");
+  preview_wait(2);
+  ui_home();
+}
+
+/* The same dashboard with "Statistics in the library" on: the last session. */
+static void scenario_home_stats(void) {
+  fake_hosts();
+  fake_home_file();
+  config.library_stats = true;
+  preview_wait(12);
+  preview_snap("home_stats");
+  preview_wait(2);
+  ui_home();
 }
 
 static void scenario_settings(void) {
@@ -517,7 +618,7 @@ static void scenario_splash(void) {
     fprintf(stderr, "splash: %s\n", error);
   extern void gui_init(void);
   gui_init();
-  ui_main_menu();
+  ui_home();
 }
 
 static void scenario_pairing(void) {
@@ -548,7 +649,6 @@ int main(int argc, char **argv) {
     config.theme = atoi(theme);
 
   extern void gui_init(void);
-  extern int ui_main_menu(void);
   const char *s = argv[1];
   if (!strcmp(s, "splash")) {   /* it brings the menus up itself */
     scenario_splash();
@@ -563,6 +663,9 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "home_empty")) scenario_home_empty();
   else if (!strcmp(s, "home_wifi")) scenario_home_wifi();
   else if (!strcmp(s, "home_bt")) scenario_home_bt();
+  else if (!strcmp(s, "home_no_games")) scenario_home_no_games();
+  else if (!strcmp(s, "home_paused")) scenario_home_paused();
+  else if (!strcmp(s, "home_stats")) scenario_home_stats();
   else if (!strcmp(s, "pairing")) scenario_pairing();
   else if (!strcmp(s, "settings_pages")) scenario_settings_pages();
   else if (!strcmp(s, "settings")) scenario_settings();

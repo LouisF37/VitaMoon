@@ -43,8 +43,8 @@
 #define BUILD_ID "unknown"
 #endif
 
-#define OVERLAY_LINES 4
-#define OVERLAY_LINE_LEN 120
+#define OVERLAY_LINES 1      /* frame rate, latency, bitrate: the rest is in the CSV */
+#define OVERLAY_LINE_LEN 96
 #define RX_RING 64
 
 /* ---- lock-free accumulators (one writer thread, reset by the stats thread) ---- */
@@ -618,23 +618,17 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   sess_r2p_sum += (uint64_t)r2p.avg * r2p.n;
   sess_r2p_n += r2p.n;
 
-  /* Overlay: compact, refreshed once per second. */
+  /* Overlay: one short line, refreshed once per second (every figure of the
+   * second is in the CSV line above): frames shown per second, receive to
+   * screen, bitrate. */
   int next = s_overlay_idx ^ 1;
-  float hz = win_us ? (float)vblanks * 1000000.0f / (float)win_us : 0.0f;
-  snprintf(s_overlay[next][0], OVERLAY_LINE_LEN,
-           "shown %u  recv %u  lost %u  skipped %u  late %u  idle %u   screen %.2f Hz",
-           shown, recv, lost, dropped + replaced + late_hidden, late, idle, hz);
-  snprintf(s_overlay[next][1], OVERLAY_LINE_LEN,
-           "to screen %.1f ms (max %.1f)   decode %.1f   draw %.1f   in decoder %.2f",
-           r2p.avg / 1000.0f, r2p.max / 1000.0f, dec.avg / 1000.0f,
-           (render.avg + swap.avg) / 1000.0f, hold.avg_x100 / 100.0f);
-  snprintf(s_overlay[next][2], OVERLAY_LINE_LEN,
-           "network %.1f Mbps   ping %u ms (+-%u)   PC %.1f ms   key frames %u   late pkts %u (saved %u)",
-           kbps / 1000.0f, rtt, rtt_var, host.avg / 1000.0f, idr, pkt_ooo, reorder_saved);
-  snprintf(s_overlay[next][3], OVERLAY_LINE_LEN,
-           "audio %.1f ms (target %.1f)  gaps %u   draw budget %.1f ms   errors %u   cpu %d MHz",
-           aud_buf.avg / 1000.0f, aud_target.avg / 1000.0f, aud_underrun,
-           budget.avg / 1000.0f, dec_err, cpu);
+  unsigned fps = win_ms ? (unsigned)((shown * 1000u + win_ms / 2) / win_ms) : 0;
+  char mbps[16], rate[32], frames[32];
+  snprintf(mbps, sizeof(mbps), tr("%d.%d"), (int)(kbps / 1000), (int)(kbps % 1000 / 100));
+  snprintf(rate, sizeof(rate), tr("%s Mbps"), mbps);
+  snprintf(frames, sizeof(frames), tr("%d fps"), (int)fps);
+  snprintf(s_overlay[next][0], OVERLAY_LINE_LEN, "%s  \xC2\xB7  %u ms  \xC2\xB7  %s", frames,
+           (unsigned)((r2p.avg + 500) / 1000), rate);
   s_overlay_idx = next;
   s_overlay_valid = true;
 }

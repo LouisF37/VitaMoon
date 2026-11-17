@@ -1504,3 +1504,59 @@ int ui_settings_menu() {
   update_layout();
   return 1;
 }
+
+/* ---------------- for the home screen ---------------- */
+
+static int summary_row(int which) {
+  switch (which) {
+    case SETTINGS_SUM_RESOLUTION: return S_RESOLUTION;
+    case SETTINGS_SUM_FPS: return S_FPS;
+    case SETTINGS_SUM_BITRATE: return S_BITRATE;
+    case SETTINGS_SUM_PROFILE: return S_PROFILE;
+    case SETTINGS_SUM_LL_AUDIO: return S_LL_AUDIO;
+    case SETTINGS_SUM_CONTROLLER: return S_CONTROLLER_TYPE;
+    case SETTINGS_SUM_TOUCH: return S_TOUCH_MODE;
+    case SETTINGS_SUM_REAR_TOUCH: return S_REAR_TOUCH;
+    default: return -1;
+  }
+}
+
+const char *ui_settings_label(int which) {
+  int id = summary_row(which);
+  for (int i = 0; id >= 0 && i < ROW_COUNT; i++)
+    if (k_rows[i].id == id)
+      return tr(k_rows[i].label);
+  return "";
+}
+
+void ui_settings_value(int which, char *out, size_t n) {
+  int id = summary_row(which);
+  out[0] = 0;
+  if (id < 0)
+    return;
+  for (int i = 0; i < ROW_COUNT; i++) {
+    if (k_rows[i].id != id)
+      continue;
+    if (k_rows[i].type == ROW_TOGGLE)
+      snprintf(out, n, "%s", row_is_on(id) ? tr("On") : tr("Off"));
+    else
+      row_value(id, out, n);
+    return;
+  }
+}
+
+int ui_settings_tests_on(const char *names[], int max) {
+  static const int k_tests[] = {S_T_DELAY, S_T_REFS, S_T_SKIP_LATE, S_T_IMMEDIATE, S_T_AUDIO_5MS};
+  bool on[] = {config.test_decoder_delay != TEST_DELAY_OFF, config.test_decoder_refs != TEST_REFS_DEFAULT,
+               config.test_skip_late, config.test_immediate_flip, config.test_audio_5ms};
+  int count = 0;
+  for (int t = 0; t < (int)(sizeof(k_tests) / sizeof(k_tests[0])); t++) {
+    if (!on[t])
+      continue;
+    for (int i = 0; i < ROW_COUNT && count < max; i++)
+      if (k_rows[i].id == k_tests[t])
+        names[count] = tr(k_rows[i].label);
+    count++;
+  }
+  return count;
+}

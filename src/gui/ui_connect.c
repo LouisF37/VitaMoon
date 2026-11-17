@@ -60,6 +60,17 @@ int get_app_id(PAPP_LIST list, char *name) {
   return -1;
 }
 
+/* The name of app `id` in the PC's list, cut to fit; false if it is not there. */
+static bool app_name_of(int id, char *out, size_t n) {
+  for (PAPP_LIST a = server_applist; a != NULL; a = a->next) {
+    if (a->id == id) {
+      snprintf(out, n, "%s", a->name ? a->name : "");
+      return true;
+    }
+  }
+  return false;
+}
+
 int get_app_name(PAPP_LIST list, int id, char *name) {
   while (list != NULL) {
     if (list->id == id) {
@@ -165,6 +176,9 @@ static bool start_settings_changed(void) {
 }
 
 static char connected_host_name[128] = "";
+/* A game the home screen asked to start (or resume) as soon as the PC's list
+ * is read, instead of showing the library first. 0: none. */
+static int pending_launch_id = 0;
 
 /* ---------------- the waiting moon during a stream start ---------------- */
 
@@ -221,6 +235,10 @@ static void moon_stage(int stage) {
 }
 
 #ifdef UI_PREVIEW
+void ui_connect_preview_host(const char *name) {
+  snprintf(connected_host_name, sizeof(connected_host_name), "%.127s", name);
+}
+
 /* The preview draws the moon of a stage as a stream start would. */
 void ui_connect_preview_moon(const char *host, int stage) {
   snprintf(connected_host_name, sizeof(connected_host_name), "%s", host);
@@ -719,6 +737,33 @@ int ui_connected_menu() {
     }
   }
 
+  // Asked from the home screen: start that game straight away. A game no
+  // longer on the PC's list, or a switch the user declines, shows the library.
+  if (pending_launch_id != 0) {
+    int id = pending_launch_id;
+    pending_launch_id = 0;
+    if (server.paired && server_applist != NULL) {
+      char name[256];
+      if (!app_name_of(id, name, sizeof(name))) {
+        LOGW("host", "app %d from the home screen is no longer on the PC's list", id);
+      } else if (server.currentGame == 0 || server.currentGame == id) {
+        LOGI("host", "app %d started from the home screen", id);
+        return ui_launch_app(id);
+      } else {
+        char running[256], question[600];
+        if (!app_name_of(server.currentGame, running, sizeof(running)))
+          snprintf(running, sizeof(running), "%s", "?");
+        snprintf(question, sizeof(question), tr("%s is running on the PC.\nQuit it and start %s?"), running, name);
+        if (display_confirm(question)) {
+          LOGI("host", "switching from app %d to app %d (home screen)", server.currentGame, id);
+          if (ui_quit_app() == QUIT_RELOAD && connection_get_status() == LI_PAIRED)
+            return ui_launch_app(id);
+          return QUIT_RELOAD;
+        }
+      }
+    }
+  }
+
   // New library screen first; the classic menu stays reachable with triangle
   // (pairing, disconnect, plain list of apps).
   static bool show_classic = false;
@@ -961,6 +1006,30 @@ void ui_connect_paired_device(device_info_t *info) {
 
 bool ui_connect_connected() {
   return connection_is_ready();
+}
+
+void ui_connect_paired_device_launch(device_info_t *info, int app_id) {
+  pending_launch_id = app_id;
+  ui_connect_paired_device(info);
+  pending_launch_id = 0;
+}
+
+void ui_connect_resume_launch(void) {
+  pending_launch_id = server.currentGame;
+  connected_screens();
+  pending_launch_id = 0;
+}
+
+int ui_connect_current_game_id(void) {
+  return connection_is_ready() ? server.currentGame : 0;
+}
+
+const char *ui_connect_current_game_name(void) {
+  static char name[256];
+  name[0] = 0;
+  if (connection_is_ready() && server.currentGame && !app_name_of(server.currentGame, name, sizeof(name)))
+    name[0] = 0;
+  return name;
 }
 
 void ui_connect_address(char *addr) {

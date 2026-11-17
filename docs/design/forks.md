@@ -32,7 +32,7 @@ measurements, a modified moonlight-common-c with a reorder window.
 | Clocks raised while connecting | yes | `vitapower_busy_begin()` |
 | Clocks put back when a paused stream ends | yes | `connection.c` |
 | Controls read in step with the controller | yes | option, on |
-| Bluetooth warning | yes | home screen |
+| Bluetooth warning | yes | Computers page |
 | Pairing under the Vita's nickname | yes | instead of "roth" |
 | Restart offer when a setting needs a new stream | yes | from the pause |
 | OpenSSL 1.0.2 build | no | a workaround for his SDK's libcurl, not an optimisation |
@@ -108,7 +108,7 @@ rest was read for what a Vita client needs whatever the protocol.
 | Decoder catch-up, input thread priority, output buffer rotation | yes | taken earlier |
 | 8 MiB network memory pool (4 MiB ran out under load) | yes | `src/main.c` |
 | Reconnection after a lost stream, with an overlay | yes | `src/reconnect.h`, `ui_connect.c` |
-| Wi-Fi power saving and Bluetooth warnings | yes | home screen |
+| Wi-Fi power saving and Bluetooth warnings | yes | Computers page |
 | Colour themes | yes, own palettes | five themes |
 | Log written from a queue by its own thread, per-run files, drop counters | yes, reworked | a byte ring with no allocation per line, levels, token buckets, repeat folding, the four previous runs kept |
 | Time per stream stage, settings and device state in the log | yes | `stream` and `system` lines |

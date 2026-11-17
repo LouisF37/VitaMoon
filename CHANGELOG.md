@@ -3,6 +3,46 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.1.0-beta.2 "Premier Croissant" (2026-11-17)
+
+A new home screen and a lighter statistics overlay. The *Tests (beta)* options of beta.1 are unchanged.
+
+### Home screen
+
+- A side menu (Home, Library, Computers, Settings, Quit) and, on its right, a preview of the entry
+  under the cursor. On Home, a dashboard: the game played last on the PC used last (X starts it at
+  once, without the library, or goes back into a paused stream), the PC and its state, the last
+  session's figures (with *Statistics in the library*, otherwise the stream's settings), and a strip
+  of games (the others played last, then the library's next ones) ending with *See all*.
+- The previews: the library's first twelve games, the paired PCs with their state, the main settings
+  (video, profile, controller, touch, the *Tests (beta)* options turned on), Quit. X opens the page full
+  screen, as before; O comes back to the home, and in the menu O brings the cursor back to Home.
+- *Computers* is the former home screen (the PCs, search, address, the advice about Wi-Fi power saving
+  and Bluetooth), now a page with a title; Settings and Quit moved to the side menu.
+- The home shows a PC's games without asking the PC: the library leaves a small file when it is left,
+  `<data folder>/<PC name>/home.txt` (the start of the shelf, the games played last, the covers'
+  folder), written only when something changed. Until a PC's library has been opened once with this
+  version, the home offers to open it.
+- A PC the scan has not seen yet shows *Checking...* for the few seconds a first pass takes, instead
+  of *Offline*.
+- Starting a game from the home while another one runs on the PC asks first, as the library does.
+- Kept light: the files are read when the home opens or comes back, never while it is shown; covers
+  load one per frame, 16 at most, and are freed before any other screen opens (a stream needs the
+  memory); a frame of the home uses at most 6.4% of vita2d's vertex pool (preview count).
+
+### Statistics overlay
+
+- One line: frames shown per second, receive to screen (ms) and bitrate. Every other figure stays in
+  each session's CSV and `.txt`, unchanged.
+
+### Tests
+
+- PC tests of the home's logic (`tools/tests/test_home.c`, 48 checks: cursor, the PC's file, the PC
+  shown, the strip). Four journeys start from the home: continue the last game, resume a paused
+  stream, a game of the strip, a switch from the game running on the PC. Every state of the home is
+  rendered in three languages (the dashboard also in the five themes); these screens and all the
+  journeys run clean under AddressSanitizer and UBSan.
+
 ## 1.1.0-beta.1 "Premier Croissant" (2026-11-17)
 
 A test version: options to measure before 1.1.0 keeps the best ones, all in a new category,

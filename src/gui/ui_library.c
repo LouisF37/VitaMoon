@@ -28,12 +28,13 @@
 #include "../video/stream_stats.h"
 #include "../log.h"
 #include "library_logic.h"
+#include "cover_look.h"
+#include "home_data.h"
 
 #include <psp2/ctrl.h>
 #include <psp2/rtc.h>
 #include <psp2/touch.h>
 
-#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 #include "../i18n.h"
@@ -71,29 +72,6 @@ typedef struct {
 static lib_item items[MAX_ITEMS];
 static int item_count = 0;
 static int last_focus_id = 0;   /* remembered between visits */
-
-static const unsigned int tints[] = {
-  RGBA8(0x3a, 0x6f, 0xb0, 0xFF), RGBA8(0x2f, 0x8f, 0x9a, 0xFF), RGBA8(0xb0, 0x6a, 0x3a, 0xFF),
-  RGBA8(0x6b, 0x5a, 0xa8, 0xFF), RGBA8(0x4a, 0x8a, 0x5a, 0xFF), RGBA8(0xa4, 0x55, 0x74, 0xFF),
-};
-
-static void make_initials(const char *name, char out[4]) {
-  int n = 0;
-  bool start = true;
-  for (const char *p = name; *p && n < 3; p++) {
-    if (*p == ' ' || *p == '-' || *p == ':') {
-      start = true;
-    } else if (start && isalnum((unsigned char)*p)) {
-      out[n++] = (char)toupper((unsigned char)*p);
-      start = false;
-    } else {
-      start = false;
-    }
-  }
-  if (n == 0)
-    out[n++] = '?';
-  out[n] = 0;
-}
 
 /* ---------------- favourites ---------------- */
 
@@ -199,8 +177,8 @@ static void load_items(PAPP_LIST apps) {
     memset(it, 0, sizeof(*it));
     it->id = a->id;
     snprintf(it->name, sizeof(it->name), "%s", a->name ? a->name : "?");
-    make_initials(it->name, it->initials);
-    it->tint = tints[(unsigned)a->id % (sizeof(tints) / sizeof(tints[0]))];
+    cover_initials(it->name, it->initials);
+    it->tint = cover_tint(a->id);
     it->has_stats = stream_stats_read_last(it->id, &it->last);
     it->favourite = is_favourite(it->id);
     it->pc_order = total - 1 - item_count;
@@ -359,6 +337,33 @@ static void draw_hero(lib_item *it, bool running, bool other_running) {
 
 static bool button_hit(int tx, int ty, int bx, int by, int bw) {
   return bw > 0 && tx >= bx && tx <= bx + bw && ty >= by && ty <= by + ACTION_H;
+}
+
+/* What the home screen shows of this PC (home_logic.h): the start of the shelf
+ * in its order, the games played last and the folder of the covers. Written
+ * when the library is left, only if something changed. */
+static void save_for_home(PSERVER_DATA server, const char *host_name) {
+  static home_games g;   /* about 2.5 KB: kept off the stack */
+  memset(&g, 0, sizeof(g));
+  boxart_cover_dir(server, g.covers, sizeof(g.covers));
+  SceDateTime now;
+  if (sceRtcGetCurrentClockLocalTime(&now) >= 0)
+    snprintf(g.opened, sizeof(g.opened), "%04u-%02u-%02u %02u:%02u", now.year % 10000u, now.month % 100u,
+             now.day % 100u, now.hour % 100u, now.minute % 100u);
+  g.total = item_count;
+  for (int i = 0; i < item_count; i++) {
+    const lib_item *it = &items[i];
+    const char *when = it->has_stats ? it->last.when : "";
+    if (g.shelf_count < HOME_SHELF_MAX) {
+      home_game *s = &g.shelf[g.shelf_count++];
+      s->id = it->id;
+      s->favourite = it->favourite;
+      home_copy_field(s->when, sizeof(s->when), when);
+      home_copy_field(s->name, sizeof(s->name), it->name);
+    }
+    home_add_recent(&g, it->id, when, it->name);
+  }
+  home_data_save(host_name, &g);
 }
 
 int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *app_id) {
@@ -548,6 +553,7 @@ int ui_library(PSERVER_DATA server, PAPP_LIST apps, const char *host_name, int *
   }
 
   last_focus_id = items[focus].id;
+  save_for_home(server, host_name);
   free_items();
   return result;
 }

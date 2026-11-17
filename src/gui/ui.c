@@ -9,6 +9,7 @@
 #include "ui_connect.h"
 #include "ui_device.h"
 #include "ui_check.h"
+#include "ui_home.h"
 
 #include "../config.h"
 #include "../device.h"
@@ -73,10 +74,9 @@ static int host_index(const device_info_t *info) {
   return -1;
 }
 
-enum { HOST_STATE_OFFLINE, HOST_STATE_ONLINE, HOST_STATE_MOVED };
 
 /* What the background scan knows about a saved host. */
-static int host_state(int host_idx) {
+int ui_host_state(int host_idx) {
   if (host_idx < 0 || host_idx >= MAX_HOSTS)
     return HOST_STATE_OFFLINE;
   const device_info_t *info = &known_devices.devices[host_idx];
@@ -88,7 +88,7 @@ static int host_state(int host_idx) {
   return st.status == HOST_ONLINE ? HOST_STATE_ONLINE : HOST_STATE_OFFLINE;
 }
 
-static const char *host_state_text(int state) {
+const char *ui_host_state_text(int state) {
   switch (state) {
     case HOST_STATE_ONLINE: return tr("Online");
     case HOST_STATE_MOVED: return tr("Address changed");
@@ -202,13 +202,13 @@ static int ui_host_manage_menu_back(void *context) {
 void ui_host_manage_menu(device_info_t *info) {
   menu_entry menu[12];
   int idx = 0;
-  int state = host_state(host_index(info));
+  int state = ui_host_state(host_index(info));
 
   // Address and state of the host, then the actions
   char address[320];
   snprintf(address, sizeof(address), "%s : %d", info->internal, info->port);
   menu[idx] = (menu_entry){ .name = address, .disabled = true, .is_host_entry = true, .color = host_state_color(state) };
-  snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s, %s", host_state_text(state),
+  snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s, %s", ui_host_state_text(state),
            info->paired ? tr("paired") : tr("not paired"));
   idx++;
   // Connect is offered whatever the state shown: the scan can miss a PC that is
@@ -230,7 +230,7 @@ void ui_host_manage_menu(device_info_t *info) {
 static int home_focus_id = 0;
 static bool home_has_focus = false;
 
-int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
+static int ui_computers_loop(int cursor, void *context, const input_data *input) {
   // menu_entry *menu = (menu_entry*)context; // unused
   extern volatile int g_host_status_changed;
   extern volatile int g_host_scan_thread_status;
@@ -292,7 +292,7 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
     int host_idx = cursor - MAIN_MENU_CONNECT_PAIRED;
     device_info_t *info = &known_devices.devices[host_idx];
     stop_host_scan();
-    if (host_state(host_idx) == HOST_STATE_ONLINE)
+    if (ui_host_state(host_idx) == HOST_STATE_ONLINE)
       ui_connect_paired_device(info);
     else
       ui_host_manage_menu(info);
@@ -327,30 +327,6 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
       ui_connect_resume();
       exit_menu = 2;
       break;
-    case MAIN_MENU_SETTINGS:
-      vita_debug_log("[UI] Selected: Settings");
-      vita_debug_log("[UI] Stopping the host scan before Settings");
-      stop_host_scan();
-      {
-        int lang_before = i18n_language();
-        ui_settings_menu();
-        if (i18n_language() != lang_before) {
-          exit_menu = 2; // rebuild the menu so its labels use the new language
-          break;
-        }
-      }
-      exit_menu = 0;
-      start_host_scan();
-      break;
-    case MAIN_MENU_QUIT:
-      vita_debug_log("[UI] Selected: Quit");
-      vita_debug_log("[UI] Stopping the host scan before quitting");
-      stop_host_scan();
-      if (connection_get_status() != LI_DISCONNECTED) {
-        connection_terminate();
-      }
-      exit(0);
-      return 0;
   }
   // Leaving the menu: stop the scan
   if (exit_menu) {
@@ -361,16 +337,13 @@ int ui_main_menu_loop(int cursor, void *context, const input_data *input) {
   return 0;
 }
 
-int ui_main_menu_back(void *context) {
-  return 1;
-}
-/* ---- home screen: the list on the left, details of the focused entry on the right ---- */
+
+/* ---- Computers page: the list on the left, details of the focused entry on the right ---- */
 #define HOME_LIST_W 400
 #define HOME_PANE_X (TH_MARGIN + HOME_LIST_W + 32)
 #define HOME_PANE_W (TH_RIGHT - HOME_PANE_X)
-#define HOME_PANE_Y (TH_CONTENT_Y0 + 8)
+#define HOME_PANE_Y TH_CONTENT_Y
 
-static char home_version[96];
 static int home_wifi_power_save = -1;   /* read when the home screen opens */
 static int home_bluetooth = -1;         /* idem */
 
@@ -392,19 +365,18 @@ static void home_explain(const char *title, const char *text) {
 static void home_draw(void) {
   int pane_h = TH_CONTENT_END - HOME_PANE_Y;
   theme_glass(HOME_PANE_X, HOME_PANE_Y, HOME_PANE_W, pane_h, 14);
-  theme_text(TH_MARGIN, TH_HINTS_Y, TH_TEXT3, TS_MICRO, home_version);
 
   int id = home_focus_id;
   if (home_has_focus && id >= MAIN_MENU_CONNECT_PAIRED && id < MAIN_MENU_QUIT &&
       id - MAIN_MENU_CONNECT_PAIRED < known_devices.count) {
     int host_idx = id - MAIN_MENU_CONNECT_PAIRED;
     const device_info_t *info = &known_devices.devices[host_idx];
-    int state = host_state(host_idx);
+    int state = ui_host_state(host_idx);
     unsigned int state_color = state == HOST_STATE_ONLINE ? TH_OK : (state == HOST_STATE_MOVED ? TH_WARN : TH_ERR);
 
     theme_text_fit(HOME_PANE_X + 24, HOME_PANE_Y + 44, TH_TEXT, TS_LEAD, info->name, HOME_PANE_W - 48);
     theme_circle(HOME_PANE_X + 29, HOME_PANE_Y + 65, 5, state_color);
-    theme_text(HOME_PANE_X + 44, HOME_PANE_Y + 70, TH_TEXT2, TS_SMALL, host_state_text(state));
+    theme_text(HOME_PANE_X + 44, HOME_PANE_Y + 70, TH_TEXT2, TS_SMALL, ui_host_state_text(state));
 
     char value[320];
     int y = HOME_PANE_Y + 112;
@@ -451,12 +423,6 @@ static void home_draw(void) {
     case MAIN_MENU_CONNECT:
       home_explain(tr("Enter an address"), tr("Type the IP address of the PC, as shown in Sunshine or in the network settings of Windows."));
       break;
-    case MAIN_MENU_SETTINGS:
-      home_explain(tr("Settings"), tr("Language, video quality, performance profile, controls and touch screen."));
-      break;
-    case MAIN_MENU_QUIT:
-      home_explain(tr("Quit"), tr("Closes VitaMoon and returns to the Vita home screen."));
-      break;
     default:
       break;
   }
@@ -468,7 +434,7 @@ static int home_hints(int id, theme_hint_item *out, int max) {
   bool on_host = id >= MAIN_MENU_CONNECT_PAIRED && id < MAIN_MENU_QUIT &&
                  id - MAIN_MENU_CONNECT_PAIRED < known_devices.count;
   if (on_host) {
-    bool online = host_state(id - MAIN_MENU_CONNECT_PAIRED) == HOST_STATE_ONLINE;
+    bool online = ui_host_state(id - MAIN_MENU_CONNECT_PAIRED) == HOST_STATE_ONLINE;
     out[n++] = (theme_hint_item){theme_confirm_glyph(), online ? tr("Connect") : tr("Open")};
     out[n++] = (theme_hint_item){GLYPH_SQUARE, tr("PC options")};
   } else {
@@ -476,12 +442,18 @@ static int home_hints(int id, theme_hint_item *out, int max) {
   }
   if (id != MAIN_MENU_CONNECT_RESUME && n < max)
     out[n++] = (theme_hint_item){GLYPH_TRIANGLE, tr("Refresh")};
+  if (n < max)
+    out[n++] = (theme_hint_item){theme_cancel_glyph(), tr("Back")};
   return n;
 }
 
-int ui_main_menu() {
-  // Restart the host scan whenever the main menu opens
-  vita_debug_log("[UI] Entering the main menu");
+static bool rebuilding = false;   /* the page is shown again in place: keep the cursor */
+
+/* One showing of the page; 2 when it must be built again (the scan changed
+ * something, a PC was added), 1 when the user leaves it. */
+static int ui_computers() {
+  // Restart the host scan whenever the page opens
+  vita_debug_log("[UI] Entering the Computers page");
   // Scan only when there is NO active connection
   if (!ui_connect_connected()) {
     vita_debug_log("[UI] Starting the host scan (no active connection)");
@@ -511,57 +483,43 @@ int ui_main_menu() {
     idx++; \
   } while(0)
 
-#ifdef BUILD_ID
-  snprintf(home_version, sizeof(home_version), "%s  %s", VERSION_TEXT, BUILD_ID);
-#else
-  snprintf(home_version, sizeof(home_version), "%s", VERSION_TEXT);
-#endif
-
   static char resume_msg[512];
   if (ui_connect_connected()) {
     MENU_SEPARATOR(tr("Current connection"));
     snprintf(resume_msg, sizeof(resume_msg), tr("Resume on %s"), ui_connect_host_label());
     MENU_ENTRY(MAIN_MENU_CONNECT_RESUME, resume_msg, false);
   } else {
-    bool any_host = false;
     for (int i = 0; i < known_devices.count && i < MAX_HOSTS; i++) {
       device_info_t *cur = &known_devices.devices[i];
       if (!cur->paired) {
         continue;
       }
-      if (!any_host) {
-        MENU_SEPARATOR(tr("Computers"));
-        any_host = true;
-      }
       // Status from the background scan: green online, red offline, yellow address changed
-      int state = host_state(i);
+      int state = ui_host_state(i);
       MENU_ENTRY(MAIN_MENU_CONNECT_PAIRED + i, cur->name, false);
       menu[idx - 1].is_host_entry = true;
       menu[idx - 1].color = host_state_color(state);
-      snprintf(menu[idx - 1].subname, sizeof(menu[idx - 1].subname), "%s", host_state_text(state));
+      snprintf(menu[idx - 1].subname, sizeof(menu[idx - 1].subname), "%s", ui_host_state_text(state));
     }
     MENU_SEPARATOR(tr("Add a computer"));
     MENU_ENTRY(MAIN_MENU_SEARCH, tr("Search the network"), false);
     MENU_ENTRY(MAIN_MENU_CONNECT, tr("Enter an address"), false);
   }
 
-  MENU_ENTRY(MAIN_MENU_SETTINGS, tr("Settings"), false);
-  MENU_ENTRY(MAIN_MENU_QUIT, tr("Quit"), false);
-
   menu_geom geom = {0};
   geom.page = true;
   geom.x = TH_MARGIN;
   geom.width = HOME_LIST_W;
-  geom.y = TH_CONTENT_Y0;
+  geom.y = TH_CONTENT_Y;
   geom.el = 44;
   geom.height = (TH_CONTENT_END - geom.y) / geom.el * geom.el;
   geom.total_y = geom.y + geom.height;
 
   /* The list is rebuilt whenever the scan reports a change: keep the cursor
    * where it was and skip the opening animation in that case. */
-  static bool opened_before = false;
-  if (!home_has_focus) {
+  if (!rebuilding || !home_has_focus) {
     /* first time: describe the entry the cursor starts on */
+    home_has_focus = false;
     for (int i = 0; i < idx; i++) {
       if (!menu[i].disabled) {
         home_focus_id = menu[i].id;
@@ -571,14 +529,22 @@ int ui_main_menu() {
     }
   }
   menu_options options = {0};
+  options.title = tr("Computers");
   options.has_focus = home_has_focus;
   options.focus_id = home_focus_id;
-  options.instant = opened_before;
-  options.intro = !opened_before && splash_take_intro();
+  options.instant = rebuilding;
   options.hints_for = home_hints;
   gui_set_next_options(&options);
-  opened_before = true;
-  return display_menu(menu, idx, &geom, &ui_main_menu_loop, &ui_main_menu_back, &home_draw, NULL);
+  return display_menu(menu, idx, &geom, &ui_computers_loop, NULL, &home_draw, NULL);
+}
+
+/* The scan is left running for the home screen, which shows the same states. */
+void ui_computers_page(void) {
+  rebuilding = false;
+  home_has_focus = false;
+  while (ui_computers() == 2)
+    rebuilding = true;
+  rebuilding = false;
 }
 
 int global_loop(int cursor, void *ctx, const input_data *input) {
@@ -596,7 +562,7 @@ void gui_init() {
 void gui_loop() {
   gui_init();
 
-  while (ui_main_menu() == 2);
+  ui_home();
 
   vita2d_fini();
 }

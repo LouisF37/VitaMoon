@@ -37,7 +37,7 @@ what was measured by whom, is listed in [docs/design/performance.md](docs/design
 ## Screenshots
 
 <div align="center">
-  <img src="docs/screenshots/home_1_host_online.png" alt="Home: computers and their state" width="48%"/>
+  <img src="docs/screenshots/home.png" alt="Home: side menu and dashboard, the last game one press away" width="48%"/>
   <img src="docs/screenshots/library_1.png" alt="Library: games with cover art, when each was last played" width="48%"/>
   <img src="docs/screenshots/settings_profile_smooth.png" alt="Settings: performance profiles" width="48%"/>
   <img src="docs/screenshots/pairing_code.png" alt="Pairing: code to type in Sunshine" width="48%"/>
@@ -60,9 +60,11 @@ measurements).</sub>
 - **Low-latency audio** with an adaptive buffer that grows only as much as the link needs.
 - **Fast colour decoding**: the GPU converts the decoder's YUV output (about 2 ms less per frame,
   measured by juanjsebgarcia).
-- **Statistics**: an overlay during play, and per session a CSV (one line per second) plus a summary
-  with percentiles, to compare settings on your own setup.
-- **Interface**: computers with their state, a game library with cover art (favourites first, then
+- **Statistics**: a one-line overlay during play (frame rate, receive-to-screen time, bitrate), and per
+  session a CSV (one line per second) plus a summary with percentiles, to compare settings on your own
+  setup.
+- **Interface**: a home screen with a side menu and a preview of each page, its dashboard one press
+  away from the game played last; computers with their state, a game library with cover art (favourites first, then
   the games last played, with when), two-pane settings with help for every option, pairing with a
   code to type in Sunshine, English, French and Spanish, five colour themes over a lunar sky (Night,
   Dawn, Aurora, Twilight, Eclipse) whose stars can twinkle and turn around the moon, titles in Poppins
