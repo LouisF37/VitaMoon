@@ -23,10 +23,10 @@ set(TITLE "VitaMoon")
 set(LIVEAREA_TITLE "VITAMOON")
 set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
 set(VERSION_MAJOR "1")
-set(VERSION_MINOR "0")
+set(VERSION_MINOR "1")
 set(VERSION_PATCH "0")
-set(VERSION_LABEL "")               # empty for a final release, e.g. "beta.1" before one
-set(VERSION_NAME "Nouvelle Lune")  # milestone name, shown in the docs
+set(VERSION_LABEL "beta.1")         # empty for a final release, e.g. "beta.1" before one
+set(VERSION_NAME "Premier Croissant")  # milestone name, shown in the docs
 if(VERSION_LABEL)
 	set(VERSION_TEXT "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_LABEL}")
 else()
@@ -109,6 +109,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/video/vita.c
 	src/video/pacing.c
 	src/video/stream_stats.c
+	src/video/latency_test.c
 	src/gui/boxart.c
 	src/gui/ui_library.c
 	src/gui/quickmenu.c
@@ -148,6 +149,25 @@ add_executable(${PROJECT_NAME}.elf
 )
 
 
+# Tests (beta): the hardware decoder's delay mode is imported through a stub
+# made at build time from cmake/vita/SceVideodecLowDelay.yml (weak import:
+# the app starts even if the system lacks it; only that setting calls it).
+find_program(VITA_LIBS_GEN vita-libs-gen HINTS "$ENV{VITASDK}/bin" REQUIRED)
+find_program(MAKE_PROGRAM NAMES make gmake REQUIRED)
+set(LOW_DELAY_YML "${CMAKE_CURRENT_SOURCE_DIR}/cmake/vita/SceVideodecLowDelay.yml")
+set(LOW_DELAY_DIR "${CMAKE_CURRENT_BINARY_DIR}/low-delay-stub")
+set(LOW_DELAY_STUB "${LOW_DELAY_DIR}/libSceAvcodecUser_stub_weak.a")
+add_custom_command(
+	OUTPUT "${LOW_DELAY_STUB}"
+	COMMAND ${CMAKE_COMMAND} -E make_directory "${LOW_DELAY_DIR}"
+	COMMAND "${VITA_LIBS_GEN}" "${LOW_DELAY_YML}" "${LOW_DELAY_DIR}"
+	COMMAND ${CMAKE_COMMAND} -E env "VITASDK=$ENV{VITASDK}" "${MAKE_PROGRAM}" -C "${LOW_DELAY_DIR}"
+	DEPENDS "${LOW_DELAY_YML}"
+	VERBATIM
+)
+add_custom_target(low-delay-stub DEPENDS "${LOW_DELAY_STUB}")
+add_dependencies(${PROJECT_NAME}.elf low-delay-stub)
+
 # Por defecto, solo enlazamos curl y el resto de libs estándar:
 target_link_libraries(${PROJECT_NAME}.elf
 	-lexpat
@@ -172,6 +192,7 @@ target_link_libraries(${PROJECT_NAME}.elf
 	-lSceNetCtl_stub
 	-lScePower_stub
 	-lSceRegistryMgr_stub
+	"${LOW_DELAY_STUB}"
 	-lSceVideodec_stub
 	-lSceCommonDialog_stub
 	-lSceShellSvc_stub

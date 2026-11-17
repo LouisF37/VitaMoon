@@ -31,3 +31,9 @@ void vitavideo_stop();
 void vitavideo_show_poor_net_indicator();
 void vitavideo_hide_poor_net_indicator();
 int vitavideo_initialized();
+
+#include <stdbool.h>
+
+/* Tests (beta): true once a decoder delay mode was set during this run of the
+ * app (the decoder keeps it until VitaMoon restarts). */
+bool vitavideo_decoder_delay_used(void);

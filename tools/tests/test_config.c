@@ -53,6 +53,12 @@ static CONFIGURATION sample(void) {
   c.sky_speed = 3;
   c.sky_anticlockwise = true;
   c.tap_time_ms = 150;
+  c.rear_touch = false;       /* not the default: the file must carry it */
+  c.test_decoder_delay = 3;
+  c.test_decoder_refs = 2;
+  c.test_skip_late = true;
+  c.test_immediate_flip = true;
+  c.test_audio_5ms = true;
   c.enable_ref_frame_invalidation = true;
   c.stream.streamingRemotely = 1;
   c.enable_vita_vblank_wait = true;
@@ -104,6 +110,8 @@ int main(void) {
   config_file_parse((char *)k_file, &b);
 
 #define SAME(field) CHECK(a.field == b.field, "round trip: " #field)
+  SAME(rear_touch); SAME(test_decoder_delay); SAME(test_decoder_refs); SAME(test_skip_late);
+  SAME(test_immediate_flip); SAME(test_audio_5ms);
   SAME(library_stats); SAME(twinkle_stars); SAME(sky_speed); SAME(sky_anticlockwise); SAME(tap_time_ms);
   SAME(stream.width); SAME(stream.height); SAME(stream.fps); SAME(stream.bitrate);
   SAME(auto_bitrate); SAME(stream.packetSize); SAME(sops); SAME(localaudio);
@@ -153,7 +161,8 @@ int main(void) {
              "touchscreen_mode = -2\ncontroller_type = 0\nmouse_acceleration = 4000\n"
              "motion_controls_scalar_x = nan\nmotion_controls_scalar_y = 99\n"
              "double_tap_sprint_step_time = 5\nlanguage = 7\npacket_size = 1300\ntheme = 9\n"
-             "keyboard_layout = 12\ntap_time_ms = 30\nsky_speed = 9\n");
+             "keyboard_layout = 12\ntap_time_ms = 30\nsky_speed = 9\n"
+             "test_decoder_delay = 5\ntest_decoder_refs = 3\n");
   config_file_parse((char *)k_file, &c);
   config_sanitize(&c);
   CHECK(c.stream.width == 960 && c.stream.height == 544, "sanitize: resolution back to 960x544");
@@ -164,6 +173,8 @@ int main(void) {
   CHECK(c.mouse_acceleration == 150, "sanitize: mouse acceleration");
   CHECK(c.tap_time_ms == TAP_TIME_DEFAULT, "sanitize: tap time out of 100..250 back to 250");
   CHECK(c.sky_speed == SKY_STILL, "sanitize: unknown sky speed back to a still sky");
+  CHECK(c.test_decoder_delay == TEST_DELAY_OFF, "sanitize: unknown decoder delay mode back to off");
+  CHECK(c.test_decoder_refs == TEST_REFS_DEFAULT, "sanitize: 3 reference frames back to 4");
   CHECK(c.motion_controls_scalar_x > 1.19f && c.motion_controls_scalar_x < 1.21f, "sanitize: NaN motion scale");
   CHECK(c.motion_controls_scalar_y > 0.79f && c.motion_controls_scalar_y < 0.81f, "sanitize: huge motion scale");
   CHECK(c.double_tap_sprint_step_time == 200, "sanitize: sprint tap time");
@@ -173,12 +184,15 @@ int main(void) {
   CHECK(c.stream.packetSize == 1300, "sanitize: a valid packet size is kept");
   /* Pointer acceleration 0 is "off" in the settings: it survives a restart. */
   memset(&c, 0, sizeof(c));
-  write_text("mouse_acceleration = 0\ntap_time_ms = 100\nsky_speed = 4\n");
+  write_text("mouse_acceleration = 0\ntap_time_ms = 100\nsky_speed = 4\n"
+             "test_decoder_delay = 4\ntest_decoder_refs = 1\n");
   config_file_parse((char *)k_file, &c);
   config_sanitize(&c);
   CHECK(c.mouse_acceleration == 0, "sanitize: acceleration 0 (off) is kept");
   CHECK(c.tap_time_ms == 100, "sanitize: a tap time of 100 ms is kept");
   CHECK(c.sky_speed == SKY_SPEED_COUNT - 1, "sanitize: the fastest sky is kept");
+  CHECK(c.test_decoder_delay == TEST_DELAY_COUNT - 1, "sanitize: the last decoder delay mode is kept");
+  CHECK(c.test_decoder_refs == 1, "sanitize: one reference frame is kept");
   CONFIGURATION good = sample();
   CONFIGURATION copy = good;
   config_sanitize(&copy);

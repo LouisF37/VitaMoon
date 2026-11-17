@@ -120,7 +120,21 @@ typedef struct _CONFIGURATION {
   int sky_speed;        // the stars of the menus' background turn around the moon: SKY_STILL or a speed
   bool sky_anticlockwise;   // ... the other way round
   int tap_time_ms;      // trackpad: longest touch that is a click (TAP_TIME_MIN..MAX)
+  bool rear_touch;      // the rear touch pad acts as buttons (L2/R2 top, L3/R3 bottom by default)
+  // Tests of the 1.1 betas (Settings > Tests (beta)). Their defaults keep 1.0's
+  // behaviour; docs/design/tests-1.1.md says what each one measures.
+  int test_decoder_delay;   // TEST_DELAY_OFF, or one of the decoder's delay modes
+  int test_decoder_refs;    // reference frames the decoder is created with: 4, 2 or 1
+  bool test_skip_late;      // frames over 100 ms late are decoded but not shown
+  bool test_immediate_flip; // Low latency display: a frame goes on screen at once
+  bool test_audio_5ms;      // the PC sends 5 ms sound packets instead of 10
 } CONFIGURATION, *PCONFIGURATION;
+
+/* Tests (beta): decoder delay modes offered, in the order of the settings.
+ * 0 leaves the decoder alone; src/video/vita.c gives each its mode value. */
+#define TEST_DELAY_OFF 0
+#define TEST_DELAY_COUNT 5
+#define TEST_REFS_DEFAULT 4
 
 /* Trackpad tap: the settings offer 100 to 250 ms in steps of 50. */
 #define TAP_TIME_MIN 100

@@ -54,6 +54,7 @@ int main(void) {
   entry.bufferType = BUFFER_TYPE_SPS;
 
   gs_sps_init(960, 544);
+  CHECK(gs_sps_source_ref_frames() == -1, "no reference frame count before the first SPS");
   uint8_t out[512];
   memset(out, 0xEE, sizeof(out));
   uint32_t offset = 7;   /* appended after what is already in the buffer */
@@ -68,6 +69,7 @@ int main(void) {
   int parsed = read_nal_unit(check, out + 7 + 4, (int)written - 4);
   CHECK(parsed > 0 && check->nal->nal_unit_type == NAL_UNIT_TYPE_SPS, "result is a valid SPS");
   CHECK(check->sps->num_ref_frames == 1, "one reference frame");
+  CHECK(gs_sps_source_ref_frames() == 4, "the encoder's own reference frame count is kept for the log");
   CHECK(check->sps->vui.bitstream_restriction_flag == 1, "bitstream restriction present");
   CHECK(check->sps->vui.max_dec_frame_buffering == 1, "decoder buffers a single frame");
   CHECK(check->sps->vui.num_reorder_frames == 0, "no reordering");

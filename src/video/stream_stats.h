@@ -41,6 +41,7 @@ void stream_stats_on_display_queue(uint32_t ready);  /* frames waiting when the 
 void stream_stats_on_display_late(void);             /* SMOOTH: a flip missed its vertical blank */
 void stream_stats_on_latch_budget(uint32_t budget_us); /* SMOOTH: time kept for drawing */
 void stream_stats_on_pace(uint32_t delay_us);          /* PACED: current delay, every 2 s */
+void stream_stats_on_late_hidden(void);                /* Tests (beta): decoded, not shown (late) */
 
 /* Connection callbacks */
 void stream_stats_on_conn_status(bool poor);
@@ -51,6 +52,10 @@ void stream_stats_on_audio_output(uint32_t block_us);
 void stream_stats_on_audio_fill(uint32_t buffered_us, uint32_t target_us);  /* low-latency mode */
 void stream_stats_on_audio_underrun(void);
 void stream_stats_on_audio_skip(uint32_t dropped_us);
+void stream_stats_on_audio_arrival(uint32_t since_previous_us);  /* time since the previous packet */
+
+/* Seconds since the current stream started (0 when none). */
+uint32_t stream_stats_elapsed_s(void);
 
 /* Summary of the last session of an app, shown on the library screen. */
 typedef struct {

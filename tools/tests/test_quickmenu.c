@@ -71,6 +71,15 @@ int main(void) {
   qm_blocks(&s, 0);
   qm_open(&s, COMBO);
   qm_input(&s, 0, CONFIRM, CANCEL);
+  press(&s, SCE_CTRL_DOWN);
+  press(&s, SCE_CTRL_DOWN);
+  press(&s, SCE_CTRL_DOWN);
+  CHECK(s.selected == QM_LATENCY, "fourth row: the delay test");
+  CHECK(press(&s, CONFIRM) == QM_ACT_LATENCY && !s.open, "the delay test closes the menu");
+  CHECK(qm_blocks(&s, CONFIRM), "the button that started the test does not reach the game");
+  qm_blocks(&s, 0);
+  qm_open(&s, COMBO);
+  qm_input(&s, 0, CONFIRM, CANCEL);
   press(&s, SCE_CTRL_UP);
   press(&s, SCE_CTRL_UP);
   CHECK(press(&s, CONFIRM) == QM_ACT_PAUSE && !s.open, "pause closes the menu");

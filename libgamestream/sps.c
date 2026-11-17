@@ -25,9 +25,11 @@
 
 static h264_stream_t* h264_stream;
 static int initial_width, initial_height;
+static int source_ref_frames = -1;
 
 void gs_sps_init(int width, int height) {
   h264_stream = h264_new();
+  source_ref_frames = -1;
   initial_width = width;
   initial_height = height;
 }
@@ -37,6 +39,10 @@ void gs_sps_stop() {
     h264_free(h264_stream);
     h264_stream = NULL;
   }
+}
+
+int gs_sps_source_ref_frames(void) {
+  return source_ref_frames;
 }
 
 /* The original SPS, unchanged: what the decoder gets when the rewrite fails. */
@@ -73,6 +79,7 @@ void gs_sps_fix(PLENTRY sps, int flags, uint8_t* out_buf, uint32_t* out_offset) 
     h264_stream->sps->level_idc = 42; // Max 4 buffered frames at 1920x1080x60
 
   // Some decoders requires a reference frame count of 1 to decode successfully.
+  source_ref_frames = h264_stream->sps->num_ref_frames;
   h264_stream->sps->num_ref_frames = 1;
 
   // GFE 2.5.11 changed the SPS to add additional extensions

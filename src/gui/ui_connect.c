@@ -127,6 +127,8 @@ typedef struct {
   int display_mode;
   bool low_latency_audio, decoder_catchup, decode_yuv, thread_pinning;
   int reorder_wait_ms;
+  int test_decoder_delay, test_decoder_refs;
+  bool test_skip_late, test_immediate_flip, test_audio_5ms;
 } stream_start_settings;
 
 static stream_start_settings started_with;
@@ -149,6 +151,11 @@ static void read_start_settings(stream_start_settings *out, int width, int heigh
   out->decode_yuv = config.decode_yuv;
   out->thread_pinning = config.thread_pinning;
   out->reorder_wait_ms = config.video_reorder_wait_ms;
+  out->test_decoder_delay = config.test_decoder_delay;
+  out->test_decoder_refs = config.test_decoder_refs;
+  out->test_skip_late = config.test_skip_late;
+  out->test_immediate_flip = config.test_immediate_flip;
+  out->test_audio_5ms = config.test_audio_5ms;
 }
 
 static bool start_settings_changed(void) {
@@ -311,8 +318,19 @@ static int start_stream(int appId, bool report_errors) {
     connection_set_stage_hook(moon_stage);
   // The decoder probe of the start-up (ui_settings.c) uses the decoder too.
   ui_settings_probe_wait();
+  // Tests (beta) > 5 ms sound packets: moonlight-common-c asks the PC for
+  // 10 ms packets when the renderer declares a slow Opus decoder, for 5 ms
+  // ones otherwise (SdpGenerator.c). Decoding stays on its AudioDec thread
+  // either way (no CAPABILITY_DIRECT_SUBMIT).
+  AUDIO_RENDERER_CALLBACKS *audio_callback = platform_get_audio(system);
+  if (audio_callback != NULL) {
+    if (config.test_audio_5ms)
+      audio_callback->capabilities &= ~CAPABILITY_SLOW_OPUS_DECODER;
+    else
+      audio_callback->capabilities |= CAPABILITY_SLOW_OPUS_DECODER;
+  }
   ret = LiStartConnection(&server.serverInfo, &config.stream, &connection_callbacks,
-                          video_callback, platform_get_audio(system),
+                          video_callback, audio_callback,
                           NULL, drFlags, NULL, 0);
   connection_set_stage_hook(NULL);
   if (ret != 0)

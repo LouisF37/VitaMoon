@@ -220,6 +220,7 @@ int sceRtcGetCurrentTick(SceRtcTick *tick) { tick->tick = (SceUInt64)frame * 166
 
 int scePowerGetBatteryLifePercent(void) { return 73; }
 SceBool scePowerIsBatteryCharging(void) { return 0; }
+int scePowerGetBatteryLifeTime(void) { return 130; }
 
 int sceNetCtlInetGetState(int *state) { *state = SCE_NETCTL_STATE_CONNECTED; return 0; }
 

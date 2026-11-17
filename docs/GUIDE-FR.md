@@ -61,9 +61,10 @@ ou « Jamais lancé depuis cette Vita ».
 - Croix directionnelle ou écran tactile pour choisir ; L et R avancent de 5 jeux.
 
 **Menu rapide en jeu.** L + R + SELECT pendant un stream ouvre un menu par-dessus le jeu : retour au jeu,
-statistiques à l'écran (oui / non, enregistré), clavier, pause (menus de VitaMoon), quitter le jeu (Croix
-deux fois, pour éviter un accident ; Rond si X et O sont inversés). Le haut de l'écran montre le Wi-Fi,
-la batterie et l'heure. Le jeu continue de tourner sur le PC pendant ce temps, mais ne reçoit aucun
+statistiques à l'écran (oui / non, enregistré), clavier, mesure du délai (page de test, voir les essais
+de la 1.1), pause (menus de VitaMoon), quitter le jeu (Croix deux fois, pour éviter un accident ; Rond si
+X et O sont inversés). Le haut de l'écran montre le Wi-Fi, la batterie et l'heure ; sous le nom du PC,
+la durée du stream et l'autonomie restante estimée par la Vita. Le jeu continue de tourner sur le PC pendant ce temps, mais ne reçoit aucun
 bouton tant que le menu est ouvert, ni avant que tous les boutons soient relâchés à sa fermeture. Rond
 (Croix si X et O sont inversés) ou SELECT referme le menu.
 
@@ -201,6 +202,72 @@ visible, intervalle entre deux images affichées, durée du décodage matériel,
 de plus de 1,5 image (images affichées en retard ou répétées). Ce sont les chiffres à comparer d'un
 profil à l'autre : les moyennes cachent les saccades.
 
+## Essais de la 1.1 (bêta)
+
+La 1.1.0-beta.1 ajoute des options à mesurer, toutes dans **Réglages → Essais (bêta)** et réglées
+par défaut comme en 1.0 : rien ne change tant qu'on n'y touche pas. Le détail technique est dans
+[design/tests-1.1.md](design/tests-1.1.md) (en anglais).
+
+| Option | Ce qu'elle change | Où regarder |
+|---|---|---|
+| Mode de délai du décodeur | Non, Faible, Mode 1, Mode 2, Élevé : demande au décodeur de la Vita de rendre les images plus tôt (le Moonlight Vita 1.0 d'origine utilise Faible). Une fois utilisé, Non ne revient qu'après un redémarrage de VitaMoon | journal (`decoder delay mode`), colonnes `hold_avg_x100` et `r2p_avg_us` |
+| Images de référence du décodeur | 4 (comme en 1.0), 2 ou 1. Si le décodeur refuse, VitaMoon repasse à 4 tout seul | journal (`reference frames`), image cassée ou non |
+| Sauter les images en retard | après un gel du Wi-Fi, les images arrivées avec plus de 100 ms de retard sont décodées mais pas affichées : l'image saute au présent au lieu de rejouer le passé en accéléré | colonne `late_hidden`, journal (`late frames`) |
+| Afficher les images tout de suite | affichage **Faible latence** seulement : l'image part à l'écran sans attendre le rafraîchissement (jusqu'à 16 ms, 8 en moyenne), au risque d'une image coupée en deux | `r2p_avg_us`, déchirures à l'écran |
+| Paquets de son de 5 ms | le PC envoie le son toutes les 5 ms au lieu de 10 | `aud_underrun`, `aud_wait_max_us`, journal (`sound gap`) |
+
+Une option changée pendant une pause (START + L + R) s'applique en relançant le stream : VitaMoon le
+propose en reprenant.
+
+Nouveau aussi, sans option : chaque coupure du son écrit une ligne `sound gap` dans le journal (depuis
+combien de temps le dernier paquet de son était arrivé, combien attendaient, combien étaient perdus).
+Une coupure longtemps après le dernier paquet désigne le Wi-Fi ou le PC ; une coupure avec un paquet
+récent désigne la Vita. C'est à lire avant d'essayer les paquets de 5 ms.
+
+Ailleurs : **Réglages → Tactile → Pavé tactile arrière** coupe le pavé arrière (L2/R2 en haut, L3/R3
+en bas). Le Moonlight Vita d'origine avait mis une zone morte de 80 points par défaut, puis l'a
+retirée : la zone morte de VitaMoon reste à 0, réglable sur sa page. Dans le menu rapide, sous le nom
+du PC : depuis combien de temps dure le stream et l'autonomie restante estimée par la Vita (le
+pourcentage et l'heure sont en haut à droite).
+
+### Mesurer le délai ressenti (appui → image)
+
+1. Copier [tools/latency/latency.html](../tools/latency/latency.html) sur le mini-PC, par exemple dans
+   `C:\VitaMoon\latency.html`.
+2. Dans Sunshine, *Applications* → *Ajouter* : nom `VitaMoon délai`, commande :
+   `"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe" --kiosk "file:///C:/VitaMoon/latency.html" --edge-kiosk-type=fullscreen --no-first-run --user-data-dir=C:\VitaMoon\edge-profile`
+   (Edge en plein écran ; le profil à part lui fait ouvrir sa propre fenêtre, que Sunshine ferme quand
+   on quitte le « jeu » depuis la Vita).
+3. Lancer `VitaMoon délai` depuis la Vita : écran noir avec une petite barre qui bouge en bas (elle fait
+   envoyer 60 images par seconde au PC, comme un jeu).
+4. Menu rapide (L + R + SELECT) → **Mesurer le délai (page de test)**, puis ne plus toucher aux
+   commandes pendant 25 secondes environ. Seulement sur la page de test : lancé par erreur sur un jeu,
+   VitaMoon s'arrête après ses deux premiers appuis sans réponse, mais le jeu les reçoit.
+
+VitaMoon appuie tout seul sur A (2 appuis d'échauffement, puis 20 mesurés) et regarde le centre de
+l'image : la page devient blanche tant que A est enfoncé. Le résultat s'affiche en bas de l'écran
+(médiane, minimum, maximum) et part dans `ux0:data/vitamoon/stats/latency-<date>.txt`, avec chaque appui
+découpé en trois : appui envoyé → premier paquet de l'image blanche (trajet vers le PC, réaction de la
+page, capture, encodage, trajet retour), premier paquet → sortie du décodeur, décodeur → écran.
+
+Non compté : la Vita lit ses boutons environ 60 fois par seconde, donc un vrai appui attend en plus 0 à
+17 ms (8 en moyenne) ; et le centre de l'écran s'affiche environ 8 ms après le haut. Le chiffre sert
+surtout à **comparer** : même page, mêmes réglages Sunshine, une option changée à la fois.
+
+### Protocole
+
+1. Session de référence : 1.1.0-beta.1 sans rien changer (5 minutes de FF9 au même endroit), puis une
+   mesure du délai.
+2. Mode de délai du décodeur à **Faible**, redémarrer VitaMoon entre deux modes, même session et même
+   mesure ; puis Mode 1, Mode 2, Élevé si Faible change quelque chose.
+3. Images de référence à 2, puis 1 (avec le meilleur mode de délai si l'image reste propre).
+4. Sauter les images en retard : utile seulement s'il y a des gels du Wi-Fi pendant la session.
+5. Profil Latence minimale, avec et sans Afficher les images tout de suite.
+6. Paquets de son de 5 ms, après avoir lu les lignes `sound gap` des sessions précédentes.
+
+À renvoyer pour chaque session : les fichiers `stats/session-*` et `stats/latency-*`, et le journal
+du lancement (`logs/`).
+
 ## Réglages conseillés
 
 **Vita.** Paramètres → Paramètres d'économie d'énergie : décocher l'utilisation du Wi-Fi en mode économie
@@ -219,7 +286,17 @@ tutoriel Sunshine fourni avec cette version.
   entrée de remplacement 960x544 → 1280x720 ; côté VitaMoon, *Laisser le PC adapter son écran* activé.
 - *Encodeur Intel QuickSync* > préréglage : la **première** ligne (veryfast ; la traduction donne le
   même libellé à la deuxième). `cavlc` et `fec_percentage` = 30 restent des essais, un par un.
-- `lan_encryption_mode` = 0 et `minimum_fps_target` = 0 : les valeurs par défaut.
+- `lan_encryption_mode` = 0 : la valeur par défaut.
+- `minimum_fps_target` (0 par défaut : la moitié des images par seconde du stream au minimum, d'après
+  la documentation de Sunshine). **Essai** : 60. Sur un écran fixe, le PC envoyait environ 20 images
+  par seconde dans les sessions de la 1.0.0, et le décodeur de la Vita garde 3 à 4 images : environ
+  170 ms au lieu de 97. Sunshine précise que le minimum réel peut différer de la valeur choisie : son
+  journal l'indique (`Minimum FPS target set to ...`), et la colonne `recv` des statistiques le montre
+  sur un écran fixe.
+
+**Essais côté PC, un à la fois** (aucun code) : le mini-PC en Ethernet plutôt qu'en Wi-Fi si c'est
+possible ; le canal Wi-Fi 2,4 GHz de la box (1, 6 puis 11, la Vita n'utilise que le 2,4 GHz) ;
+960 x 544 contre 1280 x 720 (Réglages → Vidéo).
 
 ## Ajouter ses jeux Steam (et PS1) à Sunshine
 

@@ -16,6 +16,8 @@ Embedded.
 | `src/connection.c` | stream state machine (ready, paired, connected, paused) and moonlight-common-c callbacks |
 | `src/video/vita.c` | video renderer: hardware H.264 decoding, frame slots, display thread, display modes |
 | `src/video/pacing.c` | *Paced* display timing (pure logic, tested on a PC) |
+| `src/video/late_frames.h` | *Tests (beta) > Skip late frames*: which frames came too late (pure logic, tested on a PC) |
+| `src/video/latency_test.c`, `latency_logic.h` | press-to-picture test from the quick menu (state machine tested on a PC); test page in `tools/latency/` |
 | `src/video/stream_stats.c` | per-second statistics, overlay, CSV and session summary; `histogram.h` for percentiles |
 | `src/audio/vita.c` | Opus decoding and audio output, classic and low-latency (adaptive buffer) |
 | `src/input/` | controls: buttons, sticks, front and rear touch, motion, keyboard, shortcuts, mapping files |
@@ -26,6 +28,7 @@ Embedded.
 | `src/device.c`, `src/check_host.c` | known PCs and their state (online, offline, address changed) |
 | `libgamestream/` | HTTP(S) requests to the PC, pairing, SPS rewrite (`sps.c`), URL encoding |
 | `third_party/` | moonlight-common-c (vendored, patched), ENet, inih, h264bitstream, libuuid, mDNS sniffer |
+| `cmake/vita/` | import stub made at build time (the decoder's delay mode, weak import) |
 | `tools/` | PC tests, interface preview, translations, developer scripts, Sunshine helpers, LiveArea art |
 
 ## Threads and cores

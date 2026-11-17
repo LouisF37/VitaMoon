@@ -37,6 +37,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "../i18n.h"
+#include "latency_test.h"
 
 #ifndef BUILD_ID
 #define BUILD_ID "unknown"
@@ -129,6 +130,8 @@ static struct {
   uint32_t pull_got;     /* ... that returned a picture */
   acc_t aud_target_us;   /* audio cushion wanted (low-latency mode) */
   acc_t pace_delay_us;   /* PACED: delay added to the PC's capture times */
+  uint32_t late_hidden;  /* Tests (beta): frames over 100 ms late, decoded but not shown */
+  acc_t aud_wait_us;     /* time between two audio packets handed to the renderer */
 } c;
 
 /* moonlight-common-c's video packet counters at the previous second (stats thread) */
@@ -151,6 +154,7 @@ static char s_overlay[2][OVERLAY_LINES][OVERLAY_LINE_LEN];
 /* Whole-session totals (stats thread only), saved per app at the end. */
 static int s_app_id = 0;
 static SceDateTime s_start_time;
+static volatile uint64_t s_start_us = 0;   /* process clock at the start of the stream */
 static uint64_t sess_ms, sess_shown, sess_lost, sess_r2p_sum, sess_r2p_n;
 static char s_info_path[640];   /* the session's .txt, completed at the end */
 static volatile int s_overlay_idx = 0;
@@ -243,6 +247,14 @@ void stream_stats_on_latch_budget(uint32_t budget_us) {
 
 void stream_stats_on_pace(uint32_t delay_us) {
   acc_add(&c.pace_delay_us, delay_us);
+}
+
+void stream_stats_on_late_hidden(void) {
+  cnt_add(&c.late_hidden, 1);
+}
+
+void stream_stats_on_audio_arrival(uint32_t since_previous_us) {
+  acc_add(&c.aud_wait_us, since_previous_us);
 }
 
 void stream_stats_on_frame_replaced(void) {
@@ -338,6 +350,9 @@ static const char *k_legend =
   "  pkt_ooo         video packets that arrived out of order\n"
   "  reorder_held    packets of the next frame held back, waiting for late ones\n"
   "  reorder_saved   frames completed by late packets thanks to that wait\n"
+  "  late_hidden     frames that arrived over 100 ms late, decoded but not shown\n"
+  "                  (Tests (beta) > Skip late frames)\n"
+  "  aud_wait_max_us longest time between two sound packets handed to VitaMoon\n"
   "  *_avg = average over the second, *_max = maximum over the second\n"
   "The end of this file gives percentiles over the whole session: half of the\n"
   "values are below p50, 95 % below p95, 99 % below p99. Intervals between\n"
@@ -461,6 +476,12 @@ static void open_session_files(void) {
              gui_msaa_active(), config.decode_yuv, config.video_reorder_wait_ms, config.thread_pinning,
              config.input_sync, signal, channel, vitapower_wifi_power_save(), vitapower_bluetooth());
     write_fd(info, line);
+    snprintf(line, sizeof(line),
+             "tests (beta): decoder_delay=%d (0 off, 1 low, 2 mode 1, 3 mode 2, 4 high) decoder_refs=%d "
+             "skip_late=%d immediate_flip=%d (low latency display only) audio_5ms=%d rear_touch=%d\n\n",
+             config.test_decoder_delay, config.test_decoder_refs, config.test_skip_late,
+             config.test_immediate_flip, config.test_audio_5ms, config.rear_touch);
+    write_fd(info, line);
     write_fd(info, k_legend);
     sceIoClose(info);
   }
@@ -479,7 +500,8 @@ static void open_session_files(void) {
                  "pend_vid;pend_aud;aud_pkts;aud_err;aud_out_avg_us;aud_out_max_us;cpu_mhz;gpu_mhz;"
                  "aud_buf_avg_us;aud_buf_max_us;aud_underrun;aud_skip_us;replaced;idle;disp_q_avg_x100;disp_q_max;"
                  "late;budget_avg_us;pull_try;pull_got;aud_target_us;wifi_pct;"
-                 "pace_delay_us;fec_saved;fec_failed;pkt_ooo;reorder_held;reorder_saved\n");
+                 "pace_delay_us;fec_saved;fec_failed;pkt_ooo;reorder_held;reorder_saved;"
+                 "late_hidden;aud_wait_max_us\n");
   memset(&rtp_prev, 0, sizeof(rtp_prev));
 }
 
@@ -518,6 +540,8 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   uint32_t pull_try = cnt_take(&c.pull_try);
   uint32_t pull_got = cnt_take(&c.pull_got);
   acc_snap_t aud_target = acc_take(&c.aud_target_us);
+  uint32_t late_hidden = cnt_take(&c.late_hidden);
+  acc_snap_t aud_wait = acc_take(&c.aud_wait_us);
 
   uint32_t win_ms = (uint32_t)(win_us / 1000);
   uint32_t kbps = win_ms ? (uint32_t)(((uint64_t)bytes * 8) / win_ms) : 0;
@@ -565,7 +589,7 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
     minute_log("last");
 
   /* One CSV line: integers only, so no decimal-separator issue in Excel. */
-  char line[768];
+  char line[1024];
   snprintf(line, sizeof(line),
            "%u;%u;%d;%u;%u;%u;%u;%u;%u;%u;%u;%u;"
            "%u;%u;%u;%u;%u;%u;"
@@ -574,7 +598,8 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
            "%d;%d;%u;%u;%u;%u;%d;%d;"
            "%u;%u;%u;%u;%u;%u;%u;%u;"
            "%u;%u;%u;%u;%u;%d;"
-           "%u;%u;%u;%u;%u;%u\n",
+           "%u;%u;%u;%u;%u;%u;"
+           "%u;%u\n",
            (unsigned)(t_us / 1000), win_ms, vblanks,
            recv, shown, lost, dropped, idr, dec_err, dec_noout, ooo, kbps,
            rx.avg, rx.max, queue.avg, queue.max, host.avg, host.max,
@@ -583,7 +608,8 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
            pend_vid, pend_aud, aud_pkts, aud_err, aud_out.avg, aud_out.max, cpu, gpu,
            aud_buf.avg, aud_buf.max, aud_underrun, aud_skip_us, replaced, idle, qd.avg_x100, qd.max,
            late, budget.avg, pull_try, pull_got, aud_target.avg, wifi_pct,
-           pace.avg, fec_saved, fec_failed, pkt_ooo, reorder_held, reorder_saved);
+           pace.avg, fec_saved, fec_failed, pkt_ooo, reorder_held, reorder_saved,
+           late_hidden, aud_wait.max);
   write_fd(s_fd, line);
 
   sess_ms += win_ms;
@@ -597,7 +623,7 @@ static void emit_second(uint64_t t_us, uint64_t win_us, int vblanks) {
   float hz = win_us ? (float)vblanks * 1000000.0f / (float)win_us : 0.0f;
   snprintf(s_overlay[next][0], OVERLAY_LINE_LEN,
            "shown %u  recv %u  lost %u  skipped %u  late %u  idle %u   screen %.2f Hz",
-           shown, recv, lost, dropped + replaced, late, idle, hz);
+           shown, recv, lost, dropped + replaced + late_hidden, late, idle, hz);
   snprintf(s_overlay[next][1], OVERLAY_LINE_LEN,
            "to screen %.1f ms (max %.1f)   decode %.1f   draw %.1f   in decoder %.2f",
            r2p.avg / 1000.0f, r2p.max / 1000.0f, dec.avg / 1000.0f,
@@ -640,6 +666,7 @@ static void *stats_thread_main(void *argp) {
     /* The count wraps at 16 bits (every 65536 refreshes, about 18 min 13 s:
      * seen as -65476 in sessions of 1.0.0-beta.11). */
     emit_second(now - t_start, now - t_prev, (vc - vc_prev) & 0xFFFF);
+    latency_test_poll();   /* a press-to-picture test that just ended: its result file */
     t_prev = now;
     vc_prev = vc;
   }
@@ -661,6 +688,7 @@ void stream_stats_session_start(int width, int height, int fps) {
   last_visible_us = 0;
   interval_over = 0;
   sceRtcGetCurrentClockLocalTime(&s_start_time);
+  s_start_us = sceKernelGetProcessTimeWide();
   memset(rx_ring_us, 0, sizeof(rx_ring_us));
   for (int i = 0; i < RX_RING; i++)
     rx_ring_fn[i] = -1;
@@ -704,6 +732,7 @@ void stream_stats_session_end(void) {
     s_fd = -1;
   }
   s_overlay_valid = false;
+  latency_test_poll();   /* a test stopped by the end of the stream: what it measured */
   if (was_running) {
     minute_log("last");
     if (sess_ms >= 1000)
@@ -753,6 +782,13 @@ void stream_stats_session_end(void) {
       sceIoClose(fd);
     }
   }
+}
+
+uint32_t stream_stats_elapsed_s(void) {
+  uint64_t start = s_start_us;
+  if (!s_running || start == 0)
+    return 0;
+  return (uint32_t)((sceKernelGetProcessTimeWide() - start) / 1000000u);
 }
 
 void stream_stats_set_app(int app_id) {

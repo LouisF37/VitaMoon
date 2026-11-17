@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>VitaMoon delay test</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Test page for VitaMoon's press-to-picture test (quick menu > Measure the
+  delay). Open it full screen on the PC, stream it to the Vita, then start the
+  test from the Vita: VitaMoon presses A on its own and times how long the
+  white picture takes to reach its screen (src/video/latency_logic.h).
+
+  The page is black, and white while the A button (button 0 of any
+  controller: A on an Xbox pad, Cross on a PlayStation one) or the space bar
+  is held. The centre of the screen must stay a plain colour: the Vita reads
+  it. The bar at the bottom moves on every frame so that the PC keeps sending
+  pictures at its full rate, as in a game (on a still screen Sunshine sends
+  fewer, and the Vita's decoder then holds each one longer).
+-->
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; cursor: none; }
+  #screen { position: fixed; inset: 0; background: #000; }
+  #screen.on { background: #fff; }
+  #info { position: fixed; left: 2vw; top: 2vh; font: 14px/1.4 system-ui, sans-serif; color: #777;
+          max-width: 34vw; }
+  #bar { position: fixed; left: 0; bottom: 1vh; width: 6vw; height: 1vh; background: #555; }
+</style>
+</head>
+<body>
+<div id="screen"></div>
+<div id="info"></div>
+<div id="bar"></div>
+<script>
+"use strict";
+const screen_ = document.getElementById("screen");
+const info = document.getElementById("info");
+const bar = document.getElementById("bar");
+let keyHeld = false;
+let presses = 0;
+let wasOn = false;
+let frame = 0;
+
+addEventListener("keydown", e => { if (e.code === "Space") { keyHeld = true; e.preventDefault(); } });
+addEventListener("keyup", e => { if (e.code === "Space") keyHeld = false; });
+
+function padHeld() {
+  const pads = navigator.getGamepads ? navigator.getGamepads() : [];
+  let names = [];
+  let held = false;
+  for (const pad of pads) {
+    if (!pad) continue;
+    names.push(pad.id);
+    if (pad.buttons.length > 0 && pad.buttons[0].pressed) held = true;
+  }
+  return { held, names };
+}
+
+function tick() {
+  // Read the controller as late as possible before the page is drawn.
+  const pad = padHeld();
+  const on = pad.held || keyHeld;
+  if (on !== wasOn) {
+    screen_.className = on ? "on" : "";
+    if (on) presses++;
+    wasOn = on;
+  }
+  frame++;
+  bar.style.transform = "translateX(" + ((frame % 120) * 0.78) + "vw)";
+  if (frame % 15 === 0) {
+    info.style.color = on ? "#888" : "#777";
+    info.textContent =
+      "VitaMoon delay test. White while A is held. " +
+      (pad.names.length
+        ? "Controller: " + pad.names[0] + ". "
+        : "No controller seen yet: it appears after its first press (VitaMoon's first presses are not counted). ") +
+      "Presses seen: " + presses + ".";
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

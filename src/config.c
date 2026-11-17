@@ -202,6 +202,18 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->sky_anticlockwise = BOOL(value);
     } else if (strcmp(name, "tap_time_ms") == 0) {
       config->tap_time_ms = INT(value);
+    } else if (strcmp(name, "rear_touch") == 0) {
+      config->rear_touch = BOOL(value);
+    } else if (strcmp(name, "test_decoder_delay") == 0) {
+      config->test_decoder_delay = INT(value);
+    } else if (strcmp(name, "test_decoder_refs") == 0) {
+      config->test_decoder_refs = INT(value);
+    } else if (strcmp(name, "test_skip_late") == 0) {
+      config->test_skip_late = BOOL(value);
+    } else if (strcmp(name, "test_immediate_flip") == 0) {
+      config->test_immediate_flip = BOOL(value);
+    } else if (strcmp(name, "test_audio_5ms") == 0) {
+      config->test_audio_5ms = BOOL(value);
     }
   }
   return 0;
@@ -241,6 +253,10 @@ void config_sanitize(PCONFIGURATION config) {
     config->tap_time_ms = TAP_TIME_DEFAULT;
   if (config->sky_speed < SKY_STILL || config->sky_speed >= SKY_SPEED_COUNT)
     config->sky_speed = SKY_STILL;
+  if (config->test_decoder_delay < TEST_DELAY_OFF || config->test_decoder_delay >= TEST_DELAY_COUNT)
+    config->test_decoder_delay = TEST_DELAY_OFF;
+  if (config->test_decoder_refs != 1 && config->test_decoder_refs != 2 && config->test_decoder_refs != 4)
+    config->test_decoder_refs = TEST_REFS_DEFAULT;
   if (!(config->motion_controls_scalar_x >= 0.1f && config->motion_controls_scalar_x <= 5.0f))
     config->motion_controls_scalar_x = 1.2f;
   if (!(config->motion_controls_scalar_y >= 0.1f && config->motion_controls_scalar_y <= 5.0f))
@@ -328,6 +344,12 @@ void config_save(const char* filename, PCONFIGURATION config) {
   write_config_int(fd, "sky_speed", config->sky_speed);
   write_config_bool(fd, "sky_anticlockwise", config->sky_anticlockwise);
   write_config_int(fd, "tap_time_ms", config->tap_time_ms);
+  write_config_bool(fd, "rear_touch", config->rear_touch);
+  write_config_int(fd, "test_decoder_delay", config->test_decoder_delay);
+  write_config_int(fd, "test_decoder_refs", config->test_decoder_refs);
+  write_config_bool(fd, "test_skip_late", config->test_skip_late);
+  write_config_bool(fd, "test_immediate_flip", config->test_immediate_flip);
+  write_config_bool(fd, "test_audio_5ms", config->test_audio_5ms);
   write_config_int(fd, "controller_type", config->controller_type); // top level
   
 
@@ -465,6 +487,12 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->twinkle_stars = true;
   config->sky_speed = SKY_STILL;
   config->sky_anticlockwise = false;
+  config->rear_touch = true;
+  config->test_decoder_delay = TEST_DELAY_OFF;
+  config->test_decoder_refs = TEST_REFS_DEFAULT;
+  config->test_skip_late = false;
+  config->test_immediate_flip = false;
+  config->test_audio_5ms = false;
 
   config->double_tap_sprint_step_time = 200;
 

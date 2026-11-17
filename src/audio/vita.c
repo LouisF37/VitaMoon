@@ -42,9 +42,11 @@ enum {
 /*
  * Two output modes (setting "Low-latency audio"):
  *
- * Decoding runs on moonlight-common-c's AudioDec thread (the renderer declares
- * CAPABILITY_SLOW_OPUS_DECODER): the AudioRecv thread only reads the network,
- * as in dubleyu/vita-moonlight-relay and juanjsebgarcia/vita-moonlight.
+ * Decoding runs on moonlight-common-c's AudioDec thread (the renderer does
+ * not declare CAPABILITY_DIRECT_SUBMIT): the AudioRecv thread only reads the
+ * network, as in dubleyu/vita-moonlight-relay and juanjsebgarcia/vita-moonlight.
+ * CAPABILITY_SLOW_OPUS_DECODER makes the PC send 10 ms packets instead of 5
+ * (Tests (beta) > 5 ms sound packets removes it, ui_connect.c).
  *
  * Classic (original): packets are accumulated up to 20 ms, then handed to a
  * 20 ms audio port, which blocks until the previous 20 ms have played. Two
@@ -113,6 +115,37 @@ static short ll_out[LL_OUT_BUFFERS][LL_GRAIN * 2];
 static volatile bool ll_running = false;
 static SceUID ll_thread = -1;
 
+/* Sound gap diagnostics (written by the AudioDec thread, read by the output
+ * thread): when the last packet came, and packets lost since the last gap. */
+static uint64_t last_packet_us = 0;     /* __atomic: 64 bits on a 32-bit CPU */
+static volatile uint32_t lost_packets = 0;
+static uint32_t gap_count = 0;
+
+/* Output thread, at a gap: one log line saying whether the sound stopped
+ * coming (last packet long ago: Wi-Fi or PC) or came too slowly for the
+ * output (recent packet: the Vita side). At most one line a second; the
+ * gaps in between are counted in the next one. */
+static inline uint32_t frames_to_us(uint32_t frames);
+
+static void log_gap(uint32_t target_frames) {
+  static uint64_t last_log_us = 0;
+  static uint32_t unlogged = 0;
+  gap_count++;
+  uint64_t now = LiGetMicroseconds();
+  if (last_log_us != 0 && now - last_log_us < 1000000) {
+    unlogged++;
+    return;
+  }
+  uint64_t last = __atomic_load_n(&last_packet_us, __ATOMIC_RELAXED);
+  uint32_t lost = __atomic_exchange_n(&lost_packets, 0, __ATOMIC_RELAXED);
+  LOGI("audio", "sound gap %u: last packet %u ms ago, %d packets waiting, %u lost and %u gaps not logged "
+       "since the previous line, cushion now %u ms",
+       gap_count, last && now > last ? (unsigned)((now - last) / 1000) : 0, LiGetPendingAudioFrames(), lost,
+       unlogged, frames_to_us(target_frames) / 1000);
+  unlogged = 0;
+  last_log_us = now;
+}
+
 static inline uint32_t frames_to_us(uint32_t frames) {
   return frames * 125 / 6; /* 1e6 / 48000 */
 }
@@ -167,6 +200,7 @@ static int ll_output_thread(SceSize args, void *argp) {
       calm = 0;
       if (target < LL_TARGET_MAX)
         target += LL_TARGET_STEP;
+      log_gap(target);
       continue;
     }
 
@@ -228,6 +262,8 @@ static int ll_output_thread(SceSize args, void *argp) {
 }
 
 static void vita_renderer_cleanup() {
+  if (gap_count)
+    LOGI("audio", "%u sound gaps during this stream", gap_count);
   if (ll_running) {
     ll_running = false;
     SceUInt timeout = 500000;
@@ -273,6 +309,9 @@ static int vita_renderer_init(int audioConfiguration, POPUS_MULTISTREAM_CONFIGUR
 
   ll_mode = config.low_latency_audio;
   decode_offset = 0;
+  __atomic_store_n(&last_packet_us, 0, __ATOMIC_RELAXED);
+  lost_packets = 0;
+  gap_count = 0;
   classic_block = 0;
   // Classic mode fills 20 ms blocks with whole packets: the packet length must
   // divide 960 frames (5, 10 and 20 ms packets do).
@@ -340,6 +379,15 @@ static void ll_queue_packet(char* data, int length) {
 /* Runs on moonlight-common-c's AudioDec thread (priority and core set in
  * thread_policy.c). data == NULL: a lost packet, concealed by Opus. */
 static void vita_renderer_decode_and_play_sample(char* data, int length) {
+  // Time between two packets handed over by moonlight-common-c (statistics:
+  // aud_wait_max_us), and lost ones (concealed) for the gap log.
+  uint64_t now = LiGetMicroseconds();
+  uint64_t prev = __atomic_load_n(&last_packet_us, __ATOMIC_RELAXED);
+  if (prev != 0 && now > prev)
+    stream_stats_on_audio_arrival(now - prev > 0xFFFFFFFFull ? 0xFFFFFFFFu : (uint32_t)(now - prev));
+  __atomic_store_n(&last_packet_us, now, __ATOMIC_RELAXED);
+  if (data == NULL)
+    __atomic_fetch_add(&lost_packets, 1, __ATOMIC_RELAXED);
   if (ll_mode) {
     ll_queue_packet(data, length);
     return;

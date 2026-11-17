@@ -3,6 +3,49 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.1.0-beta.1 "Premier Croissant" (2026-11-17)
+
+A test version: options to measure before 1.1.0 keeps the best ones, all in a new category,
+*Settings > Tests (beta)*, each set to 1.0's behaviour by default. What each one changes and where to
+read its effect: [docs/design/tests-1.1.md](docs/design/tests-1.1.md); in French, with the test
+protocol: [docs/GUIDE-FR.md](docs/GUIDE-FR.md#essais-de-la-11-bêta).
+
+### Tests (beta)
+
+- *Decoder delay mode* (Off, Low, Mode 1, Mode 2, High): the hardware decoder's delay mode, which the
+  original Moonlight Vita 1.0 sets to Low on every stream. Weak import, so VitaMoon starts even if a
+  system lacks it; the log gives the decoder's answer.
+- *Decoder reference frames* (4, 2, 1): 1.0 creates the decoder for 4. Made again with 4 if the
+  decoder refuses; the log gives how many the PC's encoder declares.
+- *Skip late frames*: after a Wi-Fi freeze, frames over 100 ms late are decoded but not shown, against
+  a reference that follows the drift between the PC's clock and the Vita's (tested on a PC).
+- *Show frames at once*: with the *Low latency* display, a frame goes on screen without waiting for
+  the refresh (8 ms sooner on average; tearing possible).
+- *5 ms sound packets*: the PC sends 5 ms of sound per packet instead of 10.
+
+### Measures
+
+- Press-to-picture test: quick menu > *Measure the delay (test page)*, with
+  [tools/latency/latency.html](tools/latency/latency.html) full screen on the PC. VitaMoon presses A
+  itself 20 times and times the white picture's arrival on its screen, in parts (to the PC and back,
+  decoding, display); result on screen and in `stats/latency-<date>.txt`. Its logic is simulated on a
+  PC (`tools/tests/test_latency.c`).
+- Each sound gap is written in the log with how long ago the last packet came, how many were waiting
+  and how many were lost; new statistics columns `late_hidden` and `aud_wait_max_us`, and the tests'
+  settings in each session's `.txt`.
+
+### Other changes
+
+- *Settings > Touch > Rear touch pad*: the rear pad can be turned off (on by default, as before). Its
+  dead zone stays at 0 by default: the original Moonlight Vita set one of 80 points, then went back to
+  0.
+- The quick menu shows how long the stream has been running and the battery time the Vita estimates,
+  next to the PC's name (the percentage and the clock were already in its top bar).
+- The decoder's memory is freed whatever step of its creation failed (a failure between two
+  allocations left it behind).
+- Documentation: the original repository's 1.0 in [docs/design/forks.md](docs/design/forks.md), and
+  advice on Sunshine's `minimum_fps_target` and the PC-side tests in the French guide.
+
 ## 1.0.0 "Nouvelle Lune" (2026-11-17)
 
 First version of VitaMoon, a Moonlight client for the PS Vita, from

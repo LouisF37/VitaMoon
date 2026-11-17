@@ -14,6 +14,8 @@ by CI on every push.
 | Test | What it checks |
 |---|---|
 | `test_pacing.c` | the *Paced* display against simulated streams: steady, 0-15 ms jitter, PC clock 200 ppm and 0.1 % off both ways, a matched 59.94 fps stream, 30 fps, a 3 s pause; frames shown in order, drops and repeated frames, bounded wait |
+| `test_late.c` | *Skip late frames* (`src/video/late_frames.h`): nothing hidden with 30 ms of jitter, clocks drifting 150 ppm either way or a still scene at 20 fps; after a 0.7 s and a 2.7 s freeze only the frames over 100 ms late are hidden; a delay grown by 300 ms for good is hidden for about a second, then taken as the new reference |
+| `test_latency.c` | the press-to-picture test (`src/video/latency_logic.h`) against a simulated PC page, capture, decoder and screen: every press measured, the warm-up presses left out, the parts adding up, the mean equal to the simulated delay; the test stops when the page is absent, never reacts or stays white, and releases A when stopped |
 | `test_config.c` | every setting survives a save and a load; old keys ignored, out-of-range values reset; automatic bitrate; a file that cannot be written is logged and the app goes on |
 | `test_sps.c` | the SPS rewrite sets the low-latency hints, stays within the room the renderer keeps, passes anything it cannot parse through unchanged |
 | `test_misc.c` | URL encoding of the pairing name, percentiles of the session summary, the decisions of the automatic reconnection, PC names checked before they are used as folder names, which statistics files are deleted (the last 30 streams are kept, nothing else in the folder is touched) |
@@ -110,3 +112,8 @@ The streaming behaviour can only be measured on the console. Each stream writes
 `ux0:data/vitamoon/stats/session-<date>.csv` (one line per second) and `.txt` (settings, Wi-Fi,
 column legend, percentiles over the session). The checkpoint reports in [checkpoints/](checkpoints/)
 hold the test plan and the results.
+
+The press-to-picture test (quick menu, *Measure the delay*, with `tools/latency/latency.html` full
+screen on the PC) writes `stats/latency-<date>.txt`: the delay of 20 presses from the moment VitaMoon
+sends them to the moment the answer is on screen, and its parts. The options measured during the 1.1
+betas, and what to read for each, are in [design/tests-1.1.md](design/tests-1.1.md).

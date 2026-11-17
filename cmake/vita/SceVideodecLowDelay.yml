@@ -1,0 +1,20 @@
+# Import of the hardware decoder's delay mode (Settings > Tests (beta) >
+# Decoder delay mode). Module, library and function NIDs as linked by the
+# original Moonlight Vita 1.0 (AorsiniYT/vita-moonlight,
+# cmake/vita/SceVideodecLowDelay.yml), which calls it on every stream. The
+# VitaSDK database lists the same function NID in another library
+# (SceVideodecUser); this one is used because it ships in a released app.
+# The function is renamed so that it cannot clash with the SDK's stub, and
+# CMakeLists.txt links the weak variant: VitaMoon starts even on a system
+# without this library.
+version: 2
+firmware: 3.60
+modules:
+  SceAvcodecUser:
+    nid: 0x5AA351E8
+    libraries:
+      SceVideodecLowDelayUser:
+        kernel: false
+        nid: 0x6354EEFF
+        functions:
+          vitamoon_avcdec_set_low_delay_mode: 0xD57F82C1

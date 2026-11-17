@@ -74,6 +74,7 @@ device_info_t *append_device(device_info_t *info) { return info; }
 int ime_dialog_string(char *text, const char *title, const char *def) { return -1; }
 int ime_dialog_number(char *text, const char *title, const char *def) { return -1; }
 bool vitavideo_initialized(void) { return false; }
+bool vitavideo_decoder_delay_used(void) { return false; }
 void vitapower_config(CONFIGURATION c) {}
 static int fake_wifi_power_save = 0;
 int vitapower_wifi_power_save(void) { return fake_wifi_power_save; }
@@ -89,6 +90,11 @@ void touchabsolute_enable(bool enable) {}
 void keyboardsystem_set_layout(int layout) {}
 void keyboardsystem_open_keyboard(void) {}
 void stream_stats_set_app(int app_id) {}
+uint32_t stream_stats_elapsed_s(void) { return 34 * 60; }
+static bool fake_latency_running = false;
+bool latency_test_running(void) { return fake_latency_running; }
+void latency_test_toggle(void) { fake_latency_running = !fake_latency_running; }
+void latency_test_prepare_text(void) {}
 bool send_wol_packet(const char *mac, const char *ip_broadcast, int port) { return true; }
 int sceKernelGetModelForCDialog(void) { return 0; }
 int sceIoMkdir(const char *dir, int mode) { return 0; }
@@ -251,7 +257,7 @@ static void scenario_home_empty(void) {
 static void scenario_settings(void) {
   preview_wait(12);
   preview_snap("settings_1_categories");
-  for (int c = 0; c < 6; c++) {
+  for (int c = 0; c < 7; c++) {
     char name[64];
     preview_press(SCE_CTRL_RIGHT);          /* enter the rows */
     snprintf(name, sizeof(name), "settings_cat%d_a", c + 1);
@@ -309,12 +315,12 @@ static void scenario_settings_pages(void) {
   preview_wait(12);
   for (int i = 0; i < 4; i++) preview_press(SCE_CTRL_RTRIGGER);
   preview_press(SCE_CTRL_RIGHT);
-  for (int i = 0; i < 5; i++) preview_press(SCE_CTRL_DOWN);   /* to the rear dead zone */
+  for (int i = 0; i < 6; i++) preview_press(SCE_CTRL_DOWN);   /* to the rear dead zone */
   preview_press(SCE_CTRL_CROSS);
   preview_snap("settings_page_dead_zone");
   preview_press(SCE_CTRL_DOWN);
   preview_press(SCE_CTRL_CIRCLE);
-  preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP);
+  preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP);
   preview_press(SCE_CTRL_CROSS);          /* corner shortcuts on */
   preview_press(SCE_CTRL_DOWN);
   preview_press(SCE_CTRL_CROSS);
@@ -439,21 +445,23 @@ static void scenario_quickmenu(void) {
   preview_snap("quickmenu_1_open");
   preview_snap("quickmenu_2_stats");
   preview_snap("quickmenu_3_quit");
+  preview_snap("quickmenu_4_delay_test");
   preview_wait(1);
 
   vita2d_texture *game = vita2d_load_PNG_file(ASSET_PREFIX "../sce_sys/livearea/contents/bg.png");
   const unsigned combo = SCE_CTRL_SELECT | SCE_CTRL_L1 | SCE_CTRL_R1;
-  static const unsigned script[3][6] = {
+  static const unsigned script[4][8] = {
     {combo, 0},
     {SCE_CTRL_DOWN, 0, SCE_CTRL_CROSS, 0},
     {SCE_CTRL_UP, 0, SCE_CTRL_UP, 0, SCE_CTRL_CROSS, 0},
+    {SCE_CTRL_DOWN, 0, SCE_CTRL_DOWN, 0, SCE_CTRL_DOWN, 0, SCE_CTRL_DOWN, 0},
   };
-  static const int lengths[3] = {2, 4, 6};
+  static const int lengths[4] = {2, 4, 6, 8};
   quickmenu_set_context("MINI-PC", "Final Fantasy IX");
   quickmenu_reset();
   config.show_fps = false;
-  for (int f = 0; f < 4; f++) {
-    for (int i = 0; f < 3 && i < lengths[f]; i++)
+  for (int f = 0; f < 5; f++) {
+    for (int i = 0; f < 4 && i < lengths[f]; i++)
       quickmenu_handle_input(script[f][i]);
     ui_start();
     if (game)

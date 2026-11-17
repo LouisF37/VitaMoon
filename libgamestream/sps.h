@@ -34,3 +34,7 @@ void gs_sps_stop(void);
 /* Appends the SPS, rewritten with low-latency hints, at out_buf + *out_offset
  * and advances *out_offset; appends it unchanged if it cannot be rewritten. */
 void gs_sps_fix(PLENTRY sps, int flags, uint8_t* out_buf, uint32_t* out_offset);
+
+/* num_ref_frames of the last SPS read before the rewrite set it to 1 (the
+ * reference frames the PC's encoder declares); -1 before the first one. */
+int gs_sps_source_ref_frames(void);

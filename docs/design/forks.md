@@ -3,6 +3,22 @@
 Surveyed in November 2026 from their public repositories. GitHub's list of forks could not be read
 from the tools used, so forks were found by search: there may be others.
 
+## The original repository's 1.0 (AorsiniYT/vita-moonlight)
+
+The repository VitaMoon started from (xyzz's, maintained by AorsiniYT) released Moonlight Vita 1.0.0 on
+15 November 2026 and 1.0.1 on 17 November: a new interface (*Borealis*) next to the old one
+(*Legacy* 0.13.x), an FFmpeg decoder port, a microphone (*moonmic*), a network test. VitaMoon shares
+none of these commits (it forked 0.13.2). Read at commit `d77bc0d` (1.0.1).
+
+| Item | In VitaMoon | Notes |
+|---|---|---|
+| Decoder delay mode (`sceAvcdecSetLowDelayModeNongameapp`, lowest mode, 4 reference frames) | test option (1.1.0-beta.1) | same import library and NIDs, weak import; *Tests (beta) > Decoder delay mode* |
+| Stale frames dropped over 100 ms with a key-frame request (`0e9d823`, removed by `f064cc5`) | reworked, test option | decoded but not shown, drift-proof reference (`src/video/late_frames.h`) |
+| Immediate presentation (default reverted to next-frame by `da1a0d5`) | test option | *Low latency* display only |
+| Rear touch zones: an on/off switch; margins of 80 by default, then back to 0 (`ConfigManager.cpp`, rear-touch schema 2) | the switch | *Touch > Rear touch pad*; the dead zone stays at 0 by default, as the original went back to |
+| Borealis interface, FFmpeg decoder, 1080p through the internal decoder calls | no | VitaMoon keeps its own interface and the hardware decoder at up to 1280x720 |
+| Microphone to the PC (*moonmic*), network test, Apollo controls | no | need a companion on the PC or Apollo instead of Sunshine |
+
 ## juanjsebgarcia/vita-moonlight
 
 Measured performance work on a Vita (Intel Arc B580 host): a benchmark mode, per-change
@@ -97,6 +113,6 @@ rest was read for what a Vita client needs whatever the protocol.
 | Log written from a queue by its own thread, per-run files, drop counters | yes, reworked | a byte ring with no allocation per line, levels, token buckets, repeat folding, the four previous runs kept |
 | Time per stream stage, settings and device state in the log | yes | `stream` and `system` lines |
 | Delay probes: decoder hold, receive backlog, audio gaps, presentation order | mostly | VitaMoon's per-second CSV has decoder hold, receive and queue times, audio buffer and gaps, late and repeated frames |
-| Button-press-to-picture meter (`PIPE/PRESS`: matches a press to the next big frame) | not yet | worth adding: the only end-to-end measure of the delay a player feels; needs care (quiet screen, ambiguous matches), as its own documentation shows |
+| Button-press-to-picture meter (`PIPE/PRESS`: matches a press to the next big frame) | yes, reworked | 1.1.0-beta.1: VitaMoon presses A itself and watches a test page turn white (quick menu > *Measure the delay*), so no frame has to be guessed |
 | Microphone, PSN, console wake-up over the Internet | no | not in the Moonlight protocol, or done by Sunshine |
 | Latency presets that change several settings at once | yes | *Profile* (Smooth, Paced, Lowest latency, Original) |

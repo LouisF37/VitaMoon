@@ -50,6 +50,7 @@
 #include "shortcuts.h"
 #include "../connection_overlay.h"
 #include "../gui/quickmenu.h"
+#include "../video/latency_test.h"
 
 #include <Limelight.h>
 
@@ -838,8 +839,9 @@ inline void vitainput_process(void) {
   sceTouchPeek(SCE_TOUCH_PORT_BACK, &back, 1);
   // Always update the front touch points
   update_touch_points();
-  // Always process the rear corners
-  read_backscreen();
+  // Rear pad zones (Settings > Touch > Rear touch pad): off, the back is ignored
+  if (config.rear_touch)
+    read_backscreen();
 
   // In-game quick menu (L + R + SELECT): while it is open, and until every
   // button is released after it closed, the buttons drive the menu and the
@@ -938,12 +940,18 @@ inline void vitainput_process(void) {
 
   process_touch();
 
+  // Press-to-picture test (quick menu): the test holds A on its own.
+  if (latency_test_input_tick())
+    curr.button |= A_FLAG;
+
   // Gamepad events are sent only when the keyboard overlay is closed,
   // or when it is open but the two shortcut buttons are not both pressed
   bool shortcut_both_pressed = (pad.buttons & SCE_CTRL_START) && (pad.buttons & SCE_CTRL_LEFT);
   if (!keyboard_overlay_active || (keyboard_overlay_active && !shortcut_both_pressed)) {
     if (memcmp(&curr, &old, sizeof(input_data)) != 0) {
+      uint64_t t_sent = LiGetMicroseconds();
       LiSendMultiControllerEvent(0, 1, curr.button, curr.lt, curr.rt, curr.lx, -1 * curr.ly, curr.rx, -1 * curr.ry);
+      latency_test_on_sent((curr.button & A_FLAG) != 0, t_sent);
       memcpy(&old, &curr, sizeof(input_data));
       memcpy(&pad_old, &pad, sizeof(SceCtrlData));
     }

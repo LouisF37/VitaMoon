@@ -13,6 +13,11 @@
 #include "../debug.h"
 #include "../i18n.h"
 #include "../keyboardsystem.h"
+#include "../video/latency_test.h"
+#include "../video/stream_stats.h"
+
+#include <psp2/power.h>
+#include <psp2/kernel/processmgr.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -48,6 +53,44 @@ void quickmenu_set_context(const char *host, const char *game) {
   theme_ellipsize(TS_SMALL, host ? host : "", QM_NAME_W, host_name, sizeof(host_name));
   theme_prepare_text(TS_LEAD, game_name);
   theme_prepare_text(TS_SMALL, host_name);
+  // The second line of the header changes during play (header_info): its
+  // characters are rendered here too.
+  char sample[160];
+  snprintf(sample, sizeof(sample), "%s 0123456789 · %s %s %s %s", host_name, tr("%u min streaming"),
+           tr("%d h %02d of battery"), tr("%d min of battery"), tr("charging"));
+  theme_prepare_text(TS_SMALL, sample);
+  theme_prepare_text(TS_BODY, tr("Measure the delay (test page)"));
+  theme_prepare_text(TS_BODY, tr("Stop the delay test"));
+  latency_test_prepare_text();
+}
+
+/* Second line of the header: the PC, how long this stream has been running,
+ * the battery time left as the Vita estimates it (its percentage and the clock
+ * are in the top bar). Display thread; the battery is read every 5 s. */
+static void header_info(char *out, size_t n) {
+  static uint64_t read_at = 0;
+  static int minutes_left = -1;
+  static bool charging = false;
+  uint64_t now = sceKernelGetProcessTimeWide();
+  if (read_at == 0 || now - read_at > 5000000) {
+    read_at = now;
+    charging = scePowerIsBatteryCharging();
+    minutes_left = scePowerGetBatteryLifeTime();
+  }
+  char played[48], battery[64];
+  snprintf(played, sizeof(played), tr("%u min streaming"), stream_stats_elapsed_s() / 60);
+  if (charging)
+    snprintf(battery, sizeof(battery), "%s", tr("charging"));
+  else if (minutes_left >= 60)
+    snprintf(battery, sizeof(battery), tr("%d h %02d of battery"), minutes_left / 60, minutes_left % 60);
+  else if (minutes_left >= 0)
+    snprintf(battery, sizeof(battery), tr("%d min of battery"), minutes_left);
+  else
+    battery[0] = 0;
+  if (battery[0])
+    snprintf(out, n, "%s  ·  %s  ·  %s", host_name, played, battery);
+  else
+    snprintf(out, n, "%s  ·  %s", host_name, played);
 }
 
 static void publish(void) {
@@ -80,6 +123,9 @@ bool quickmenu_handle_input(uint32_t buttons) {
       case QM_ACT_KEYBOARD:
         LOGI("menu", "quick menu: keyboard");
         keyboardsystem_open_keyboard();
+        break;
+      case QM_ACT_LATENCY:
+        latency_test_toggle();
         break;
       case QM_ACT_PAUSE:
         LOGI("menu", "quick menu: pause");
@@ -127,7 +173,9 @@ void quickmenu_draw(void) {
   const int x = QM_X, y = QM_Y, w = QM_W, h = QM_H;
   theme_glass(x, y, w, h, 14);
   theme_text(x + 24, y + 38, TH_TEXT, TS_LEAD, game_name);
-  theme_text(x + 24, y + 60, TH_TEXT3, TS_SMALL, host_name);
+  char info[192];
+  header_info(info, sizeof(info));
+  theme_text_fit(x + 24, y + 60, TH_TEXT3, TS_SMALL, info, QM_NAME_W);
   theme_rect(x + 24, y + QM_HEAD, w - 48, 1, TH_DIVIDER);
 
   for (int i = 0; i < QM_COUNT; i++) {
@@ -142,6 +190,9 @@ void quickmenu_draw(void) {
       case QM_RESUME: label = tr("Back to the game"); break;
       case QM_STATS: label = tr("Statistics while streaming"); break;
       case QM_KEYBOARD: label = tr("Keyboard"); shortcut = tr("START + Left"); break;
+      case QM_LATENCY:
+        label = latency_test_running() ? tr("Stop the delay test") : tr("Measure the delay (test page)");
+        break;
       case QM_PAUSE: label = tr("Pause: library and settings"); shortcut = "START + L + R"; break;
       case QM_QUIT:
         label = confirm_quit ? tr("Quit the game? Press again.") : tr("Quit game");

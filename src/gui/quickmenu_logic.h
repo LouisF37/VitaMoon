@@ -11,7 +11,7 @@
 #include <psp2/ctrl.h>
 
 /* The rows, top to bottom. */
-enum { QM_RESUME, QM_STATS, QM_KEYBOARD, QM_PAUSE, QM_QUIT, QM_COUNT };
+enum { QM_RESUME, QM_STATS, QM_KEYBOARD, QM_LATENCY, QM_PAUSE, QM_QUIT, QM_COUNT };
 
 /* What a button press asks the menu to do. */
 typedef enum {
@@ -19,6 +19,7 @@ typedef enum {
   QM_ACT_CLOSE,         /* back to the game */
   QM_ACT_TOGGLE_STATS,  /* statistics on screen, on or off (the menu stays) */
   QM_ACT_KEYBOARD,      /* close, then open the keyboard */
+  QM_ACT_LATENCY,       /* close, then start the press-to-picture test (or stop it) */
   QM_ACT_PAUSE,         /* close, then pause the stream (VitaMoon's menus) */
   QM_ACT_QUIT,          /* close, then quit the game on the PC (confirmed) */
 } qm_action;
@@ -89,6 +90,9 @@ static inline qm_action qm_input(qm_state *s, uint32_t buttons, uint32_t confirm
     case QM_KEYBOARD:
       qm_close(s);
       return QM_ACT_KEYBOARD;
+    case QM_LATENCY:
+      qm_close(s);
+      return QM_ACT_LATENCY;
     case QM_PAUSE:
       qm_close(s);
       return QM_ACT_PAUSE;

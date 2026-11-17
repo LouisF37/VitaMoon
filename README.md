@@ -29,6 +29,10 @@ what was measured by whom, is listed in [docs/design/performance.md](docs/design
 > short gaps in the sound (cause not found yet). On a PC, the menus are checked in three languages,
 > every journey from opening a PC to the end of a game is replayed against an imitation of Sunshine,
 > and the stream logic is covered by tests. See [the checkpoint report](docs/checkpoints/2026-11-17.md).
+>
+> **Testing: 1.1.0-beta.1.** Options to measure the decoder's delay, late frames, immediate display
+> and 5 ms sound packets (*Settings > Tests (beta)*, all off by default), and a press-to-picture test
+> from the quick menu. See [the tests of the 1.1 betas](docs/design/tests-1.1.md).
 
 ## Screenshots
 
@@ -63,8 +67,9 @@ measurements).</sub>
   code to type in Sunshine, English, French and Spanish, five colour themes over a lunar sky (Night,
   Dawn, Aurora, Twilight, Eclipse) whose stars can twinkle and turn around the moon, titles in Poppins
   and text in Inter, a moon that fills at each step while a stream starts or reconnects.
-- **In-game quick menu** (L + R + SELECT): statistics on or off, keyboard, pause or quit the game,
-  with the battery and the clock, without leaving the game.
+- **In-game quick menu** (L + R + SELECT): statistics on or off, keyboard, the press-to-picture
+  test, pause or quit the game, with the battery, its time left, the clock and the stream's length,
+  without leaving the game.
 - **Controls**: Xbox or PlayStation layout, rear touch, front touch as DS4 touchpad, mouse or tablet,
   motion controls, on-screen keyboard, button mapping files, PS button forwarding.
 - Wake-on-LAN, restart of the stream from the pause menu when a setting needs it, quit-and-start
@@ -109,7 +114,7 @@ bubble can then be deleted.
 |-------|--------|
 | **START + L + R** | Pause the stream and go back to the menus (✕ on the game resumes it) |
 | **START + Left** | On-screen keyboard |
-| **L + R + SELECT** | In-game quick menu: back to the game, statistics, keyboard, pause, quit the game (the game keeps running; it gets no button while the menu is open) |
+| **L + R + SELECT** | In-game quick menu: back to the game, statistics, keyboard, delay test, pause, quit the game (the game keeps running; it gets no button while the menu is open) |
 | **PS** (twice) | Back to the LiveArea; a single press is sent to the PC as the guide button (option) |
 | Front touch | Mouse, DS4 touchpad or tablet (*Settings > Touch*), corner zones as extra buttons |
 | Rear touch | Four zones acting as the extra shoulder and stick buttons (*Settings > Controls*, *Touch*) |

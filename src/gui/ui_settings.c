@@ -475,11 +475,14 @@ static int special_keys_menu() {
  */
 
 enum {
-  CAT_GENERAL, CAT_VIDEO, CAT_PERFORMANCE, CAT_CONTROLS, CAT_TOUCH, CAT_ADVANCED, CAT_COUNT
+  CAT_GENERAL, CAT_VIDEO, CAT_PERFORMANCE, CAT_CONTROLS, CAT_TOUCH, CAT_ADVANCED, CAT_TESTS, CAT_COUNT
 };
 
+/* Tests (beta): options measured during the 1.1 betas, each set to 1.0's
+ * behaviour by default; the 1.1 release keeps the winners and removes the
+ * category (docs/design/tests-1.1.md). */
 static const char *k_categories[CAT_COUNT] = {
-  N_("General"), N_("Video"), N_("Performance"), N_("Controls"), N_("Touch"), N_("Advanced")
+  N_("General"), N_("Video"), N_("Performance"), N_("Controls"), N_("Touch"), N_("Advanced"), N_("Tests (beta)")
 };
 
 typedef enum { ROW_CHOICE, ROW_TOGGLE, ROW_ACTION } row_type;
@@ -492,8 +495,9 @@ enum {
   S_PACKET_SIZE,
   S_CONTROLLER_TYPE, S_INPUT_SYNC, S_SWAP_SHOULDER, S_MAPPING, S_PS_CAPTURE, S_DOUBLE_TAP_SPRINT, S_SPRINT_TIME,
   S_MOTION, S_MOTION_X, S_MOTION_Y, S_KEYBOARD_LAYOUT,
-  S_TOUCH_MODE, S_TAP_TIME, S_MOUSE_ACCEL, S_SPECIAL_KEYS, S_SPECIAL_KEYS_SETUP, S_DEADZONE,
-  S_REMOTE, S_RFI, S_SOPS, S_FRAME_PACER, S_VBLANK, S_PINNING, S_KEEPALIVE, S_MSAA
+  S_TOUCH_MODE, S_TAP_TIME, S_MOUSE_ACCEL, S_SPECIAL_KEYS, S_SPECIAL_KEYS_SETUP, S_REAR_TOUCH, S_DEADZONE,
+  S_REMOTE, S_RFI, S_SOPS, S_FRAME_PACER, S_VBLANK, S_PINNING, S_KEEPALIVE, S_MSAA,
+  S_T_DELAY, S_T_REFS, S_T_SKIP_LATE, S_T_IMMEDIATE, S_T_AUDIO_5MS
 };
 
 typedef struct {
@@ -596,6 +600,8 @@ static const setting_row k_rows[] = {
    N_("Touching a corner of the screen sends a key or runs an action.")},
   {S_SPECIAL_KEYS_SETUP, CAT_TOUCH, ROW_ACTION, N_("Set up the corner shortcuts"),
    N_("Size and position of the corners, and what each one does.")},
+  {S_REAR_TOUCH, CAT_TOUCH, ROW_TOGGLE, N_("Rear touch pad"),
+   N_("The rear pad acts as L2 and R2 (top half), L3 and R3 (bottom half), unless remapped. Off: the back is ignored.")},
   {S_DEADZONE, CAT_TOUCH, ROW_ACTION, N_("Rear touch pad dead zone"),
    N_("Part of the rear touch pad that is ignored, to avoid accidental presses.")},
 
@@ -616,6 +622,18 @@ static const setting_row k_rows[] = {
    N_("Experimental: the menus and covers load faster. Turn off if the PC stops answering.")},
   {S_MSAA, CAT_ADVANCED, ROW_TOGGLE, N_("Smooth edges"),
    N_("4x anti-aliasing of the menus and the stream. Restart VitaMoon to apply a change.")},
+
+  /* Tests (beta) */
+  {S_T_DELAY, CAT_TESTS, ROW_CHOICE, N_("Decoder delay mode"),
+   N_("Asks the Vita's video decoder to give frames back sooner. Once used, Off takes effect after a restart of VitaMoon.")},
+  {S_T_REFS, CAT_TESTS, ROW_CHOICE, N_("Decoder reference frames"),
+   N_("Pictures the decoder keeps to rebuild the next ones. The PC uses one; VitaMoon 1.0 asks for 4.")},
+  {S_T_SKIP_LATE, CAT_TESTS, ROW_TOGGLE, N_("Skip late frames"),
+   N_("After a Wi-Fi freeze, frames over 100 ms late are not shown: the picture jumps to the present.")},
+  {S_T_IMMEDIATE, CAT_TESTS, ROW_TOGGLE, N_("Show frames at once"),
+   N_("No wait for the screen refresh: up to 16 ms sooner, 8 on average. A frame can show cut in two.")},
+  {S_T_AUDIO_5MS, CAT_TESTS, ROW_TOGGLE, N_("5 ms sound packets"),
+   N_("The PC sends sound every 5 ms instead of 10: less sound delay, twice as many packets on the Wi-Fi.")},
 };
 #define ROW_COUNT ((int)(sizeof(k_rows) / sizeof(k_rows[0])))
 
@@ -634,6 +652,9 @@ static const char *k_touch_names[] = {N_("Trackpad"), N_("PS touch pad"), N_("Di
 /* Moving sky, by config.sky_speed (orbit.h gives each its time for one turn). */
 static const char *k_sky_speed_names[SKY_SPEED_COUNT] = {N_("Off"), N_("Very slow"), N_("Slow"), N_("Medium"), N_("Fast")};
 _Static_assert(SKY_SPEED_COUNT == ORBIT_SPEEDS, "one time for one turn per speed of the moving sky");
+/* Tests (beta): by config.test_decoder_delay; reference frames offered. */
+static const char *k_delay_names[TEST_DELAY_COUNT] = {N_("Off"), N_("Low"), N_("Mode 1"), N_("Mode 2"), N_("High")};
+static const int k_refs_values[] = {4, 2, 1};
 static const char *k_keyboard_names[] = {N_("English (US)"), N_("Spanish (Spain)"), N_("Spanish (Latin America)"),
                                           N_("Text, any PC layout")};
 
@@ -775,6 +796,10 @@ static bool row_enabled(int id) {
     case S_SPECIAL_KEYS_SETUP: return config.enable_front_touchzones;
     case S_FRAME_PACER:
     case S_VBLANK: return config.display_mode == DISPLAY_MODE_DIRECT;
+    case S_DEADZONE: return config.rear_touch;
+    /* Tests (beta): read when a stream starts; changed during a pause, the
+     * stream is offered a restart when it resumes (ui_connect.c). */
+    case S_T_IMMEDIATE: return config.display_mode == DISPLAY_MODE_LOW_LATENCY;
     default: return true;
   }
 }
@@ -810,6 +835,10 @@ static bool row_is_on(int id) {
     case S_YUV: return config.decode_yuv;
     case S_PINNING: return config.thread_pinning;
     case S_INPUT_SYNC: return config.input_sync;
+    case S_REAR_TOUCH: return config.rear_touch;
+    case S_T_SKIP_LATE: return config.test_skip_late;
+    case S_T_IMMEDIATE: return config.test_immediate_flip;
+    case S_T_AUDIO_5MS: return config.test_audio_5ms;
     default: return false;
   }
 }
@@ -888,6 +917,20 @@ static void row_value(int id, char *out, size_t n) {
     case S_SKY_DIRECTION:
       snprintf(out, n, "%s", config.sky_anticlockwise ? tr("Anticlockwise") : tr("Clockwise"));
       break;
+    case S_T_DELAY: {
+      int mode = config.test_decoder_delay >= 0 && config.test_decoder_delay < TEST_DELAY_COUNT ? config.test_decoder_delay : 0;
+      if (mode == TEST_DELAY_OFF && vitavideo_decoder_delay_used())
+        snprintf(out, n, "%s", tr("Off (after a restart)"));
+      else
+        snprintf(out, n, "%s", tr(k_delay_names[mode]));
+      break;
+    }
+    case S_T_REFS:
+      if (config.test_decoder_refs == TEST_REFS_DEFAULT)
+        snprintf(out, n, tr("%d (VitaMoon 1.0)"), config.test_decoder_refs);
+      else
+        snprintf(out, n, "%d", config.test_decoder_refs);
+      break;
   }
 }
 
@@ -942,6 +985,10 @@ static bool row_change(int id, int dir) {
     case S_YUV: config.decode_yuv = !config.decode_yuv; return true;
     case S_PINNING: config.thread_pinning = !config.thread_pinning; return true;
     case S_INPUT_SYNC: config.input_sync = !config.input_sync; return true;
+    case S_REAR_TOUCH: config.rear_touch = !config.rear_touch; return true;
+    case S_T_SKIP_LATE: config.test_skip_late = !config.test_skip_late; return true;
+    case S_T_IMMEDIATE: config.test_immediate_flip = !config.test_immediate_flip; return true;
+    case S_T_AUDIO_5MS: config.test_audio_5ms = !config.test_audio_5ms; return true;
     case S_SWAP_SHOULDER:
       config.swap_shoulder_buttons = !config.swap_shoulder_buttons;
       // Mutually exclusive: the swap turns the mapping file off
@@ -1114,6 +1161,18 @@ static bool row_change(int id, int dir) {
       config.tap_time_ms = value;
       return true;
     }
+    case S_T_DELAY:
+      config.test_decoder_delay = (config.test_decoder_delay + TEST_DELAY_COUNT + step) % TEST_DELAY_COUNT;
+      return true;
+    case S_T_REFS: {
+      const int count = sizeof(k_refs_values) / sizeof(int);
+      int pos = 0;
+      while (pos < count && k_refs_values[pos] != config.test_decoder_refs)
+        pos++;
+      pos = pos >= count ? 0 : (pos + count + step) % count;
+      config.test_decoder_refs = k_refs_values[pos];
+      return true;
+    }
     case S_MOUSE_ACCEL: {
       int value = config.mouse_acceleration + step * 15;
       if (value < 0) value = 0;
@@ -1154,6 +1213,8 @@ static const char *row_blocked_reason(int id) {
     case S_SKY_DIRECTION: return tr("Turn on Moving sky first.");
     case S_FRAME_PACER:
     case S_VBLANK: return tr("Only used by the Direct display.");
+    case S_DEADZONE: return tr("Turn on Rear touch pad first.");
+    case S_T_IMMEDIATE: return tr("Only used by the Low latency display (Performance > Display).");
     default: return "";
   }
 }

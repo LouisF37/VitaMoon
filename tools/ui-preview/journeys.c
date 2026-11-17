@@ -276,14 +276,16 @@ static void quickmenu_keys(const unsigned *keys, int n) {
 static void fire(const bg_event *e) {
   static const unsigned combo = SCE_CTRL_SELECT | SCE_CTRL_L1 | SCE_CTRL_R1;
   switch (e->what) {
+    /* Counted from the bottom of the menu (Pause, then Quit), so that rows
+     * added above them do not move these. */
     case DO_PAUSE: {
-      const unsigned keys[] = {combo, DN, DN, DN, X};
-      quickmenu_keys(keys, 5);
+      const unsigned keys[] = {combo, UP, UP, X};
+      quickmenu_keys(keys, 4);
       break;
     }
     case DO_QUIT: {
-      const unsigned keys[] = {combo, DN, DN, DN, DN, X, X};
-      quickmenu_keys(keys, 7);
+      const unsigned keys[] = {combo, UP, X, X};
+      quickmenu_keys(keys, 4);
       break;
     }
     case DO_LOSE:

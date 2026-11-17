@@ -27,6 +27,8 @@
 #include "sps.h"
 #include "stream_stats.h"
 #include "pacing.h"
+#include "late_frames.h"
+#include "latency_test.h"
 #include "../thread_policy.h"
 
 #include <Limelight.h>
@@ -202,6 +204,31 @@ static bool pull_disabled = false;
 static uint64_t pull_floor_change_us = 0;
 #define PULL_FLOOR_DECAY_US 3000000
 
+/* Tests (beta) > Decoder delay mode: sceAvcdecSetLowDelayModeNongameapp,
+ * imported under this name (cmake/vita/SceVideodecLowDelay.yml, weak import).
+ * The mode values are those of the original Moonlight Vita 1.0 and its
+ * FFmpeg (VITA_AVCDEC_DELAY_MODE_LOW / 1 / 2 / HIGH); index 0 is "off", where
+ * the function is not called. */
+SceInt32 vitamoon_avcdec_set_low_delay_mode(SceUInt32 type, SceInt32 mode);
+static const int k_delay_mode_values[TEST_DELAY_COUNT] = {-1, 0, 2, 4, 6};
+static bool delay_mode_used = false;     /* set once during this run of the app */
+
+bool vitavideo_decoder_delay_used(void) {
+  return delay_mode_used;
+}
+
+/* Tests (beta) > Skip late frames, and the press-to-picture test. Receive
+ * thread only. */
+static late_state late;
+static bool skip_late = false;
+static uint32_t late_hidden_total = 0;
+static uint16_t host_ring[PTS_RING];     /* the PC's time for each recent frame, 0.1 ms */
+static int sps_refs_logged = -2;         /* reference frames of the stream's SPS, once logged */
+
+/* Tests (beta) > Show frames at once (Low latency display only). */
+static bool immediate_flip = false;
+static bool immediate_failed_logged = false;
+
 SceAvcdecCtrl *decoder = NULL;
 SceUID displayblock = -1;
 SceUID decoderblock = -1;
@@ -335,7 +362,130 @@ static bool display_start(void);
 static void vblank_clock_stop(void);
 static bool vblank_clock_start(void);
 
+/* Undoes the decoder stages (INIT_AVC_DEC down to INIT_AVC_LIB), back to
+ * INIT_FRAMEBUFFER; the decoder's memory is freed whatever stage was reached
+ * (a failure between its allocations used to leave it behind). */
+static void decoder_release(void) {
+  if (video_status == INIT_AVC_DEC) {
+    sceAvcdecDeleteDecoder(decoder);
+    video_status--;
+  }
+  if (video_status == INIT_DECODER_MEMBLOCK)
+    video_status--;
+  if (video_status <= INIT_AVC_LIB) {
+    if (decoderblock >= 0) {
+      sceKernelFreeMemBlock(decoderblock);
+      decoderblock = -1;
+    }
+    if (decoder != NULL) {
+      free(decoder);
+      decoder = NULL;
+    }
+    if (decoder_info != NULL) {
+      free(decoder_info);
+      decoder_info = NULL;
+    }
+  }
+  if (video_status == INIT_AVC_LIB) {
+    sceVideodecTermLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC);
+    if (init != NULL) {
+      free(init);
+      init = NULL;
+    }
+    video_status--;
+  }
+}
+
+/* From INIT_FRAMEBUFFER: library, decoder memory and decoder for `refs`
+ * reference frames, up to INIT_AVC_DEC. On failure everything it made is
+ * undone (back to INIT_FRAMEBUFFER) and the error code is returned. */
+static int decoder_open(int width, int height, unsigned int refs) {
+  int ret;
+  if (init == NULL) {
+    init = calloc(1, sizeof(SceVideodecQueryInitInfoHwAvcdec));
+    if (init == NULL) {
+      LOGE("video", "decoder setup: not enough memory");
+      return VITA_VIDEO_ERROR_NO_MEM;
+    }
+  }
+  init->size = sizeof(SceVideodecQueryInitInfoHwAvcdec);
+  init->horizontal = VITA_DECODER_RESOLUTION(width);
+  init->vertical = VITA_DECODER_RESOLUTION(height);
+  init->numOfRefFrames = refs;
+  init->numOfStreams = 1;
+
+  // Tests (beta): the decoder's delay mode is set before the library starts,
+  // as the original Moonlight Vita 1.0 does.
+  int delay = config.test_decoder_delay;
+  if (delay > TEST_DELAY_OFF && delay < TEST_DELAY_COUNT) {
+    SceInt32 r = vitamoon_avcdec_set_low_delay_mode(SCE_VIDEODEC_TYPE_HW_AVCDEC, k_delay_mode_values[delay]);
+    delay_mode_used = true;
+    if (r < 0)
+      LOGW("video", "decoder delay mode %d refused: 0x%08x", k_delay_mode_values[delay], (unsigned int)r);
+    else
+      LOGI("video", "decoder delay mode %d set (0x%08x)", k_delay_mode_values[delay], (unsigned int)r);
+  }
+
+  ret = sceVideodecInitLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC, init);
+  if (ret < 0) {
+    LOGE("video", "sceVideodecInitLibrary failed: 0x%x (%u reference frames)", ret, refs);
+    return VITA_VIDEO_ERROR_INIT_LIB;
+  }
+  printf("Initalized AVC library");
+  video_status = INIT_AVC_LIB;
+
+  decoder_info = calloc(1, sizeof(SceAvcdecQueryDecoderInfo));
+  decoder = calloc(1, sizeof(SceAvcdecCtrl));
+  if (decoder_info == NULL || decoder == NULL) {
+    LOGE("video", "decoder control: not enough memory");
+    decoder_release();
+    return VITA_VIDEO_ERROR_ALLOC_MEM;
+  }
+  decoder_info->horizontal = init->horizontal;
+  decoder_info->vertical = init->vertical;
+  decoder_info->numOfRefFrames = init->numOfRefFrames;
+
+  SceAvcdecDecoderInfo decoder_info_out = {0};
+  ret = sceAvcdecQueryDecoderMemSize(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder_info, &decoder_info_out);
+  if (ret < 0) {
+    LOGE("video", "sceAvcdecQueryDecoderMemSize failed: 0x%x", ret);
+    decoder_release();
+    return VITA_VIDEO_ERROR_QUERY_DEC_MEMSIZE;
+  }
+
+  size_t sz = (decoder_info_out.frameMemSize + 0xFFFFF) & ~0xFFFFF;
+  decoder->frameBuf.size = sz;
+  printf("allocating size 0x%x\n", sz);
+  decoderblock = sceKernelAllocMemBlock("decoder", SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_NC_RW, sz, NULL);
+  if (decoderblock < 0) {
+    LOGE("video", "decoder memory block of %u KiB refused: 0x%08x", (unsigned)(sz / 1024), decoderblock);
+    decoder_release();
+    return VITA_VIDEO_ERROR_ALLOC_MEM;
+  }
+  ret = sceKernelGetMemBlockBase(decoderblock, &decoder->frameBuf.pBuf);
+  if (ret < 0) {
+    LOGE("video", "sceKernelGetMemBlockBase failed: 0x%x", ret);
+    decoder_release();
+    return VITA_VIDEO_ERROR_GET_MEMBASE;
+  }
+  video_status = INIT_DECODER_MEMBLOCK;
+  printf("base: 0x%08x\n", (unsigned int)decoder->frameBuf.pBuf);
+
+  ret = sceAvcdecCreateDecoder(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder, decoder_info);
+  if (ret < 0) {
+    LOGE("video", "sceAvcdecCreateDecoder failed: 0x%x (%u reference frames)", ret, refs);
+    decoder_release();
+    return VITA_VIDEO_ERROR_CREATE_DEC;
+  }
+  video_status = INIT_AVC_DEC;
+  return 0;
+}
+
 static void vita_cleanup() {
+  latency_test_stop();
+  if (skip_late && late_hidden_total)
+    LOGI("video", "late frames: %u not shown during this stream", late_hidden_total);
+  skip_late = false;
   display_stop();
   vblank_clock_stop();
   if (draw_mutex >= 0) {
@@ -354,36 +504,7 @@ static void vita_cleanup() {
     video_status--;
   }
 
-  if (video_status == INIT_AVC_DEC) {
-    sceAvcdecDeleteDecoder(decoder);
-    video_status--;
-  }
-
-  if (video_status == INIT_DECODER_MEMBLOCK) {
-    if (decoderblock >= 0) {
-      sceKernelFreeMemBlock(decoderblock);
-      decoderblock = -1;
-    }
-    if (decoder != NULL) {
-      free(decoder);
-      decoder = NULL;
-    }
-    if (decoder_info != NULL) {
-      free(decoder_info);
-      decoder_info = NULL;
-    }
-    video_status--;
-  }
-
-  if (video_status == INIT_AVC_LIB) {
-    sceVideodecTermLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC);
-
-    if (init != NULL) {
-      free(init);
-      init = NULL;
-    }
-    video_status--;
-  }
+  decoder_release();
 
   if (video_status == INIT_FRAMEBUFFER) {
     for (int i = 0; i < slot_count; i++) {
@@ -463,92 +584,25 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
   }
 
   if (video_status == INIT_FRAMEBUFFER) {
-    // INIT_AVC_LIB
-    if (init == NULL) {
-      init = calloc(1, sizeof(SceVideodecQueryInitInfoHwAvcdec));
-      if (init == NULL) {
-        LOGE("video", "decoder setup: not enough memory");
-        ret = VITA_VIDEO_ERROR_NO_MEM;
-        goto cleanup;
-      }
+    // INIT_AVC_LIB, INIT_DECODER_MEMBLOCK, INIT_AVC_DEC
+    // Tests (beta): fewer reference frames than 1.0's 4. Reference frame
+    // invalidation (NVIDIA hosts) relies on older frames: 4 then. If the
+    // decoder refuses fewer, it is made again with 4.
+    unsigned int refs = TEST_REFS_DEFAULT;
+    if (config.test_decoder_refs == 1 || config.test_decoder_refs == 2) {
+      if (config.enable_ref_frame_invalidation)
+        LOGW("video", "%d reference frames asked, 4 kept: reference frame invalidation is on",
+             config.test_decoder_refs);
+      else
+        refs = (unsigned int)config.test_decoder_refs;
     }
-    init->size = sizeof(SceVideodecQueryInitInfoHwAvcdec);
-    init->horizontal = VITA_DECODER_RESOLUTION(width);
-    init->vertical = VITA_DECODER_RESOLUTION(height);
-    init->numOfRefFrames = 4;
-    init->numOfStreams = 1;
-
-    ret = sceVideodecInitLibrary(SCE_VIDEODEC_TYPE_HW_AVCDEC, init);
-    if (ret < 0) {
-      LOGE("video", "sceVideodecInitLibrary failed: 0x%x", ret);
-      ret = VITA_VIDEO_ERROR_INIT_LIB;
+    ret = decoder_open(width, height, refs);
+    if (ret < 0 && refs != TEST_REFS_DEFAULT) {
+      LOGW("video", "decoder with %u reference frames failed: made again with %d", refs, TEST_REFS_DEFAULT);
+      ret = decoder_open(width, height, TEST_REFS_DEFAULT);
+    }
+    if (ret < 0)
       goto cleanup;
-    }
-    printf("Initalized AVC library");
-    video_status++;
-  }
-
-  if (video_status == INIT_AVC_LIB) {
-    // INIT_DECODER_MEMBLOCK
-    if (decoder_info == NULL) {
-      decoder_info = calloc(1, sizeof(SceAvcdecQueryDecoderInfo));
-      if (decoder_info == NULL) {
-        LOGE("video", "decoder info: not enough memory");
-        ret = VITA_VIDEO_ERROR_NO_MEM;
-        goto cleanup;
-      }
-    }
-    decoder_info->horizontal = init->horizontal;
-    decoder_info->vertical = init->vertical;
-    decoder_info->numOfRefFrames = init->numOfRefFrames;
-
-    SceAvcdecDecoderInfo decoder_info_out = {0};
-
-    ret = sceAvcdecQueryDecoderMemSize(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder_info, &decoder_info_out);
-    if (ret < 0) {
-      LOGE("video", "sceAvcdecQueryDecoderMemSize failed: 0x%x", ret);
-      ret = VITA_VIDEO_ERROR_QUERY_DEC_MEMSIZE;
-      goto cleanup;
-    }
-
-    decoder = calloc(1, sizeof(SceAvcdecCtrl));
-    if (decoder == NULL) {
-      LOGE("video", "decoder control: not enough memory");
-      ret = VITA_VIDEO_ERROR_ALLOC_MEM;
-      goto cleanup;
-    }
-
-    size_t sz = (decoder_info_out.frameMemSize + 0xFFFFF) & ~0xFFFFF;
-    decoder->frameBuf.size = sz;
-    printf("allocating size 0x%x\n", sz);
-
-    decoderblock = sceKernelAllocMemBlock("decoder", SCE_KERNEL_MEMBLOCK_TYPE_USER_MAIN_PHYCONT_NC_RW, sz, NULL);
-    if (decoderblock < 0) {
-      LOGE("video", "decoder memory block of %u KiB refused: 0x%08x", (unsigned)(sz / 1024), decoderblock);
-      ret = VITA_VIDEO_ERROR_ALLOC_MEM;
-      goto cleanup;
-    }
-
-    ret = sceKernelGetMemBlockBase(decoderblock, &decoder->frameBuf.pBuf);
-    if (ret < 0) {
-      LOGE("video", "sceKernelGetMemBlockBase failed: 0x%x", ret);
-      ret = VITA_VIDEO_ERROR_GET_MEMBASE;
-      goto cleanup;
-    }
-    video_status++;
-  }
-
-  if (video_status == INIT_DECODER_MEMBLOCK) {
-    // INIT_AVC_DEC
-    printf("base: 0x%08x\n", (unsigned int)decoder->frameBuf.pBuf);
-
-    ret = sceAvcdecCreateDecoder(SCE_VIDEODEC_TYPE_HW_AVCDEC, decoder, decoder_info);
-    if (ret < 0) {
-      LOGE("video", "sceAvcdecCreateDecoder failed: 0x%x", ret);
-      ret = VITA_VIDEO_ERROR_CREATE_DEC;
-      goto cleanup;
-    }
-    video_status++;
   }
 
   if (video_status == INIT_AVC_DEC) {
@@ -577,6 +631,13 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
   pace_reset(&pace);
   pace_catch_up = false;
   memset(pts_ring, 0, sizeof(pts_ring));
+  memset(host_ring, 0, sizeof(host_ring));
+  late_reset(&late);
+  skip_late = config.test_skip_late;
+  late_hidden_total = 0;
+  sps_refs_logged = -2;
+  immediate_flip = config.test_immediate_flip && display_mode == DISPLAY_MODE_LOW_LATENCY;
+  immediate_failed_logged = false;
 
   // Every mode draws under this lock, so that vitavideo_stop() can wait for a
   // frame being drawn before the menus take the screen back (the original
@@ -609,6 +670,14 @@ static int vita_setup(int videoFormat, int width, int height, int redrawRate, vo
          (unsigned)init->numOfRefFrames, (unsigned)(decoder->frameBuf.size / 1024),
          decode_yuv ? "YUV converted by the GPU" : "RGBA from the decoder",
          mode_names[display_mode >= 0 && display_mode <= 3 ? display_mode : 0], slot_count, refresh_hz);
+    static const char *const delay_names[TEST_DELAY_COUNT] = {"off", "low", "1", "2", "high"};
+    int delay = config.test_decoder_delay > TEST_DELAY_OFF && config.test_decoder_delay < TEST_DELAY_COUNT
+                ? config.test_decoder_delay : TEST_DELAY_OFF;
+    LOGI("video", "tests (beta): decoder delay mode %s%s, %u reference frames, skip late frames %s, "
+         "show frames at once %s%s",
+         delay_names[delay], delay == TEST_DELAY_OFF && delay_mode_used ? " (a mode set earlier stays until a restart)" : "",
+         (unsigned)init->numOfRefFrames, skip_late ? "on" : "off", immediate_flip ? "on" : "off",
+         config.test_immediate_flip && !immediate_flip ? " (asked, but only for the Low latency display)" : "");
   }
 
   return VITA_VIDEO_INIT_OK;
@@ -770,6 +839,21 @@ static int vblank_thread_main(SceSize args, void *argp) {
   return 0;
 }
 
+/* Tests (beta) > Show frames at once: the buffer just queued goes on screen
+ * now, wherever the screen is in its refresh (the picture can show cut in
+ * two), instead of at the next vertical blank. vita2d's display queue still
+ * sets the same buffer for the next blank, which changes nothing. Size, pitch
+ * and pixel format are taken from the buffer on screen, as vita2d set them. */
+static bool present_now(void) {
+  SceDisplayFrameBuf fb;
+  memset(&fb, 0, sizeof(fb));
+  fb.size = sizeof(fb);
+  if (sceDisplayGetFrameBuf(&fb, SCE_DISPLAY_SETBUF_IMMEDIATE) < 0 || fb.pitch == 0 || fb.base == NULL)
+    return false;
+  fb.base = vita2d_get_current_fb();   /* after vita2d_swap_buffers: the buffer just queued */
+  return sceDisplaySetFrameBuf(&fb, SCE_DISPLAY_SETBUF_IMMEDIATE) >= 0;
+}
+
 /* Draws one frame and queues the buffer flip. Returns when the flip is queued.
  * *render_us covers drawing until the GPU is done, *swap_us the flip call. */
 static uint64_t draw_and_flip(vita2d_texture *tex, uint32_t *render_us, uint32_t *swap_us) {
@@ -783,6 +867,10 @@ static uint64_t draw_and_flip(vita2d_texture *tex, uint32_t *render_us, uint32_t
   vita2d_wait_rendering_done();       // the GPU has finished reading the texture
   uint64_t t1 = LiGetMicroseconds();
   vita2d_swap_buffers();              // shown at the next vertical blank
+  if (immediate_flip && !present_now() && !immediate_failed_logged) {
+    immediate_failed_logged = true;
+    LOGW("video", "show frames at once: the screen refused the buffer, frames wait for the refresh");
+  }
   uint64_t t2 = LiGetMicroseconds();
   *render_us = (uint32_t)(t1 - t0);
   *swap_us = (uint32_t)(t2 - t1);
@@ -858,6 +946,7 @@ static int display_thread_main(SceSize args, void *argp) {
     }
     uint32_t render_us, swap_us;
     uint64_t receive_us = slots[slot].receive_us;
+    int frame_number = slots[slot].frame_number;
     uint64_t t_done = draw_and_flip(slots[slot].tex, &render_us, &swap_us);
     slot_set_free(slot);                // drawing is finished: the texture can be reused
     sceKernelUnlockMutex(draw_mutex, 1);
@@ -881,10 +970,13 @@ static int display_thread_main(SceSize args, void *argp) {
         on_time_run = 0;
       }
       visible_us = late ? deadline + refresh_period_us : deadline;
+    } else if (immediate_flip) {
+      visible_us = t_done;    /* on screen from now on (partly, until the next refresh) */
     } else {
       visible_us = visible_time(t_done);
     }
     stream_stats_on_present(render_us, swap_us, receive_us, visible_us);
+    latency_test_on_visible(frame_number, visible_us);
   }
   return 0;
 }
@@ -1025,6 +1117,7 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   array_picture.pPicture = &pictures;
 
   pts_ring[(uint32_t)decodeUnit->frameNumber % PTS_RING] = decodeUnit->presentationTimeUs;
+  host_ring[(uint32_t)decodeUnit->frameNumber % PTS_RING] = decodeUnit->frameHostProcessingLatency;
 
   // 1. Statistics: frame number, size and arrival timestamps (see stream_stats.c).
   stream_stats_on_frame(decodeUnit->frameNumber, decodeUnit->frameType, decodeUnit->fullLength,
@@ -1053,6 +1146,21 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   while (entry != NULL) {
     if (entry->bufferType == BUFFER_TYPE_SPS) {
       gs_sps_fix(entry, GS_SPS_BITSTREAM_FIXUP, decoder_buffer, &length);
+      // Logged once per stream (and when it changes): how many reference
+      // frames the PC's encoder declares, before the rewrite sets 1. Fewer
+      // reference frames in the decoder than that (Tests (beta)) would break
+      // the picture.
+      int source_refs = gs_sps_source_ref_frames();
+      if (source_refs != sps_refs_logged) {
+        sps_refs_logged = source_refs;
+        if (source_refs > (int)init->numOfRefFrames)
+          LOGW("video", "the PC's encoder declares %d reference frames, the decoder was made for %u: "
+               "set Decoder reference frames back to 4 if the picture breaks up",
+               source_refs, (unsigned)init->numOfRefFrames);
+        else
+          LOGI("video", "the PC's encoder declares %d reference frame%s (decoder made for %u)", source_refs,
+               source_refs == 1 ? "" : "s", (unsigned)init->numOfRefFrames);
+      }
     } else {
       memcpy(decoder_buffer+length, entry->data, entry->length);
       length += entry->length;
@@ -1143,11 +1251,36 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
   }
   if (shown_frame < 0)
     shown_frame = decodeUnit->frameNumber;
+  uint64_t shown_receive_us = stream_stats_receive_time(shown_frame);
+
+  // Press-to-picture test (quick menu): the centre of the picture tells when
+  // the test page turned white.
+  if (latency_test_watching())
+    latency_test_on_decoded(shown_frame, picture.frame.pPicture[0], decode_yuv,
+                            (int)image_scaling.texture_width, (int)image_scaling.texture_height, t_dec1,
+                            shown_receive_us, (uint32_t)host_ring[(uint32_t)shown_frame % PTS_RING] * 100u);
+
+  // Tests (beta) > Skip late frames: decoded (the next frames need it) but not
+  // shown when it reached the Vita over 100 ms late (late_frames.h).
+  if (skip_late) {
+    bool was_hiding = late.hiding;
+    uint32_t late_us;
+    late_verdict verdict = late_check(&late, shown_receive_us, pts_ring[(uint32_t)shown_frame % PTS_RING], &late_us);
+    if (was_hiding && !late.hiding)
+      LOGI("video", "late frames: %u not shown, up to %u ms late%s", late.run_hidden, late.run_worst_us / 1000,
+           verdict == LATE_NEW_REF ? "; still late after a second: taken as the network's delay now" : "");
+    if (verdict == LATE_HIDE) {
+      late_hidden_total++;
+      stream_stats_on_late_hidden();
+      if (display_mode != DISPLAY_MODE_DIRECT)
+        slot_set_free(slot);
+      return DR_OK;
+    }
+  }
 
   // 4. Hand the picture to the display thread (all modes but DIRECT).
   if (display_mode != DISPLAY_MODE_DIRECT) {
-    slot_publish(slot, shown_frame, stream_stats_receive_time(shown_frame),
-                 pts_ring[(uint32_t)shown_frame % PTS_RING]);
+    slot_publish(slot, shown_frame, shown_receive_us, pts_ring[(uint32_t)shown_frame % PTS_RING]);
     return DR_OK;
   }
 
@@ -1164,8 +1297,9 @@ static int vita_submit_decode_unit(PDECODE_UNIT decodeUnit) {
       uint32_t render_us, swap_us;
       uint64_t t_done = draw_and_flip(frame_texture, &render_us, &swap_us);
       frame_count++;
-      stream_stats_on_present(render_us, swap_us, stream_stats_receive_time(shown_frame),
-                              visible_time(t_done));
+      uint64_t visible_us = visible_time(t_done);
+      stream_stats_on_present(render_us, swap_us, shown_receive_us, visible_us);
+      latency_test_on_visible(shown_frame, visible_us);
     }
     if (draw_mutex >= 0)
       sceKernelUnlockMutex(draw_mutex, 1);
@@ -1213,6 +1347,8 @@ void draw_indicators() {
     vita2d_font_draw_text(font, 40, 50, RGBA8(0xFF, 0xFF, 0xFF, 0xAA), 48, ICON_SPRINTING);
   }
 
+  latency_test_draw();   /* press-to-picture test: progress, then its result */
+
 }
 
 void vitavideo_start() {
@@ -1222,6 +1358,7 @@ void vitavideo_start() {
 }
 
 void vitavideo_stop() {
+  latency_test_stop();   /* a pause ends a press-to-picture test: it must not go on pressing A after it */
   vita2d_set_vblank_wait(true);
   active_video_thread = false;
   // Let a draw in progress finish before the menus start drawing.
