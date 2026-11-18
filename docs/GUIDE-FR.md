@@ -37,22 +37,48 @@ paquets en retard (juanjsebgarcia), crochets Vita (priorité et cœur des fils, 
 
 ## Prise en main
 
-**Accueil.** Un menu à gauche (Accueil, Bibliothèque, Ordinateurs, Réglages, Quitter) et, à droite,
-l'aperçu de l'entrée sous le curseur.
-- Sur Accueil, un tableau de bord : le dernier jeu joué sur le dernier PC utilisé (✕ « Reprendre » le
-  lance directement, sans passer par la bibliothèque, ou retourne dans un stream en pause), le PC et son
-  état, la dernière partie (avec Réglages → Général → Statistiques dans la bibliothèque ; sinon le flux
-  demandé), puis une rangée de jeux (les autres joués récemment, puis la suite de la bibliothèque) et
-  « Tout voir ».
-- Les flèches passent du menu aux tuiles. ✕ sur Bibliothèque, Ordinateurs ou Réglages ouvre la page en
-  plein écran, ○ revient à l'accueil ; dans le menu, ○ remet le curseur sur Accueil.
-- Les aperçus : les douze premiers jeux de la bibliothèque, les PC appairés et leur état, les réglages
-  principaux (vidéo, profil, manette, tactile, essais bêta activés).
-- □ : menu du PC affiché (se connecter, réveiller, modifier l'adresse, renommer, oublier). △ : relance la
-  recherche des PC. START : réglages.
+**Accueil.** Un menu à gauche (Accueil, Bibliothèque, Ordinateurs, Réglages, Aide, Quitter) et, à
+droite, l'aperçu de l'entrée sous le curseur.
+- Un seul élément est sélectionné à la fois : il est légèrement agrandi, éclairé, avec une bordure épaisse
+  et un halo de la couleur du thème. Le bouton d'une carte ne prend la couleur du thème que lorsque la
+  carte est sélectionnée.
+- Partout pareil : la flèche droite entre dans l'aperçu (Accueil, Bibliothèque, Ordinateurs, Réglages,
+  Aide), les flèches s'y déplacent, ✕ agit sur l'élément sélectionné, la flèche gauche depuis la première
+  colonne ou ○ revient au menu. ✕ sur une entrée du menu ouvre toujours sa page en plein écran ; dans le
+  menu, ○ remet le curseur sur Accueil.
+- Accueil : une grande carte qui dit ce que fait ✕ (Continuer le dernier jeu joué sur le dernier PC
+  utilisé, sans passer par la bibliothèque ; Reprendre un stream en pause ; Réveiller le PC quand la
+  recherche le voit éteint et que son adresse réseau est connue ; Options du PC s'il ne répond pas ou
+  répond d'une nouvelle adresse ; Ouvrir la bibliothèque tant qu'elle n'a pas été ouverte une fois),
+  puis une rangée de jaquettes : jusqu'à trois autres jeux joués récemment, les favoris, la suite de la
+  bibliothèque, et « Tout voir ». ✕ sur une jaquette lance le jeu.
+- Bibliothèque : les douze premiers jeux ; ✕ sur une jaquette lance le jeu.
+- Ordinateurs : les PC appairés (un seul en détail, plusieurs en liste), « Rechercher sur le réseau » et
+  « Saisir une adresse » ; ✕ connecte un PC en ligne ou ouvre le menu d'un PC qui ne répond pas.
+- Réglages : une carte par rubrique avec ses valeurs principales ; ✕ ouvre les réglages directement sur
+  cette rubrique, sur sa première option. Avancé indique « Par défaut » tant qu'aucune de ses options
+  modifiables ne s'écarte des valeurs de départ de VitaMoon.
+- Aide : raccourcis pendant le stream, tactile, ajout des jeux dans Sunshine, Wi-Fi (voir plus bas).
+- □ : menu du PC sélectionné dans Ordinateurs, sinon du PC affiché (se connecter, réveiller, modifier
+  l'adresse, renommer, oublier). △ : relance la recherche des PC. START : réglages.
 - L'accueil connaît les jeux d'un PC grâce à un petit fichier que la bibliothèque laisse quand on la
   quitte (`ux0:data/vitamoon/<nom du PC>/home.txt`) : tant que la bibliothèque d'un PC n'a pas été
   ouverte une fois avec cette version, l'accueil propose de l'ouvrir.
+
+**Ajouter ses jeux.** VitaMoon affiche les applications que Sunshine publie ; au départ, Sunshine n'en a
+que deux, Desktop et Steam Big Picture (il n'importe pas la bibliothèque Steam). Pour voir un jeu (FF9,
+FF8…) et le lancer directement depuis la Vita, l'ajouter une fois sur le PC : page web de Sunshine
+(https://localhost:47990) → Applications → Ajouter une application ; Nom de l'application : le jeu ;
+Commandes détachées : `steam://rungameid/` suivi du numéro du jeu (le nombre dans l'adresse de sa page
+sur le Steam Store) ; Trouver une jaquette, puis Sauvegarder. Le jeu apparaît ensuite dans la
+bibliothèque avec sa jaquette. Si un jeu ouvre d'abord un lanceur, il se passe au tactile. La même
+marche à suivre est dans Aide → Ajouter des jeux.
+
+**Aide.** Quatre sujets (haut / bas ou L / R pour changer, ○ pour revenir) : pendant le stream
+(L + R + SELECT menu rapide, START + L + R pause, START + gauche clavier, touche PS envoyée au PC, deux
+appuis rapprochés pour l'accueil de la Vita) ; tactile (mode de l'écran avant, pavé arrière L2 / R2 en
+haut et L3 / R3 en bas, raccourcis des coins) ; ajouter des jeux ; Wi-Fi (économie d'énergie et
+Bluetooth tels que la Vita les indique, bande 2,4 GHz seulement, câble pour le PC).
 
 **Ordinateurs.** La liste des PC appairés avec leur état (en ligne, hors ligne, adresse modifiée ;
 « Vérification… » pendant les quelques secondes de la première recherche), et à droite le détail du PC
@@ -118,15 +144,15 @@ pause (dans les menus) ne déclenche pas de reconnexion : reconnectez-vous et ch
 **Appairage.** La Vita s'appaire sous son pseudo (le nom d'utilisateur de la console) au lieu de « roth » : c'est le nom
 affiché dans la liste des appareils de Sunshine. Les appairages existants gardent l'ancien nom.
 
-**Réglages.** Six rubriques à gauche, les options à droite, une explication de l'option sélectionnée en bas.
+**Réglages.** Sept rubriques à gauche, les options à droite, une explication de l'option sélectionnée en bas.
 - Haut / bas : option. Gauche / droite : changer la valeur. ✕ : basculer, valeur suivante ou ouvrir.
 - L / R : rubrique précédente / suivante. ○ : retour (les réglages sont enregistrés).
 - Langue : English, Français, Español (rubrique Général).
-- Thème : Nuit, Aube, Aurore, Crépuscule, Éclipse (rubrique Général) ; appliqué tout de suite, avec son
+- Thème : Nuit, Aube, Aurore, Crépuscule, Éclipse (rubrique Général ; Éclipse par défaut depuis la 1.1.0-bêta.3) ; appliqué tout de suite, avec son
   propre ciel lunaire (étoiles et grand croissant ; Éclipse : disque sombre et sa couronne).
 - Étoiles scintillantes (Général, activé par défaut) : chaque petite étoile du fond s'éclaire doucement
   une fois toutes les 2,5 à 6 secondes, chacune à son moment.
-- Ciel en mouvement (Général, Non par défaut) : les étoiles tournent autour de la lune, un tour en
+- Ciel en mouvement (Général, Moyen par défaut depuis la 1.1.0-bêta.3) : les étoiles tournent autour de la lune, un tour en
   32 min (Très lent), 16 min (Lent), 8 min (Moyen) ou 4 min (Rapide). Sens de rotation : Horaire (elles
   montent en bas à gauche et passent en haut vers la droite) ou Antihoraire. Changer la vitesse ou le sens
   ne fait pas sauter les étoiles ; le ciel ne tourne que dans les menus, rien n'est dessiné pendant un

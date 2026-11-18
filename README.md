@@ -37,7 +37,7 @@ what was measured by whom, is listed in [docs/design/performance.md](docs/design
 ## Screenshots
 
 <div align="center">
-  <img src="docs/screenshots/home.png" alt="Home: side menu and dashboard, the last game one press away" width="48%"/>
+  <img src="docs/screenshots/home.png" alt="Home: side menu, the last game one press away, recent games and favourites" width="48%"/>
   <img src="docs/screenshots/library_1.png" alt="Library: games with cover art, when each was last played" width="48%"/>
   <img src="docs/screenshots/settings_profile_smooth.png" alt="Settings: performance profiles" width="48%"/>
   <img src="docs/screenshots/pairing_code.png" alt="Pairing: code to type in Sunshine" width="48%"/>
@@ -63,12 +63,14 @@ measurements).</sub>
 - **Statistics**: a one-line overlay during play (frame rate, receive-to-screen time, bitrate), and per
   session a CSV (one line per second) plus a summary with percentiles, to compare settings on your own
   setup.
-- **Interface**: a home screen with a side menu and a preview of each page, its dashboard one press
-  away from the game played last; computers with their state, a game library with cover art (favourites first, then
-  the games last played, with when), two-pane settings with help for every option, pairing with a
-  code to type in Sunshine, English, French and Spanish, five colour themes over a lunar sky (Night,
-  Dawn, Aurora, Twilight, Eclipse) whose stars can twinkle and turn around the moon, titles in Poppins
-  and text in Inter, a moon that fills at each step while a stream starts or reconnects.
+- **Interface**: a home screen with a side menu and a preview of each page that the right arrow
+  enters (the game played last one press away, recent games and favourites, the library's covers, the
+  PCs, one card per settings category, help); computers with their state, a game library with cover
+  art (favourites first, then the games last played, with when), two-pane settings with help for every
+  option, a Help page (stream shortcuts, touch, adding games to Sunshine, Wi-Fi), pairing with a code to
+  type in Sunshine, English, French and Spanish, five colour themes over a lunar sky (Eclipse by
+  default; Night, Dawn, Aurora, Twilight) whose stars twinkle and turn around the moon, titles in
+  Poppins and text in Inter, a moon that fills at each step while a stream starts or reconnects.
 - **In-game quick menu** (L + R + SELECT): statistics on or off, keyboard, the press-to-picture
   test, pause or quit the game, with the battery, its time left, the clock and the stream's length,
   without leaving the game.

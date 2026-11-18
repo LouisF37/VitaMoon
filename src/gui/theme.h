@@ -101,7 +101,7 @@ unsigned int theme_alpha(unsigned int color, unsigned int alpha);
 
 enum {
   GLYPH_CROSS, GLYPH_CIRCLE, GLYPH_TRIANGLE, GLYPH_SQUARE,
-  GLYPH_START, GLYPH_SELECT, GLYPH_LR, GLYPH_DPAD_LR
+  GLYPH_START, GLYPH_SELECT, GLYPH_LR, GLYPH_DPAD_LR, GLYPH_DPAD_RIGHT
 };
 
 typedef struct {

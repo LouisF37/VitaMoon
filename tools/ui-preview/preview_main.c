@@ -220,6 +220,7 @@ static void fake_home_file(void) {
   for (int i = 0; i < 8; i++) {
     home_game *x = &g.shelf[g.shelf_count++];
     x->id = shelf[i].id;
+    x->favourite = shelf[i].id == 1007 || shelf[i].id == 1001;   /* Celeste, Final Fantasy VIII */
     snprintf(x->when, sizeof(x->when), "%s", shelf[i].when);
     snprintf(x->name, sizeof(x->name), "%s", shelf[i].name);
     home_add_recent(&g, shelf[i].id, shelf[i].when, shelf[i].name);
@@ -229,30 +230,60 @@ static void fake_home_file(void) {
   home_data_save("MINI-PC", &g);
 }
 
-/* Home: the dashboard and its tiles, then the side menu and the preview of
- * each entry, then the Computers page and a PC's own menu. */
+/* Home: the large card, the row of games, then the side menu and each entry's
+ * preview, entered with the right arrow; a settings card opens its category,
+ * the help card its page; then the Computers page and a PC's own menu. */
 static void scenario_home(void) {
   fake_hosts();
   fake_home_file();
   preview_wait(12);
   preview_snap("home_1_dashboard");
-  preview_press(SCE_CTRL_RIGHT);
-  preview_snap("home_2_pc_tile");
   preview_press(SCE_CTRL_DOWN);
-  preview_snap("home_3_see_all");
-  preview_press(SCE_CTRL_LEFT);
-  preview_snap("home_4_strip_game");
-  preview_press(SCE_CTRL_LEFT); preview_press(SCE_CTRL_LEFT); preview_press(SCE_CTRL_LEFT);
+  preview_snap("home_2_row_game");
+  preview_press(SCE_CTRL_RIGHT); preview_press(SCE_CTRL_RIGHT);
+  preview_snap("home_3_row_favourite");
+  preview_press(SCE_CTRL_RIGHT); preview_press(SCE_CTRL_RIGHT); preview_press(SCE_CTRL_RIGHT);
+  preview_snap("home_4_see_all");
+  preview_press(SCE_CTRL_CIRCLE);
   preview_snap("home_5_menu");
   preview_press(SCE_CTRL_DOWN);
   preview_snap("home_6_library");
+  preview_press(SCE_CTRL_RIGHT); preview_press(SCE_CTRL_RIGHT); preview_press(SCE_CTRL_DOWN);
+  preview_snap("home_7_library_game");
+  preview_press(SCE_CTRL_LEFT); preview_press(SCE_CTRL_LEFT);
   preview_press(SCE_CTRL_DOWN);
-  preview_snap("home_7_computers");
+  preview_snap("home_8_computers");
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("home_9_computers_pc");
+  preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN);
+  preview_snap("home_10_computers_search");
+  preview_press(SCE_CTRL_CIRCLE);
   preview_press(SCE_CTRL_DOWN);
-  preview_snap("home_8_settings");
+  preview_snap("home_11_settings");
+  preview_press(SCE_CTRL_RIGHT); preview_press(SCE_CTRL_RIGHT);
+  preview_snap("home_12_settings_video");
+  preview_press(SCE_CTRL_CROSS);
+  preview_snap("settings_from_home_video");
+  preview_press(SCE_CTRL_CIRCLE); preview_press(SCE_CTRL_CIRCLE);
+  preview_snap("home_13_back_from_settings");
+  preview_press(SCE_CTRL_CIRCLE);
   preview_press(SCE_CTRL_DOWN);
-  preview_snap("home_9_quit");
-  preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP);
+  preview_snap("home_14_help");
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("home_15_help_card");
+  preview_press(SCE_CTRL_CROSS);
+  preview_snap("help_1_stream");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("help_2_touch");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("help_3_games");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("help_4_wifi");
+  preview_press(SCE_CTRL_CIRCLE);
+  preview_press(SCE_CTRL_CIRCLE);
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("home_16_quit");
+  preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP);
   preview_press(SCE_CTRL_CROSS);
   preview_snap("computers_1_host_online");
   preview_press(SCE_CTRL_DOWN);
@@ -270,6 +301,33 @@ static void scenario_home(void) {
   preview_press(SCE_CTRL_CROSS);
   preview_snap("dialog_confirm");
   preview_wait(4);
+  ui_home();
+}
+
+/* The PC shown is off, once the scan has looked: the large card wakes it. */
+static void scenario_home_pc_off(void) {
+  fake_hosts();
+  fake_home_file();
+  g_host_status[0].status = HOST_OFFLINE;
+  preview_wait(500);   /* the first scan takes up to 7 s with three PCs */
+  preview_snap("home_pc_off");
+  preview_wait(2);
+  ui_home();
+}
+
+/* Wi-Fi power save and Bluetooth on: the help's Wi-Fi card and page warn. */
+static void scenario_help_wifi(void) {
+  fake_hosts();
+  fake_wifi_power_save = 1;
+  fake_bluetooth = 1;
+  preview_wait(12);
+  preview_press(SCE_CTRL_LEFT);
+  for (int i = 0; i < 4; i++) preview_press(SCE_CTRL_DOWN);
+  preview_snap("help_wifi_card_warning");
+  preview_press(SCE_CTRL_CROSS);
+  preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN);
+  preview_snap("help_wifi_warning");
+  preview_wait(2);
   ui_home();
 }
 
@@ -340,17 +398,6 @@ static void scenario_home_paused(void) {
   preview_press(SCE_CTRL_DOWN);
   preview_press(SCE_CTRL_DOWN);
   preview_snap("home_paused_computers");
-  preview_wait(2);
-  ui_home();
-}
-
-/* The same dashboard with "Statistics in the library" on: the last session. */
-static void scenario_home_stats(void) {
-  fake_hosts();
-  fake_home_file();
-  config.library_stats = true;
-  preview_wait(12);
-  preview_snap("home_stats");
   preview_wait(2);
   ui_home();
 }
@@ -665,7 +712,8 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "home_bt")) scenario_home_bt();
   else if (!strcmp(s, "home_no_games")) scenario_home_no_games();
   else if (!strcmp(s, "home_paused")) scenario_home_paused();
-  else if (!strcmp(s, "home_stats")) scenario_home_stats();
+  else if (!strcmp(s, "home_pc_off")) scenario_home_pc_off();
+  else if (!strcmp(s, "help_wifi")) scenario_help_wifi();
   else if (!strcmp(s, "pairing")) scenario_pairing();
   else if (!strcmp(s, "settings_pages")) scenario_settings_pages();
   else if (!strcmp(s, "settings")) scenario_settings();

@@ -156,6 +156,7 @@ int main(void) {
       doubling = doubling && k_orbit_turn_s[v - 1] == 2 * k_orbit_turn_s[v];
     CHECK(doubling && k_orbit_turn_s[1] == 32 * 60 && k_orbit_turn_s[ORBIT_SPEEDS - 1] == 4 * 60,
           "four speeds: one turn in 32, 16, 8 and 4 minutes");
+    CHECK(k_orbit_turn_s[3] == 8 * 60, "speed 3 (SKY_MEDIUM, the default in config.h): one turn in 8 minutes");
     CHECK(orbit_advance(1.0, 16683, 0, false) == 1.0 && orbit_advance(1.0, 16683, 9, false) == 1.0,
           "still (or unknown speed): the sky does not move");
     double a = 0.0;

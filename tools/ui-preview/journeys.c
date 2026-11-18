@@ -252,25 +252,25 @@ static const journey k_journeys[] = {
    * first: its large tile opens the library, which leaves the file when it is
    * left; then the tile starts the game played last at once, without the library. */
   {"j_home_continue", PC_IDLE, true, 0,
-   {{"home", {X}}, {"library", {O}}, {"home", {X}}, {"home", {LT, DN, DN, DN, DN, X}}},
+   {{"home", {X}}, {"library", {O}}, {"home", {X}}, {"home", {LT, DN, DN, DN, DN, DN, X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
    {"home", "open*", "library", "home", "open*", "launch 1000", "connect", "stop", "home"}, true},
 
   /* A stream paused, back on the home screen: its large tile goes back into the game. */
   {"j_home_resume_paused", PC_IDLE, true, 0,
-   {{"home", {X}}, {"library", {X}}, {"library", {O}}, {"home", {X}}, {"home", {LT, DN, DN, DN, DN, X}}},
+   {{"home", {X}}, {"library", {X}}, {"library", {O}}, {"home", {X}}, {"home", {LT, DN, DN, DN, DN, DN, X}}},
    {{AT_PLAYING, 3000, DO_PAUSE}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
    {"home", "open*", "library", "launch 1000", "connect", "library", "home", "stop", "home"}, true},
 
   /* A game of the strip (the next one played: 1002). */
   {"j_home_strip_game", PC_IDLE, true, 0,
-   {{"home", {X}}, {"library", {O}}, {"home", {DN, X}}, {"home", {LT, DN, DN, DN, DN, X}}},
+   {{"home", {X}}, {"library", {O}}, {"home", {DN, X}}, {"home", {LT, DN, DN, DN, DN, DN, X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
    {"home", "open*", "library", "home", "open*", "launch 1002", "connect", "stop", "home"}, true},
 
   /* Another game runs on the PC: the home asks before quitting it. */
   {"j_home_switch_game", PC_RUNNING, true, 0,
-   {{"home", {X}}, {"library", {O}}, {"home", {DN, X}}, {"confirm", {X}}, {"home", {LT, DN, DN, DN, DN, X}}},
+   {{"home", {X}}, {"library", {O}}, {"home", {DN, X}}, {"confirm", {X}}, {"home", {LT, DN, DN, DN, DN, DN, X}}},
    {{AT_PLAYING, 3000, DO_PC_ENDS, 1}},
    {"home", "open*", "library", "home", "open*", "confirm: *", "quit 1000", "launch 1002", "connect", "stop",
     "home"}, true},

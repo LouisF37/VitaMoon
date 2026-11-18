@@ -25,7 +25,7 @@ set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
 set(VERSION_MAJOR "1")
 set(VERSION_MINOR "1")
 set(VERSION_PATCH "0")
-set(VERSION_LABEL "beta.2")         # empty for a final release, e.g. "beta.1" before one
+set(VERSION_LABEL "beta.3")         # empty for a final release, e.g. "beta.1" before one
 set(VERSION_NAME "Premier Croissant")  # milestone name, shown in the docs
 if(VERSION_LABEL)
 	set(VERSION_TEXT "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_LABEL}")
@@ -113,6 +113,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/gui/boxart.c
 	src/gui/ui_library.c
 	src/gui/ui_home.c
+	src/gui/ui_help.c
 	src/gui/home_data.c
 	src/gui/quickmenu.c
 	src/input/vita.c

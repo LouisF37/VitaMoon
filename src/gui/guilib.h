@@ -23,6 +23,7 @@
 #define ICON_PLAY         "\xef\x81\x8b"   /* U+F04B */
 #define ICON_SEARCH       "\xef\x80\x82"   /* U+F002 */
 #define ICON_KEYBOARD     "\xef\x84\x9c"   /* U+F11C */
+#define ICON_HELP         "\xef\x81\x99"   /* U+F059 */
 #define ICON_HOME_SIZE    28
 
 

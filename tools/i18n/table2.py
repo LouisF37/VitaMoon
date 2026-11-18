@@ -473,7 +473,7 @@ T2 = {
 # --- home screen (1.1.0-beta.2): side menu, dashboard and previews ---
 "Home": ("Accueil", "Inicio"),
 "Library": ("Bibliothèque", "Biblioteca"),
-"Continue": ("Reprendre", "Continuar"),
+"Continue": ("Continuer", "Continuar"),
 "Paused": ("En pause", "En pausa"),
 "on %s": ("sur %s", "en %s"),
 "Still running on the PC": ("Toujours lancé sur le PC", "Sigue en marcha en el PC"),
@@ -508,4 +508,116 @@ T2 = {
 "%d option on": ("%d option active", "%d opción activa"),
 "%d options on": ("%d options actives", "%d opciones activas"),
 "Open the settings": ("Ouvrir les réglages", "Abrir los ajustes"),
+# --- 1.1.0-beta.3: home panels, help ---
+"During a stream": ("Pendant le stream", "Durante el stream"),
+"Adding games": ("Ajouter des jeux", "Añadir juegos"),
+"Wi-Fi": ("Wi-Fi", "Wi-Fi"),
+"Quick menu": ("Menu rapide", "Menú rápido"),
+"START + L + R: pause": ("START + L + R" + NB + ": pause", "START + L + R: pausa"),
+"Front screen": ("Écran avant", "Pantalla frontal"),
+"Rear pad: L2 R2 at the top, L3 R3 below": ("Pavé arrière" + NB + ": L2 R2 en haut, L3 R3 en bas", "Panel trasero: L2 R2 arriba, L3 R3 abajo"),
+"Rear pad off": ("Pavé arrière désactivé", "Panel trasero desactivado"),
+"Each game is added once,": ("Chaque jeu s'ajoute une fois,", "Cada juego se añade una vez,"),
+"in its Applications page": ("dans sa page Applications", "en su página Aplicaciones"),
+"Power save on": ("Économie d'énergie active", "Ahorro de energía activo"),
+"It adds lag: turn it off": ("Elle ajoute du retard" + NB + ": désactivez-la", "Añade retardo: desactívalo"),
+"Bluetooth on": ("Bluetooth activé", "Bluetooth activado"),
+"It can disturb the Wi-Fi": ("Il peut gêner le Wi-Fi", "Puede interferir con el Wi-Fi"),
+"Nothing to fix": ("Rien à corriger", "Nada que corregir"),
+"The Vita: 2.4 GHz only": ("La Vita" + NB + ": 2,4 GHz seulement", "La Vita: solo 2,4 GHz"),
+"The PC: a cable if you can": ("Le PC" + NB + ": un câble si possible", "El PC: un cable si puedes"),
+"Quick menu: statistics, keyboard, pause, quit the game.":
+    ("Menu rapide" + NB + ": statistiques, clavier, pause, quitter le jeu.",
+     "Menú rápido: estadísticas, teclado, pausa, salir del juego."),
+"Pause: back to the menus. The game keeps running on the PC.":
+    ("Pause" + NB + ": retour aux menus. Le jeu continue de tourner sur le PC.",
+     "Pausa: vuelta a los menús. El juego sigue en marcha en el PC."),
+"START + left": ("START + gauche", "START + izquierda"),
+"Keyboard, to type on the PC.": ("Clavier, pour écrire sur le PC.", "Teclado, para escribir en el PC."),
+"PS button": ("Touche PS", "Botón PS"),
+"Sent to the PC (Steam's menu, for example). Press it twice quickly for the Vita's home screen.":
+    ("Envoyée au PC (le menu de Steam, par exemple). Deux appuis rapprochés ramènent à l'écran d'accueil de la Vita.",
+     "Se envía al PC (el menú de Steam, por ejemplo). Púlsalo dos veces seguidas para ir a la pantalla de inicio de la Vita."),
+"Kept by the Vita: Settings, Controls, to send it to the PC.":
+    ("Gardée par la Vita" + NB + ": Réglages, Commandes, pour l'envoyer au PC.",
+     "Lo usa la Vita: Ajustes, Controles, para enviarlo al PC."),
+"Touchpad: slide to move the pointer, tap to click. Other modes in Settings, Touch.":
+    ("Pavé tactile" + NB + ": glisser déplace le pointeur, toucher clique. Autres modes dans Réglages, Tactile.",
+     "Panel táctil: desliza para mover el puntero, toca para hacer clic. Otros modos en Ajustes, Táctil."),
+"%s. The other modes are in Settings, Touch.":
+    ("%s. Les autres modes sont dans Réglages, Tactile.", "%s. Los demás modos están en Ajustes, Táctil."),
+"Rear pad": ("Pavé arrière", "Panel trasero"),
+"Top: L2 and R2. Bottom: L3 and R3. It can be turned off in Settings, Touch.":
+    ("En haut" + NB + ": L2 et R2. En bas" + NB + ": L3 et R3. Se désactive dans Réglages, Tactile.",
+     "Arriba: L2 y R2. Abajo: L3 y R3. Se desactiva en Ajustes, Táctil."),
+"Off. It can be turned on in Settings, Touch.":
+    ("Désactivé. Se réactive dans Réglages, Tactile.", "Desactivado. Se activa en Ajustes, Táctil."),
+"Corners": ("Coins", "Esquinas"),
+"The corners of the front screen are shortcuts (Settings, Touch).":
+    ("Les coins de l'écran avant sont des raccourcis (Réglages, Tactile).",
+     "Las esquinas de la pantalla frontal son atajos (Ajustes, Táctil)."),
+"The corners of the front screen can be made shortcuts (Settings, Touch; off at first).":
+    ("Les coins de l'écran avant peuvent servir de raccourcis (Réglages, Tactile" + NB + "; désactivés au départ).",
+     "Las esquinas de la pantalla frontal pueden ser atajos (Ajustes, Táctil; desactivados al principio)."),
+"VitaMoon shows the applications that Sunshine offers: Desktop and Steam Big Picture at first. Add each game once, on the PC:":
+    ("VitaMoon affiche les applications que Sunshine propose" + NB + ": Desktop et Steam Big Picture au départ. Ajoutez chaque jeu une fois, sur le PC" + NB + ":",
+     "VitaMoon muestra las aplicaciones que ofrece Sunshine: Desktop y Steam Big Picture al principio. Añade cada juego una vez, en el PC:"),
+"Open Sunshine's web page (https://localhost:47990), Applications, then Add New.":
+    ("Ouvrez la page web de Sunshine (https://localhost:47990), Applications, puis Ajouter une application.",
+     "Abre la página web de Sunshine (https://localhost:47990), Aplicaciones y luego Añadir nuevo."),
+"Application Name: the game. Detached Commands: steam://rungameid/ then the game's number, from the address of its Steam Store page.":
+    ("Nom de l'application" + NB + ": le jeu. Commandes détachées" + NB + ": steam://rungameid/ puis le numéro du jeu, dans l'adresse de sa page sur le Steam Store.",
+     "Nombre de la aplicación: el juego. Comandos separados: steam://rungameid/ y el número del juego, que está en la dirección de su página de la Steam Store."),
+"Find Cover, then Save. The game shows up in the library with its cover and starts as soon as it is chosen.":
+    ("Trouver une jaquette, puis Sauvegarder. Le jeu apparaît dans la bibliothèque avec sa jaquette et se lance dès qu'on le choisit.",
+     "Encontrar portada y luego Guardar. El juego aparece en la biblioteca con su portada y se inicia en cuanto lo eliges."),
+"Power save": ("Économie d'énergie", "Ahorro de energía"),
+"On: it adds lag. Turn it off in the Vita's Settings, Power Save Settings.":
+    ("Active" + NB + ": elle ajoute du retard. Désactivez-la dans Paramètres, Paramètres d'économie d'énergie de la Vita.",
+     "Activo: añade retardo. Desactívalo en Ajustes, Ajustes de ahorro de energía de la Vita."),
+"Off: good.": ("Désactivée" + NB + ": parfait.", "Desactivado: perfecto."),
+"Off: fine.": ("Désactivé" + NB + ": parfait.", "Desactivado: perfecto."),
+"Keep it off (the Vita's Settings, Power Save Settings): it adds lag.":
+    ("À garder désactivée (Paramètres, Paramètres d'économie d'énergie de la Vita)" + NB + ": elle ajoute du retard.",
+     "Mantenlo desactivado (Ajustes, Ajustes de ahorro de energía de la Vita): añade retardo."),
+"Bluetooth": ("Bluetooth", "Bluetooth"),
+"On: if you use no Bluetooth device, turn it off, it can disturb the Wi-Fi.":
+    ("Activé" + NB + ": sans appareil Bluetooth, désactivez-le, il peut gêner le Wi-Fi.",
+     "Activado: si no usas ningún dispositivo Bluetooth, desactívalo, puede interferir con el Wi-Fi."),
+"Turn it off if you use no Bluetooth device: it can disturb the Wi-Fi.":
+    ("Désactivez-le si vous n'utilisez aucun appareil Bluetooth" + NB + ": il peut gêner le Wi-Fi.",
+     "Desactívalo si no usas ningún dispositivo Bluetooth: puede interferir con el Wi-Fi."),
+"The Vita": ("La Vita", "La Vita"),
+"Its Wi-Fi uses the 2.4 GHz band only: play close to the box.":
+    ("Son Wi-Fi n'utilise que la bande 2,4 GHz" + NB + ": jouez près de la box.",
+     "Su Wi-Fi solo usa la banda de 2,4 GHz: juega cerca del router."),
+"The PC": ("Le PC", "El PC"),
+"Connect it to the box with a cable if you can.":
+    ("Reliez-le à la box par un câble si possible.", "Conéctalo al router con un cable si puedes."),
+"Help": ("Aide", "Ayuda"),
+"Topic": ("Sujet", "Tema"),
+"Default": ("Par défaut", "Por defecto"),
+"Changed": ("Modifié", "Modificado"),
+"%d options changed": ("%d options modifiées", "%d opciones cambiadas"),
+"%d option changed": ("%d option modifiée", "%d opción cambiada"),
+"Today": ("Aujourd'hui", "Hoy"),
+"Yesterday": ("Hier", "Ayer"),
+"%d d ago": ("Il y a %d j", "Hace %d d"),
+"%d wk ago": ("Il y a %d sem.", "Hace %d sem."),
+"%d months ago": ("Il y a %d mois", "Hace %d meses"),
+"%d month ago": ("Il y a %d mois", "Hace %d mes"),
+"Still running on %s": ("Toujours lancé sur %s", "Sigue en marcha en %s"),
+"PC off": ("PC éteint", "PC apagado"),
+"%s is off": ("%s est éteint", "%s está apagado"),
+"Wake-on-LAN ready · last game: %s": ("Réveil à distance prêt · dernier jeu" + NB + ": %s", "Encendido remoto listo · último juego: %s"),
+"Wake the PC": ("Réveiller le PC", "Encender el PC"),
+"on %s · %s · %s": ("sur %s · %s · %s", "en %s · %s · %s"),
+"on %s · %s": ("sur %s · %s", "en %s · %s"),
+"Recent": ("Récents", "Recientes"),
+"Favourites": ("Favoris", "Favoritos"),
+"Games": ("Jeux", "Juegos"),
+"Open %s": ("Ouvrir %s", "Abrir %s"),
+"Menu": ("Menu", "Menú"),
+"Browse": ("Parcourir", "Explorar"),
+"Sky: %s": ("Ciel" + NB + ": %s", "Cielo: %s"),
 }

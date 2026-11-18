@@ -1373,17 +1373,39 @@ void ui_settings_save_config() {
   vita_debug_log("Config saved to %s", config_path);
 }
 
+_Static_assert((int)SETTINGS_CAT_COUNT == (int)CAT_COUNT && (int)SETTINGS_CAT_VIDEO == (int)CAT_VIDEO &&
+                   (int)SETTINGS_CAT_TESTS == (int)CAT_TESTS,
+               "ui_settings.h lists the categories in the page's order");
+
+static int last_category = CAT_GENERAL;   /* reopen where the user left */
+static bool open_in_rows = false;         /* opened from a card of the home screen */
+
+const char *ui_settings_category(int category) {
+  return category >= 0 && category < CAT_COUNT ? tr(k_categories[category]) : "";
+}
+
+void ui_settings_menu_at(int category) {
+  if (category >= 0 && category < CAT_COUNT)
+    last_category = category;
+  open_in_rows = true;
+  ui_settings_menu();
+}
+
 int ui_settings_menu() {
   PREVIEW_SCREEN("settings");
   ui_end();
   gui_touch_reset();
   ui_settings_probe_wait();
 
-  static int last_category = CAT_GENERAL;   /* reopen where the user left */
   settings_view v = {0};
   v.category = last_category;
   v.first_frame = true;
   v.pane_alpha = 0.0f;
+  {
+    int rows[ROW_COUNT];
+    v.in_rows = open_in_rows && category_rows(v.category, rows) > 0;
+    open_in_rows = false;
+  }
 
   while (true) {
     int rows[ROW_COUNT];
@@ -1517,6 +1539,10 @@ static int summary_row(int which) {
     case SETTINGS_SUM_CONTROLLER: return S_CONTROLLER_TYPE;
     case SETTINGS_SUM_TOUCH: return S_TOUCH_MODE;
     case SETTINGS_SUM_REAR_TOUCH: return S_REAR_TOUCH;
+    case SETTINGS_SUM_LANGUAGE: return S_LANGUAGE;
+    case SETTINGS_SUM_THEME: return S_THEME;
+    case SETTINGS_SUM_MOVING_SKY: return S_MOVING_SKY;
+    case SETTINGS_SUM_REMOTE: return S_REMOTE;
     default: return -1;
   }
 }
@@ -1559,4 +1585,22 @@ int ui_settings_tests_on(const char *names[], int max) {
     count++;
   }
   return count;
+}
+
+int ui_settings_advanced_changed(void) {
+  static CONFIGURATION d;   /* menus thread only; large, kept off the stack */
+  memset(&d, 0, sizeof(d));
+  config_set_defaults(&d);
+  int n = 0;
+  n += (config.stream.streamingRemotely != 0) != (d.stream.streamingRemotely != 0);
+  n += config.enable_ref_frame_invalidation != d.enable_ref_frame_invalidation;
+  n += config.sops != d.sops;
+  if (row_enabled(S_FRAME_PACER))
+    n += config.enable_frame_pacer != d.enable_frame_pacer;
+  if (row_enabled(S_VBLANK))
+    n += config.enable_vita_vblank_wait != d.enable_vita_vblank_wait;
+  n += config.http_keepalive != d.http_keepalive;
+  n += config.ui_msaa != d.ui_msaa;
+  n += config.thread_pinning != d.thread_pinning;
+  return n;
 }

@@ -100,6 +100,7 @@ typedef struct {
 } theme_def;
 
 _Static_assert(THEME_COUNT == CONFIG_THEME_COUNT, "config.c clamps the theme with CONFIG_THEME_COUNT");
+_Static_assert(THEME_ECLIPSE == CONFIG_THEME_DEFAULT, "config.c starts on Eclipse with CONFIG_THEME_DEFAULT");
 
 #define C(r, g, b) RGBA8(r, g, b, 0xFF)
 static const theme_def k_themes[THEME_COUNT] = {
@@ -711,6 +712,7 @@ int theme_glyph_width(int glyph) {
       return theme_text_width(TS_MICRO, glyph_label(glyph)) + 16;
     case GLYPH_LR: return 52;
     case GLYPH_DPAD_LR: return 26;
+    case GLYPH_DPAD_RIGHT: return 12;
     default: return 18;
   }
 }
@@ -755,6 +757,9 @@ int theme_glyph(int glyph, float cx, float cy) {
     case GLYPH_DPAD_LR:
       theme_chevron(cx - 7, cy, 5.5f, -1, TH_TEXT2);
       theme_chevron(cx + 7, cy, 5.5f, 1, TH_TEXT2);
+      break;
+    case GLYPH_DPAD_RIGHT:
+      theme_chevron(cx, cy, 5.5f, 1, TH_TEXT2);
       break;
   }
   return w;

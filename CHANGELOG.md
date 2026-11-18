@@ -3,6 +3,62 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.1.0-beta.3 "Premier Croissant" (2026-11-18)
+
+The home screen reworked after the first tests on a Vita, a Help page, and Eclipse as the starting
+look. The *Tests (beta)* options of beta.1 are unchanged.
+
+### Home screen
+
+- One element at a time is selected, and it shows: lifted a little, lit, with a thick border and a
+  halo in the theme's colour. A card's button takes the theme's colour only when the card is selected
+  (the large card's button was always in that colour, so one could not tell it was selected).
+- The same moves everywhere: the right arrow enters the preview of any entry that has something to
+  pick (Home, Library, Computers, Settings, Help), the arrows move in it, X acts on what is selected,
+  left from the first column or O goes back to the menu. X on a menu entry still opens its page.
+- Home: a large card that says what X does now (*Continue* the game played last, *Resume* a paused
+  stream, *Wake the PC* when the scan finds it off and its network address is known, *PC options*
+  when it does not answer or answers from a new address, *Open the library* before the library has
+  been opened once), and under it a row of covers: up to three other games played last, then the
+  favourites, then the library's next ones, and *See all*. X on a cover starts the game at once. The
+  PC and last-session tiles are gone (the PC's state is on the large card when it matters; the last
+  session's figures stay in the library and in the statistics files).
+- Library: X on one of the twelve covers of the preview starts that game at once.
+- Computers: the PCs (one in full, several in a list) and *Search the network* / *Enter an address*;
+  X connects to an online PC or opens the menu of one that is not, square opens the selected PC's menu.
+- Settings: one card per category (General, Video, Performance, Controls, Touch, Advanced, Tests),
+  each with its main values; X or a tap opens the Settings page on that category, on its first option
+  (before, it opened on the category last visited, General at first). *Advanced* says *Default* while
+  none of its options that can be changed differs from VitaMoon's starting values. The caption "what
+  is set now" is gone.
+- Help, a new entry before Quit: four cards and a page (L / R or up / down to change topic). *During a
+  stream*: L + R + SELECT (quick menu), START + L + R (pause), START + left (keyboard), the PS button.
+  *Touch*: the front screen's mode, the rear pad (L2 / R2 at the top, L3 / R3 below), the corner
+  shortcuts. *Adding games*: Sunshine offers only Desktop and Steam Big Picture at first; how to add a
+  game in its web page (Applications, Add New, Detached Commands `steam://rungameid/<number>`, Find
+  Cover). *Wi-Fi*: power saving and Bluetooth as the Vita reports them, the 2.4 GHz band, a cable for
+  the PC.
+- Dates under the covers are short ("Yesterday", "5 d ago", "2 wk ago").
+- Kept light: the summaries of the settings and the help are read when the home opens or comes back,
+  not every frame; up to 20 covers (large card, row, library preview) load one per frame and are freed
+  before any other screen; a frame of the home uses at most 7.7% of vita2d's vertex pool (preview count).
+
+### Look
+
+- Eclipse is the theme VitaMoon starts with, and the stars of the menus turn around the moon (Moving
+  sky: Medium, one turn in 8 minutes, clockwise). Only a first start (or a settings file without these
+  lines) is concerned: settings already saved are kept.
+
+### Tests
+
+- `tools/tests/test_home.c` rewritten for the panels (59 checks: the menu and its six entries, every
+  panel's moves, the Settings cards' two rows with a card over two columns, panels changed under the
+  cursor, the row's recent games, favourites and the rest). `test_config.c` checks the starting look.
+  The preview renders every panel, the Settings page opened from a card, the four Help topics, the
+  large card of a PC that is off, and the Wi-Fi warnings, in three languages; the home journeys go
+  through the six-entry menu. These screens and the home journeys run clean under AddressSanitizer and
+  UBSan.
+
 ## 1.1.0-beta.2 "Premier Croissant" (2026-11-17)
 
 A new home screen and a lighter statistics overlay. The *Tests (beta)* options of beta.1 are unchanged.

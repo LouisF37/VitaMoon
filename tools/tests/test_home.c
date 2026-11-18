@@ -1,7 +1,7 @@
 /*
  * Home screen (src/gui/home_logic.h): where the cursor goes between the side
- * menu and the tiles, the file each PC's library leaves for the home, the PC
- * the dashboard shows and the games of its strip.
+ * menu and the previews' panels, the file each PC's library leaves for the
+ * home, the PC the dashboard shows and the games of the row under its large card.
  */
 #include "test.h"
 #include "home_logic.h"
@@ -9,122 +9,152 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define ALL_TILES ((1u << HOME_TILE_COUNT) - 1)
-
 static home_nav menu_at(int m) {
-  home_nav n = {false, m, HOME_TILE_RESUME};
+  home_nav n = {false, m, 0};
   return n;
 }
 
-static home_nav tile_at(int t) {
-  home_nav n = {true, HOME_MENU_HOME, t};
+static home_nav item_at(int m, int item) {
+  home_nav n = {true, m, item};
   return n;
+}
+
+/* Home as ui_home.c lays it out: the large card on row 0 over six columns,
+ * then `games` covers and "See all" in column 5. */
+static home_panel home_panel_of(int games) {
+  home_panel p;
+  memset(&p, 0, sizeof(p));
+  home_panel_add(&p, 0, 0, 6);
+  for (int k = 0; k < games; k++)
+    home_panel_add(&p, 1, k, 1);
+  home_panel_add(&p, 1, 5, 1);
+  return p;
+}
+
+/* The Settings preview: four cards, then three, the last over two columns. */
+static home_panel settings_panel(void) {
+  home_panel p;
+  memset(&p, 0, sizeof(p));
+  for (int c = 0; c < 7; c++)
+    home_panel_add(&p, c < 4 ? 0 : 1, c < 4 ? c : c - 4, c == 6 ? 2 : 1);
+  return p;
 }
 
 int main(void) {
   TEST_BEGIN("home screen");
+  home_panel none;
+  memset(&none, 0, sizeof(none));
+  home_panel home = home_panel_of(5);
+  home_panel settings = settings_panel();
 
   /* ---- the side menu ---- */
   home_nav n = menu_at(HOME_MENU_HOME);
-  CHECK(home_nav_key(&n, HOME_KEY_UP, ALL_TILES) == HOME_ACT_NONE && n.menu == HOME_MENU_HOME,
+  CHECK(home_nav_key(&n, HOME_KEY_UP, &home) == HOME_ACT_NONE && n.menu == HOME_MENU_HOME,
         "up on the first entry stays there");
-  home_nav_key(&n, HOME_KEY_DOWN, ALL_TILES);
-  home_nav_key(&n, HOME_KEY_DOWN, ALL_TILES);
-  home_nav_key(&n, HOME_KEY_DOWN, ALL_TILES);
-  home_nav_key(&n, HOME_KEY_DOWN, ALL_TILES);
-  home_nav_key(&n, HOME_KEY_DOWN, ALL_TILES);
-  CHECK(n.menu == HOME_MENU_QUIT && !n.in_tiles, "down goes through the menu and stops on Quit");
+  for (int i = 0; i < 8; i++)
+    home_nav_key(&n, HOME_KEY_DOWN, &none);
+  CHECK(n.menu == HOME_MENU_QUIT && !n.in_panel, "down goes through the menu (Help included) and stops on Quit");
+  CHECK(HOME_MENU_HELP == HOME_MENU_SETTINGS + 1 && HOME_MENU_QUIT == HOME_MENU_HELP + 1, "Help comes before Quit");
 
-  n = menu_at(HOME_MENU_LIBRARY);
-  CHECK(home_nav_key(&n, HOME_KEY_CONFIRM, ALL_TILES) == HOME_ACT_LIBRARY, "X on Library opens it");
-  n = menu_at(HOME_MENU_COMPUTERS);
-  CHECK(home_nav_key(&n, HOME_KEY_CONFIRM, ALL_TILES) == HOME_ACT_COMPUTERS, "X on Computers opens it");
+  for (int m = HOME_MENU_LIBRARY; m <= HOME_MENU_QUIT; m++) {
+    n = menu_at(m);
+    CHECK(home_nav_key(&n, HOME_KEY_CONFIRM, &settings) == HOME_ACT_OPEN && !n.in_panel && n.menu == m,
+          "X on an entry other than Home opens its page (a shortcut)");
+  }
   n = menu_at(HOME_MENU_SETTINGS);
-  CHECK(home_nav_key(&n, HOME_KEY_CONFIRM, ALL_TILES) == HOME_ACT_SETTINGS, "X on Settings opens them");
+  CHECK(home_nav_key(&n, HOME_KEY_RIGHT, &settings) == HOME_ACT_NONE && n.in_panel && n.item == 0 &&
+            n.menu == HOME_MENU_SETTINGS,
+        "right on Settings enters its preview, on the first card");
   n = menu_at(HOME_MENU_QUIT);
-  CHECK(home_nav_key(&n, HOME_KEY_CONFIRM, ALL_TILES) == HOME_ACT_QUIT, "X on Quit quits");
+  CHECK(home_nav_key(&n, HOME_KEY_RIGHT, &none) == HOME_ACT_NONE && !n.in_panel,
+        "right on an entry with nothing to pick (Quit, an empty library) does nothing");
   n = menu_at(HOME_MENU_SETTINGS);
-  CHECK(home_nav_key(&n, HOME_KEY_RIGHT, ALL_TILES) == HOME_ACT_NONE && !n.in_tiles && n.menu == HOME_MENU_SETTINGS,
-        "right on another entry than Home does nothing (X opens it)");
-
-  n = menu_at(HOME_MENU_SETTINGS);
-  CHECK(home_nav_key(&n, HOME_KEY_BACK, ALL_TILES) == HOME_ACT_NONE && n.menu == HOME_MENU_HOME && !n.in_tiles,
-        "O in the menu goes straight back to Home (the shortcut)");
-
+  CHECK(home_nav_key(&n, HOME_KEY_BACK, &settings) == HOME_ACT_NONE && n.menu == HOME_MENU_HOME && !n.in_panel,
+        "O in the menu goes straight back to Home");
   n = menu_at(HOME_MENU_HOME);
-  CHECK(home_nav_key(&n, HOME_KEY_RIGHT, ALL_TILES) == HOME_ACT_NONE && n.in_tiles && n.tile == HOME_TILE_RESUME,
-        "right on Home enters the tiles, on the game to pick up");
+  CHECK(home_nav_key(&n, HOME_KEY_RIGHT, &home) == HOME_ACT_NONE && n.in_panel && n.item == 0,
+        "right on Home enters its panel, on the large card");
   n = menu_at(HOME_MENU_HOME);
-  CHECK(home_nav_key(&n, HOME_KEY_CONFIRM, ALL_TILES) == HOME_ACT_NONE && n.in_tiles && n.tile == HOME_TILE_RESUME,
-        "X on Home enters the tiles too");
+  CHECK(home_nav_key(&n, HOME_KEY_CONFIRM, &home) == HOME_ACT_NONE && n.in_panel && n.item == 0,
+        "X on Home enters it too (Home has no page of its own)");
+  n = menu_at(HOME_MENU_LIBRARY);
+  home_nav_key(&n, HOME_KEY_LEFT, &home);
+  CHECK(!n.in_panel && n.menu == HOME_MENU_LIBRARY, "left in the menu does nothing");
 
-  /* ---- the tiles ---- */
-  n = tile_at(HOME_TILE_RESUME);
-  home_nav_key(&n, HOME_KEY_RIGHT, ALL_TILES);
-  CHECK(n.tile == HOME_TILE_PC, "right from the game to pick up: the PC");
-  home_nav_key(&n, HOME_KEY_RIGHT, ALL_TILES);
-  CHECK(n.tile == HOME_TILE_PC && n.in_tiles, "right on the PC (right edge) stays there");
-  home_nav_key(&n, HOME_KEY_DOWN, ALL_TILES);
-  CHECK(n.tile == HOME_TILE_ALL, "down from the PC: See all, under it");
-  home_nav_key(&n, HOME_KEY_LEFT, ALL_TILES);
-  CHECK(n.tile == HOME_TILE_GAME2, "left along the strip");
-  home_nav_key(&n, HOME_KEY_UP, ALL_TILES);
-  CHECK(n.tile == HOME_TILE_PC, "up from the right of the strip: the PC");
+  /* ---- Home's panel ---- */
+  n = item_at(HOME_MENU_HOME, 0);
+  home_nav_key(&n, HOME_KEY_RIGHT, &home);
+  CHECK(n.in_panel && n.item == 0, "right on the large card stays there");
+  home_nav_key(&n, HOME_KEY_DOWN, &home);
+  CHECK(n.item == 1, "down from the large card: the first cover of the row");
+  home_nav_key(&n, HOME_KEY_RIGHT, &home);
+  home_nav_key(&n, HOME_KEY_RIGHT, &home);
+  CHECK(n.item == 3, "right along the row");
+  for (int i = 0; i < 6; i++)
+    home_nav_key(&n, HOME_KEY_RIGHT, &home);
+  CHECK(n.item == 6, "the row ends on See all and stays there");
+  home_nav_key(&n, HOME_KEY_UP, &home);
+  CHECK(n.item == 0, "up from anywhere in the row: the large card");
+  home_nav_key(&n, HOME_KEY_UP, &home);
+  CHECK(n.item == 0 && n.in_panel, "up on the top row stays there");
+  n = item_at(HOME_MENU_HOME, 3);
+  CHECK(home_nav_key(&n, HOME_KEY_CONFIRM, &home) == HOME_ACT_ITEM && n.item == 3, "X on an item acts on it");
+  n = item_at(HOME_MENU_HOME, 1);
+  CHECK(home_nav_key(&n, HOME_KEY_LEFT, &home) == HOME_ACT_NONE && !n.in_panel && n.menu == HOME_MENU_HOME,
+        "left past the first column: back to the menu, on the same entry");
+  n = item_at(HOME_MENU_HOME, 0);
+  home_nav_key(&n, HOME_KEY_LEFT, &home);
+  CHECK(!n.in_panel && n.menu == HOME_MENU_HOME, "left from the large card: the menu too");
+  n = item_at(HOME_MENU_HOME, 4);
+  home_nav_key(&n, HOME_KEY_BACK, &home);
+  CHECK(!n.in_panel && n.menu == HOME_MENU_HOME, "O in a panel goes back to the menu");
 
-  n = tile_at(HOME_TILE_RESUME);
-  home_nav_key(&n, HOME_KEY_DOWN, ALL_TILES);
-  CHECK(n.tile == HOME_TILE_GAME0, "down from the game to pick up: the first game of the strip");
-  home_nav_key(&n, HOME_KEY_RIGHT, ALL_TILES);
-  home_nav_key(&n, HOME_KEY_UP, ALL_TILES);
-  CHECK(n.tile == HOME_TILE_RESUME, "up from the left of the strip: the game to pick up");
-  home_nav_key(&n, HOME_KEY_DOWN, ALL_TILES);
-  home_nav_key(&n, HOME_KEY_DOWN, ALL_TILES);
-  CHECK(n.tile == HOME_TILE_GAME0, "down on the bottom row stays there");
+  home_panel two = home_panel_of(2);
+  n = item_at(HOME_MENU_HOME, 2);
+  home_nav_key(&n, HOME_KEY_RIGHT, &two);
+  CHECK(n.item == 3, "a row of two games: right from the second goes to See all, past the empty columns");
+  n = item_at(HOME_MENU_HOME, 0);
+  home_nav_key(&n, HOME_KEY_DOWN, &two);
+  CHECK(n.item == 1, "and down from the large card, its first game");
+  home_panel only = home_panel_of(0);
+  n = item_at(HOME_MENU_HOME, 0);
+  home_nav_key(&n, HOME_KEY_DOWN, &only);
+  CHECK(n.item == 1, "no game in the row: down reaches See all");
 
-  n = tile_at(HOME_TILE_GAME0);
-  CHECK(home_nav_key(&n, HOME_KEY_LEFT, ALL_TILES) == HOME_ACT_NONE && !n.in_tiles && n.menu == HOME_MENU_HOME,
-        "left past the strip's first game: back to the menu, on Home");
-  n = tile_at(HOME_TILE_RESUME);
-  home_nav_key(&n, HOME_KEY_LEFT, ALL_TILES);
-  CHECK(!n.in_tiles && n.menu == HOME_MENU_HOME, "left past the game to pick up: the menu too");
-  n = tile_at(HOME_TILE_PC);
-  home_nav_key(&n, HOME_KEY_BACK, ALL_TILES);
-  CHECK(!n.in_tiles && n.menu == HOME_MENU_HOME, "O in the tiles goes back to the menu");
-  n = tile_at(HOME_TILE_GAME1);
-  CHECK(home_nav_key(&n, HOME_KEY_CONFIRM, ALL_TILES) == HOME_ACT_TILE && n.tile == HOME_TILE_GAME1,
-        "X on a tile acts on it");
+  /* ---- the Settings cards: two rows, the last card over two columns ---- */
+  n = item_at(HOME_MENU_SETTINGS, 0);
+  home_nav_key(&n, HOME_KEY_RIGHT, &settings);
+  CHECK(n.item == 1, "right: Video, next to General");
+  home_nav_key(&n, HOME_KEY_DOWN, &settings);
+  CHECK(n.item == 5, "down from Video: Advanced, under it");
+  n = item_at(HOME_MENU_SETTINGS, 3);
+  home_nav_key(&n, HOME_KEY_DOWN, &settings);
+  CHECK(n.item == 6, "down from Controls: Tests, whose card reaches under it");
+  home_nav_key(&n, HOME_KEY_UP, &settings);
+  CHECK(n.item == 2, "up from Tests: the card over its first column (Performance)");
+  home_nav_key(&n, HOME_KEY_DOWN, &settings);
+  home_nav_key(&n, HOME_KEY_LEFT, &settings);
+  CHECK(n.item == 5, "left from Tests: Advanced");
+  n = item_at(HOME_MENU_SETTINGS, 4);
+  CHECK(home_nav_key(&n, HOME_KEY_LEFT, &settings) == HOME_ACT_NONE && !n.in_panel && n.menu == HOME_MENU_SETTINGS,
+        "left from Touch (first column): back to the menu, on Settings");
 
-  /* tiles that are not there are skipped */
-  unsigned few = HOME_TILE_BIT(HOME_TILE_RESUME) | HOME_TILE_BIT(HOME_TILE_PC) | HOME_TILE_BIT(HOME_TILE_GAME0) |
-                 HOME_TILE_BIT(HOME_TILE_ALL);
-  n = tile_at(HOME_TILE_GAME0);
-  home_nav_key(&n, HOME_KEY_RIGHT, few);
-  CHECK(n.tile == HOME_TILE_ALL, "a strip with one game: right goes from it to See all");
-  home_nav_key(&n, HOME_KEY_UP, few);
-  CHECK(n.tile == HOME_TILE_PC, "and up from See all to the PC");
-  unsigned no_pc = HOME_TILE_BIT(HOME_TILE_RESUME) | HOME_TILE_BIT(HOME_TILE_ALL);
-  n = tile_at(HOME_TILE_ALL);
-  home_nav_key(&n, HOME_KEY_UP, no_pc);
-  CHECK(n.tile == HOME_TILE_RESUME, "without the PC tile, up from See all reaches the game to pick up");
-  n = tile_at(HOME_TILE_RESUME);
-  home_nav_key(&n, HOME_KEY_DOWN, no_pc);
-  CHECK(n.tile == HOME_TILE_ALL, "and down from it, See all");
-  unsigned only = HOME_TILE_BIT(HOME_TILE_RESUME);
-  n = tile_at(HOME_TILE_RESUME);
-  home_nav_key(&n, HOME_KEY_DOWN, only);
-  home_nav_key(&n, HOME_KEY_RIGHT, only);
-  CHECK(n.tile == HOME_TILE_RESUME && n.in_tiles, "a single tile (no PC yet): the cursor stays on it");
-
-  /* the tiles changed under the cursor (data read again) */
-  n = tile_at(HOME_TILE_GAME2);
-  home_nav_fix(&n, few);
-  CHECK(n.in_tiles && n.tile == HOME_TILE_RESUME, "a game gone from the strip: the cursor goes to the first tile");
+  /* ---- the panel changed under the cursor (data read again) ---- */
+  n = item_at(HOME_MENU_HOME, 6);
+  home_nav_fix(&n, &two);
+  CHECK(n.in_panel && n.item == 0, "an item gone: the cursor goes to the first one");
   n = menu_at(HOME_MENU_COMPUTERS);
-  home_nav_fix(&n, few);
-  CHECK(!n.in_tiles && n.menu == HOME_MENU_COMPUTERS, "on the menu, the cursor stays where it is");
-  n = tile_at(HOME_TILE_PC);
-  home_nav_fix(&n, 0);
-  CHECK(!n.in_tiles, "no tile at all: back to the menu");
+  home_nav_fix(&n, &two);
+  CHECK(!n.in_panel && n.menu == HOME_MENU_COMPUTERS, "on the menu, the cursor stays where it is");
+  n = item_at(HOME_MENU_LIBRARY, 3);
+  home_nav_fix(&n, &none);
+  CHECK(!n.in_panel && n.menu == HOME_MENU_LIBRARY, "nothing left to pick: back to the menu, on the same entry");
+  CHECK(home_panel_move(&none, 0, HOME_KEY_DOWN) == HOME_MOVE_STAY, "an empty panel: no move");
+  home_panel full;
+  memset(&full, 0, sizeof(full));
+  for (int i = 0; i < HOME_PANEL_MAX; i++)
+    home_panel_add(&full, i / 6, i % 6, 1);
+  CHECK(home_panel_add(&full, 9, 0, 1) == -1 && full.count == HOME_PANEL_MAX, "a full panel refuses more items");
 
   /* ---- the PC's file ---- */
   static home_games g, back;
@@ -191,22 +221,46 @@ int main(void) {
   /* ---- which PC the dashboard shows ---- */
   const char *opened[] = {"2026-11-16 20:00", "", "2026-11-17 18:02", NULL, "2026-11-17 09:00"};
   CHECK(home_pick_host(opened, 5) == 2, "the PC whose library was left last");
-  const char *none[] = {"", NULL};
-  CHECK(home_pick_host(none, 2) == -1, "no PC with a file: none (the caller takes the first paired one)");
+  const char *no_file[] = {"", NULL};
+  CHECK(home_pick_host(no_file, 2) == -1, "no PC with a file: none (the caller takes the first paired one)");
   const char *tie[] = {"2026-11-17 18:02", "2026-11-17 18:02"};
   CHECK(home_pick_host(tie, 2) == 0, "a tie: the first one");
 
-  /* ---- the strip under the game to pick up ---- */
-  const home_game *strip[3];
-  int k = home_strip_games(&g, 1000, strip, 3);
-  CHECK(k == 3 && strip[0]->id == 1002 && strip[1]->id == 1006 && strip[2]->id == 1007,
-        "the other recent games, then the library's next ones, none twice, not the one to pick up");
+  /* ---- the row under the large card ---- */
+  home_row_game row[5];
+  int k = home_row_games(&g, 1000, row, 5);
+  CHECK(k == 4 && row[0].game->id == 1002 && row[0].kind == HOME_ROW_RECENT && row[1].game->id == 1006 &&
+            row[1].kind == HOME_ROW_RECENT,
+        "first the other recent games, latest first, not the one of the large card");
+  CHECK(row[2].game->id == 1007 && row[2].kind == HOME_ROW_GAMES && row[3].game->id == 1003,
+        "then the library's next ones (the favourite was already a recent game: not twice)");
+  g.shelf[3].favourite = true;   /* Celeste */
+  k = home_row_games(&g, 1000, row, 5);
+  CHECK(k == 4 && row[2].game->id == 1007 && row[2].kind == HOME_ROW_FAVOURITE && row[3].kind == HOME_ROW_GAMES,
+        "a favourite comes after the recent games, before the rest");
+  static home_games lots;
+  memset(&lots, 0, sizeof(lots));
+  for (int i = 0; i < 5; i++) {
+    char when[20];
+    snprintf(when, sizeof(when), "2026-11-1%d 10:00", i);
+    home_add_recent(&lots, 100 + i, when, "G");
+  }
+  for (int i = 0; i < 4; i++) {
+    lots.shelf[lots.shelf_count].id = 200 + i;
+    lots.shelf[lots.shelf_count++].favourite = true;
+  }
+  k = home_row_games(&lots, lots.recent[0].id, row, 5);
+  int recents = 0;
+  for (int i = 0; i < k; i++)
+    recents += row[i].kind == HOME_ROW_RECENT;
+  CHECK(k == 5 && recents == 3 && row[3].kind == HOME_ROW_FAVOURITE && row[4].kind == HOME_ROW_FAVOURITE,
+        "at most three recent games, so that favourites show too");
   home_games one;
   memset(&one, 0, sizeof(one));
   one.shelf_count = 1;
   one.shelf[0].id = 5;
-  CHECK(home_strip_games(&one, 5, strip, 3) == 0, "a PC with a single game: an empty strip");
-  CHECK(home_strip_games(&one, 0, strip, 3) == 1 && strip[0]->id == 5, "no game to pick up: the library's first");
+  CHECK(home_row_games(&one, 5, row, 5) == 0, "a PC with a single game: an empty row");
+  CHECK(home_row_games(&one, 0, row, 5) == 1 && row[0].game->id == 5, "no game for the large card: the library's first");
 
   return TEST_END();
 }

@@ -211,6 +211,17 @@ int main(void) {
   config_save("/nonexistent-folder/vitamoon.conf", &a);
   CHECK(errors_logged == 1, "settings file that cannot be written: logged, app keeps running");
 
+  /* The look VitaMoon starts with (1.1.0-beta.3): Eclipse, the stars turning
+   * around the moon (Medium: one turn in 8 min, see test_library). */
+  static CONFIGURATION d;
+  memset(&d, 0, sizeof(d));
+  config_set_defaults(&d);
+  CHECK(d.theme == CONFIG_THEME_DEFAULT && CONFIG_THEME_DEFAULT == 4, "default theme: Eclipse (theme 4)");
+  CHECK(d.sky_speed == SKY_MEDIUM && d.twinkle_stars && !d.sky_anticlockwise,
+        "default sky: moving (Medium), twinkling, clockwise");
+  CHECK(d.stream.width == 960 && d.stream.height == 544 && d.stream.fps == 60 && d.sops && d.thread_pinning,
+        "config_set_defaults sets the stream and the rest as config_parse did");
+
   remove(k_file);
   return TEST_END();
 }

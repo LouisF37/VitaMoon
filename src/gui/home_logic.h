@@ -5,10 +5,12 @@
  * show a PC's games without asking the PC. Kept free of Vita calls: tested on
  * a PC (tools/tests/test_home.c). The drawing is in ui_home.c.
  *
- * The home has a side menu (Home, Library, Computers, Settings, Quit) and, on
- * its right, a preview of the entry under the cursor. On Home the preview is a
- * dashboard of tiles that the cursor can enter: the game to pick up (a large
- * tile), the PC, then a strip of other games and "See all".
+ * The home has a side menu (Home, Library, Computers, Settings, Help, Quit)
+ * and, on its right, a preview of the entry under the cursor. Every preview
+ * that holds something to pick is a panel the cursor can enter with the right
+ * arrow: Home's large card and row of games, the library's covers, the PCs,
+ * the settings' categories, the help's topics. Left from the first column, or
+ * O, goes back to the menu; X acts on what is selected.
  *
  * The games come from <data folder>/<PC name>/home.txt, written by the library
  * when it is left (the library has just read the PC's list, the favourites and
@@ -21,73 +23,113 @@
 
 /* ---------------- the cursor ---------------- */
 
-enum { HOME_MENU_HOME, HOME_MENU_LIBRARY, HOME_MENU_COMPUTERS, HOME_MENU_SETTINGS, HOME_MENU_QUIT, HOME_MENU_COUNT };
-
-/* Tiles of the dashboard that the cursor stops on. Two rows: the game to pick
- * up and the PC; then the strip of three games and "See all". */
 enum {
-  HOME_TILE_RESUME, HOME_TILE_PC,
-  HOME_TILE_GAME0, HOME_TILE_GAME1, HOME_TILE_GAME2, HOME_TILE_ALL,
-  HOME_TILE_COUNT
+  HOME_MENU_HOME, HOME_MENU_LIBRARY, HOME_MENU_COMPUTERS, HOME_MENU_SETTINGS, HOME_MENU_HELP, HOME_MENU_QUIT,
+  HOME_MENU_COUNT
 };
-#define HOME_TILE_BIT(t) (1u << (t))
+
+/* A panel: what the cursor can stop on in a preview, laid out in rows and
+ * columns. An item takes `span` columns from `col`; rows follow each other
+ * from 0, without a gap. */
+#define HOME_PANEL_MAX 16
+typedef struct {
+  signed char row, col, span;
+} home_cell;
 
 typedef struct {
-  bool in_tiles;   /* on the tiles (the menu then shows Home as the current entry) */
-  int menu;        /* HOME_MENU_* under the cursor, or HOME_MENU_HOME while in the tiles */
-  int tile;        /* HOME_TILE_*, while in the tiles */
+  int count;
+  home_cell cell[HOME_PANEL_MAX];
+} home_panel;
+
+/* Adds an item; returns its index (-1 when the panel is full). */
+static inline int home_panel_add(home_panel *p, int row, int col, int span) {
+  if (p->count >= HOME_PANEL_MAX)
+    return -1;
+  p->cell[p->count] = (home_cell){(signed char)row, (signed char)col, (signed char)(span < 1 ? 1 : span)};
+  return p->count++;
+}
+
+typedef struct {
+  bool in_panel;   /* in the preview of `menu` (the menu then shows `menu` as the current entry) */
+  int menu;        /* HOME_MENU_* under the cursor, or whose preview the cursor is in */
+  int item;        /* index in the panel, while in it */
 } home_nav;
 
 typedef enum { HOME_KEY_UP, HOME_KEY_DOWN, HOME_KEY_LEFT, HOME_KEY_RIGHT, HOME_KEY_CONFIRM, HOME_KEY_BACK } home_key;
 
 typedef enum {
   HOME_ACT_NONE,
-  HOME_ACT_LIBRARY,     /* open the library of the PC shown */
-  HOME_ACT_COMPUTERS,   /* open the Computers page */
-  HOME_ACT_SETTINGS,
-  HOME_ACT_QUIT,
-  HOME_ACT_TILE         /* act on nav->tile */
+  HOME_ACT_OPEN,   /* open the page of nav->menu (Library, Computers, Settings, Help) or quit */
+  HOME_ACT_ITEM    /* act on nav->item of nav->menu's panel */
 } home_action;
 
-static inline bool home_tile_on(unsigned tiles, int t) {
-  return t >= 0 && t < HOME_TILE_COUNT && (tiles & HOME_TILE_BIT(t)) != 0;
-}
+#define HOME_MOVE_STAY (-1)
+#define HOME_MOVE_OUT (-2)   /* left past the first column: back to the menu */
 
-/* First tile on, from `from` towards `to` (inclusive, either way), or -1. */
-static inline int home_tile_scan(unsigned tiles, int from, int to) {
-  int step = from <= to ? 1 : -1;
-  for (int t = from;; t += step) {
-    if (home_tile_on(tiles, t))
-      return t;
-    if (t == to)
-      return -1;
+/* Where an arrow goes from `item`: another item, HOME_MOVE_STAY or HOME_MOVE_OUT.
+ * Up and down go to the nearest row that has items, onto the item under the
+ * column the cursor starts from (or the nearest one); left and right go along
+ * the row. */
+static inline int home_panel_move(const home_panel *p, int item, home_key key) {
+  if (item < 0 || item >= p->count)
+    return HOME_MOVE_STAY;
+  home_cell c = p->cell[item];
+  int best = -1;
+  if (key == HOME_KEY_LEFT || key == HOME_KEY_RIGHT) {
+    for (int i = 0; i < p->count; i++) {
+      home_cell o = p->cell[i];
+      if (o.row != c.row || i == item)
+        continue;
+      if (key == HOME_KEY_LEFT && o.col < c.col && (best < 0 || o.col > p->cell[best].col))
+        best = i;
+      if (key == HOME_KEY_RIGHT && o.col > c.col && (best < 0 || o.col < p->cell[best].col))
+        best = i;
+    }
+    if (best >= 0)
+      return best;
+    return key == HOME_KEY_LEFT ? HOME_MOVE_OUT : HOME_MOVE_STAY;
   }
+  if (key != HOME_KEY_UP && key != HOME_KEY_DOWN)
+    return HOME_MOVE_STAY;
+  int step = key == HOME_KEY_DOWN ? 1 : -1;
+  int max_row = 0;
+  for (int i = 0; i < p->count; i++)
+    if (p->cell[i].row > max_row)
+      max_row = p->cell[i].row;
+  for (int row = c.row + step; row >= 0 && row <= max_row; row += step) {
+    int best_dist = 0;
+    for (int i = 0; i < p->count; i++) {
+      home_cell o = p->cell[i];
+      if (o.row != row)
+        continue;
+      int dist = c.col < o.col ? o.col - c.col : c.col >= o.col + o.span ? c.col - (o.col + o.span - 1) : 0;
+      if (best < 0 || dist < best_dist) {
+        best = i;
+        best_dist = dist;
+      }
+    }
+    if (best >= 0)
+      return best;
+  }
+  return HOME_MOVE_STAY;
 }
 
-/* The tile to start on: the game to pick up, else the first one on. */
-static inline int home_first_tile(unsigned tiles) {
-  return home_tile_scan(tiles, HOME_TILE_RESUME, HOME_TILE_COUNT - 1);
-}
-
-/* After the tiles changed (data reloaded): keeps the cursor on a tile that is on. */
-static inline void home_nav_fix(home_nav *nav, unsigned tiles) {
+/* After the panel changed (data reloaded): keeps the cursor on an item. */
+static inline void home_nav_fix(home_nav *nav, const home_panel *panel) {
   if (nav->menu < 0 || nav->menu >= HOME_MENU_COUNT)
     nav->menu = HOME_MENU_HOME;
-  if (!nav->in_tiles)
+  if (!nav->in_panel)
     return;
-  nav->menu = HOME_MENU_HOME;
-  if (!home_tile_on(tiles, nav->tile)) {
-    int t = home_first_tile(tiles);
-    if (t < 0)
-      nav->in_tiles = false;
-    else
-      nav->tile = t;
-  }
+  if (panel->count == 0)
+    nav->in_panel = false;
+  else if (nav->item < 0 || nav->item >= panel->count)
+    nav->item = 0;
 }
 
-/* Moves the cursor for one key; returns what to do. `tiles`: the tiles on. */
-static inline home_action home_nav_key(home_nav *nav, home_key key, unsigned tiles) {
-  if (!nav->in_tiles) {
+/* Moves the cursor for one key; returns what to do. `panel`: the panel of
+ * nav->menu's preview (empty when it has nothing to pick). */
+static inline home_action home_nav_key(home_nav *nav, home_key key, const home_panel *panel) {
+  if (!nav->in_panel) {
     switch (key) {
       case HOME_KEY_UP:
         if (nav->menu > 0) nav->menu--;
@@ -97,22 +139,14 @@ static inline home_action home_nav_key(home_nav *nav, home_key key, unsigned til
         return HOME_ACT_NONE;
       case HOME_KEY_RIGHT:
       case HOME_KEY_CONFIRM:
-        if (nav->menu == HOME_MENU_HOME) {
-          int t = home_first_tile(tiles);
-          if (t >= 0) {
-            nav->in_tiles = true;
-            nav->tile = t;
-          }
-          return HOME_ACT_NONE;
+        /* Home has no page of its own: X enters its panel, as the right arrow */
+        if (key == HOME_KEY_CONFIRM && nav->menu != HOME_MENU_HOME)
+          return HOME_ACT_OPEN;
+        if (panel->count > 0) {
+          nav->in_panel = true;
+          nav->item = 0;
         }
-        if (key == HOME_KEY_RIGHT)
-          return HOME_ACT_NONE;
-        switch (nav->menu) {
-          case HOME_MENU_LIBRARY: return HOME_ACT_LIBRARY;
-          case HOME_MENU_COMPUTERS: return HOME_ACT_COMPUTERS;
-          case HOME_MENU_SETTINGS: return HOME_ACT_SETTINGS;
-          default: return HOME_ACT_QUIT;
-        }
+        return HOME_ACT_NONE;
       case HOME_KEY_BACK:
         nav->menu = HOME_MENU_HOME;   /* the shortcut back to Home */
         return HOME_ACT_NONE;
@@ -120,43 +154,21 @@ static inline home_action home_nav_key(home_nav *nav, home_key key, unsigned til
         return HOME_ACT_NONE;
     }
   }
-
-  bool top = nav->tile <= HOME_TILE_PC;
-  int t = -1;
   switch (key) {
-    case HOME_KEY_LEFT:
-      t = nav->tile == HOME_TILE_RESUME || nav->tile == HOME_TILE_GAME0 ? -1
-          : home_tile_scan(tiles, nav->tile - 1, top ? HOME_TILE_RESUME : HOME_TILE_GAME0);
-      if (t < 0) {
-        nav->in_tiles = false;   /* past the left edge: back to the menu */
-        nav->menu = HOME_MENU_HOME;
-        return HOME_ACT_NONE;
-      }
-      break;
-    case HOME_KEY_RIGHT:
-      t = nav->tile == HOME_TILE_PC || nav->tile == HOME_TILE_ALL ? -1
-          : home_tile_scan(tiles, nav->tile + 1, top ? HOME_TILE_PC : HOME_TILE_ALL);
-      break;
-    case HOME_KEY_DOWN:
-      if (top)
-        t = nav->tile == HOME_TILE_RESUME ? home_tile_scan(tiles, HOME_TILE_GAME0, HOME_TILE_ALL)
-                                          : home_tile_scan(tiles, HOME_TILE_ALL, HOME_TILE_GAME0);
-      break;
-    case HOME_KEY_UP:
-      if (!top)
-        t = nav->tile <= HOME_TILE_GAME1 ? home_tile_scan(tiles, HOME_TILE_RESUME, HOME_TILE_PC)
-                                         : home_tile_scan(tiles, HOME_TILE_PC, HOME_TILE_RESUME);
-      break;
     case HOME_KEY_CONFIRM:
-      return HOME_ACT_TILE;
+      return HOME_ACT_ITEM;
     case HOME_KEY_BACK:
-      nav->in_tiles = false;
-      nav->menu = HOME_MENU_HOME;
+      nav->in_panel = false;
       return HOME_ACT_NONE;
+    default: {
+      int to = home_panel_move(panel, nav->item, key);
+      if (to == HOME_MOVE_OUT)
+        nav->in_panel = false;
+      else if (to >= 0)
+        nav->item = to;
+      return HOME_ACT_NONE;
+    }
   }
-  if (t >= 0)
-    nav->tile = t;
-  return HOME_ACT_NONE;
 }
 
 /* ---------------- a PC's games, as the library left them ---------------- */
@@ -320,20 +332,36 @@ static inline int home_pick_host(const char *const opened[], int count) {
   return best;
 }
 
-/* The games of the strip under the game to pick up: the other recent ones,
- * then the start of the library, never one twice. Returns how many (<= max). */
-static inline int home_strip_games(const home_games *g, int resume_id, const home_game *out[], int max) {
+/* The row of games under the large card: the other games played last, then
+ * the favourites, then the start of the library, never one twice nor the
+ * game of the large card (skip_id). Returns how many (<= max). */
+enum { HOME_ROW_RECENT, HOME_ROW_FAVOURITE, HOME_ROW_GAMES };
+#define HOME_ROW_RECENT_MAX 3
+
+typedef struct {
+  const home_game *game;
+  int kind;   /* HOME_ROW_* */
+} home_row_game;
+
+static inline int home_row_games(const home_games *g, int skip_id, home_row_game out[], int max) {
   int n = 0;
-  for (int pass = 0; pass < 2 && n < max; pass++) {
+  for (int pass = 0; pass < 3 && n < max; pass++) {
     const home_game *list = pass == 0 ? g->recent : g->shelf;
     int count = pass == 0 ? g->recent_count : g->shelf_count;
+    int taken = 0;
     for (int i = 0; i < count && n < max; i++) {
+      if (pass == 0 && taken >= HOME_ROW_RECENT_MAX)
+        break;
+      if (pass == 1 && !list[i].favourite)
+        continue;
       int id = list[i].id;
-      bool seen = id == resume_id;
+      bool seen = id == skip_id;
       for (int k = 0; k < n && !seen; k++)
-        seen = out[k]->id == id;
-      if (!seen)
-        out[n++] = &list[i];
+        seen = out[k].game->id == id;
+      if (seen)
+        continue;
+      out[n++] = (home_row_game){&list[i], pass};
+      taken++;
     }
   }
   return n;

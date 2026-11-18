@@ -405,7 +405,9 @@ void update_layout() {
   }
 }
 
-void config_parse(int argc, char* argv[], PCONFIGURATION config) {
+/* The values VitaMoon starts with, before the config file is read. Also used
+ * to tell which settings differ from them (the home screen's Advanced card). */
+void config_set_defaults(PCONFIGURATION config) {
   LiInitializeStreamConfiguration(&config->stream);
 
   // The Vita screen is 960x544: streaming at that size is the sharpest (one
@@ -474,7 +476,7 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   // VitaRPS5 (reconnection overlay).
   config->auto_reconnect = true;
   config->language = 0; // English
-  config->theme = 0;    // Night
+  config->theme = CONFIG_THEME_DEFAULT;   // Eclipse
   // Text typing works whatever the PC's keyboard layout (an AZERTY PC turns
   // the US key positions into other letters).
   config->keyboard_layout = CONFIG_KEYBOARD_TEXT;
@@ -485,7 +487,8 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   config->tap_time_ms = TAP_TIME_DEFAULT;
   config->library_stats = false;
   config->twinkle_stars = true;
-  config->sky_speed = SKY_STILL;
+  // The stars turn around the moon in the menus, one turn in 8 minutes.
+  config->sky_speed = SKY_MEDIUM;
   config->sky_anticlockwise = false;
   config->rear_touch = true;
   config->test_decoder_delay = TEST_DELAY_OFF;
@@ -510,6 +513,10 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
   // Default: swap off
   // (false when missing from the config)
   // nothing to force here
+}
+
+void config_parse(int argc, char* argv[], PCONFIGURATION config) {
+  config_set_defaults(config);
 
   char* config_file = config_path;
   if (config_file) {

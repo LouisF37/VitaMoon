@@ -104,6 +104,29 @@ static unsigned int host_state_color(int state) {
   }
 }
 
+/* Sends the Wake-on-LAN packet to a PC and says so on screen. False when
+ * nothing could be sent (its network address is not known yet, no IP). */
+bool ui_host_wake(device_info_t *info) {
+  if (!info->mac[0]) {
+    display_notice(3000, "%s", tr("The network address of this PC is not known yet. Connect to it once while it is on."));
+    return false;
+  }
+  // Derive the broadcast address from the internal IP: last number replaced by 255
+  char broadcast[32] = {0};
+  strncpy(broadcast, info->internal, sizeof(broadcast) - 5);
+  char *last_dot = strrchr(broadcast, '.');
+  if (!info->internal[0] || !last_dot) {
+    display_notice(2000, "%s", tr("Invalid IP"));
+    return false;
+  }
+  strcpy(last_dot + 1, "255");
+  extern bool send_wol_packet(const char *mac, const char *ip_broadcast, int port);
+  bool wol_ok = send_wol_packet(info->mac, broadcast, 9);
+  vita_debug_log("[UI] Wake-on-LAN %s for %s (%s)", wol_ok ? "sent" : "failed", info->name, info->mac);
+  display_notice(2500, "%s", wol_ok ? tr("Wake-up signal sent. The PC needs a moment to start.") : tr("Wake-on-LAN failed"));
+  return true;
+}
+
 static int ui_host_manage_menu_loop(int cursor, void *context, const input_data *input) {
   device_info_t *info = (device_info_t *)context;
   // Allow going back with the cancel button (O)
@@ -114,27 +137,9 @@ static int ui_host_manage_menu_loop(int cursor, void *context, const input_data 
     return 0;
   }
   switch (cursor) {
-    case HOST_MANAGE_WAKE: {
+    case HOST_MANAGE_WAKE:
       vita_debug_log("[UI] Host menu: Wake-on-LAN %s", info->name);
-      if (!info->mac[0]) {
-        display_notice(3000, "%s", tr("The network address of this PC is not known yet. Connect to it once while it is on."));
-        return 0;
-      }
-      // Derive the broadcast address from the internal IP: last number replaced by 255
-      char broadcast[32] = {0};
-      strncpy(broadcast, info->internal, sizeof(broadcast) - 5);
-      char *last_dot = strrchr(broadcast, '.');
-      if (!info->internal[0] || !last_dot) {
-        display_notice(2000, "%s", tr("Invalid IP"));
-        return 0;
-      }
-      strcpy(last_dot + 1, "255");
-      extern bool send_wol_packet(const char *mac, const char *ip_broadcast, int port);
-      bool wol_ok = send_wol_packet(info->mac, broadcast, 9);
-      vita_debug_log("[UI] Wake-on-LAN %s for %s (%s)", wol_ok ? "sent" : "failed", info->name, info->mac);
-      display_notice(2500, "%s", wol_ok ? tr("Wake-up signal sent. The PC needs a moment to start.") : tr("Wake-on-LAN failed"));
-      return 1;
-    }
+      return ui_host_wake(info) ? 1 : 0;
     case HOST_MANAGE_CONNECT: {
       vita_debug_log("[UI] Host menu: connect to %s", info->name);
       stop_host_scan();

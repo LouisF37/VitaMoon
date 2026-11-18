@@ -51,6 +51,8 @@ struct special_keys {
 
 /* Number of colour themes (THEME_COUNT in src/gui/theme.h, checked there). */
 #define CONFIG_THEME_COUNT 5
+/* Eclipse (THEME_ECLIPSE in gui/theme.h, checked there): the look VitaMoon is known by. */
+#define CONFIG_THEME_DEFAULT 4
 /* Keyboard layouts: KeyboardLayout in input/keyboardkeys.h (checked there). */
 #define CONFIG_KEYBOARD_LAYOUT_COUNT 4
 #define CONFIG_KEYBOARD_TEXT 3
@@ -145,6 +147,7 @@ typedef struct _CONFIGURATION {
 /* Moving sky: SKY_STILL, then from the slowest turn to the fastest
  * (src/gui/orbit.h gives each its time for one turn). */
 #define SKY_STILL 0
+#define SKY_MEDIUM 3   /* one turn in 8 min (gui/orbit.h); the default */
 #define SKY_SPEED_COUNT 5
 
 extern CONFIGURATION config;
@@ -159,6 +162,7 @@ extern bool inputAdded;
 
 bool config_file_parse(char* filename, PCONFIGURATION config);
 void config_sanitize(PCONFIGURATION config);
+void config_set_defaults(PCONFIGURATION config);
 void config_parse(int argc, char* argv[], PCONFIGURATION config);
 void config_save(const char* filename, PCONFIGURATION config);
 void update_layout();
