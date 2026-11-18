@@ -8,6 +8,22 @@ In file included from /home/runner/work/VitaMoon/VitaMoon/third_party/mdnsniff/u
 build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but argument is of type ‘int *’
   230 | int sceNetRecvfrom(int s, void *buf, unsigned int len, int flags, SceNetSockaddr *from, unsigned int *fromlen);
       |                                                                                         ~~~~~~~~~~~~~~^~~~~~~
+/home/runner/work/VitaMoon/VitaMoon/tools/tests/test_home.c: In function ‘main’:
+/home/runner/work/VitaMoon/VitaMoon/tools/tests/test_home.c:245:46: warning: ‘ 10:00’ directive output may be truncated writing 6 bytes into a region of size between 0 and 10 [-Wformat-truncation=]
+  245 |     snprintf(when, sizeof(when), "2026-11-1%d 10:00", i);
+      |                                              ^~~~~~
+In file included from /usr/include/stdio.h:974,
+                 from /home/runner/work/VitaMoon/VitaMoon/tools/tests/test.h:9,
+                 from /home/runner/work/VitaMoon/VitaMoon/tools/tests/test_home.c:6:
+In function ‘snprintf’,
+    inlined from ‘main’ at /home/runner/work/VitaMoon/VitaMoon/tools/tests/test_home.c:245:5:
+/usr/include/x86_64-linux-gnu/bits/stdio2.h:68:10: note: ‘__builtin___snprintf_chk’ output between 17 and 27 bytes into a destination of size 20
+   68 |   return __builtin___snprintf_chk (__s, __n, __USE_FORTIFY_LEVEL - 1,
+      |          ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   69 |                                    __glibc_objsize (__s), __fmt,
+      |                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+   70 |                                    __va_arg_pack ());
+      |                                    ~~~~~~~~~~~~~~~~~
 [pacing]
     steady 60 fps            frames  3600 shown  3596 dropped   4 repeats    0 | wait max early  28.7, late  24.7, avg late  14.0 ms | margin  4.0 ms
   ok    frames shown in order
@@ -233,7 +249,10 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    auto bitrate lower at 30 fps
   ok    auto bitrate stays within 20 Mbps
   ok    settings file that cannot be written: logged, app keeps running
-[config] 96 checks, 0 failed
+  ok    default theme: Eclipse (theme 4)
+  ok    default sky: moving (Medium), twinkling, clockwise
+  ok    config_set_defaults sets the stream and the rest as config_parse did
+[config] 99 checks, 0 failed
 
 [sps rewrite]
   ok    test SPS built
@@ -444,6 +463,7 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    the horizon's share of stars: within 0.0059 of (1 - y/H)^1.4
   ok    fewer stars lower down: all at the top, none at the bottom
   ok    four speeds: one turn in 32, 16, 8 and 4 minutes
+  ok    speed 3 (SKY_MEDIUM, the default in config.h): one turn in 8 minutes
   ok    still (or unknown speed): the sky does not move
   ok    Slow: one whole turn in 16 minutes
   ok    anticlockwise: the same step the other way
@@ -459,39 +479,47 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    a small star drawn wider gives the same light
   ok    the turning sky's light stays near the still one's (worst 1.16 times)
   ok    no star pops in or out: 2.61 of 115 at most from one frame to the next
-[library, stars and tap] 54 checks, 0 failed
+[library, stars and tap] 55 checks, 0 failed
 
 [home screen]
   ok    up on the first entry stays there
-  ok    down goes through the menu and stops on Quit
-  ok    X on Library opens it
-  ok    X on Computers opens it
-  ok    X on Settings opens them
-  ok    X on Quit quits
-  ok    right on another entry than Home does nothing (X opens it)
-  ok    O in the menu goes straight back to Home (the shortcut)
-  ok    right on Home enters the tiles, on the game to pick up
-  ok    X on Home enters the tiles too
-  ok    right from the game to pick up: the PC
-  ok    right on the PC (right edge) stays there
-  ok    down from the PC: See all, under it
-  ok    left along the strip
-  ok    up from the right of the strip: the PC
-  ok    down from the game to pick up: the first game of the strip
-  ok    up from the left of the strip: the game to pick up
-  ok    down on the bottom row stays there
-  ok    left past the strip's first game: back to the menu, on Home
-  ok    left past the game to pick up: the menu too
-  ok    O in the tiles goes back to the menu
-  ok    X on a tile acts on it
-  ok    a strip with one game: right goes from it to See all
-  ok    and up from See all to the PC
-  ok    without the PC tile, up from See all reaches the game to pick up
-  ok    and down from it, See all
-  ok    a single tile (no PC yet): the cursor stays on it
-  ok    a game gone from the strip: the cursor goes to the first tile
+  ok    down goes through the menu (Help included) and stops on Quit
+  ok    Help comes before Quit
+  ok    X on an entry other than Home opens its page (a shortcut)
+  ok    X on an entry other than Home opens its page (a shortcut)
+  ok    X on an entry other than Home opens its page (a shortcut)
+  ok    X on an entry other than Home opens its page (a shortcut)
+  ok    X on an entry other than Home opens its page (a shortcut)
+  ok    right on Settings enters its preview, on the first card
+  ok    right on an entry with nothing to pick (Quit, an empty library) does nothing
+  ok    O in the menu goes straight back to Home
+  ok    right on Home enters its panel, on the large card
+  ok    X on Home enters it too (Home has no page of its own)
+  ok    left in the menu does nothing
+  ok    right on the large card stays there
+  ok    down from the large card: the first cover of the row
+  ok    right along the row
+  ok    the row ends on See all and stays there
+  ok    up from anywhere in the row: the large card
+  ok    up on the top row stays there
+  ok    X on an item acts on it
+  ok    left past the first column: back to the menu, on the same entry
+  ok    left from the large card: the menu too
+  ok    O in a panel goes back to the menu
+  ok    a row of two games: right from the second goes to See all, past the empty columns
+  ok    and down from the large card, its first game
+  ok    no game in the row: down reaches See all
+  ok    right: Video, next to General
+  ok    down from Video: Advanced, under it
+  ok    down from Controls: Tests, whose card reaches under it
+  ok    up from Tests: the card over its first column (Performance)
+  ok    left from Tests: Advanced
+  ok    left from Touch (first column): back to the menu, on Settings
+  ok    an item gone: the cursor goes to the first one
   ok    on the menu, the cursor stays where it is
-  ok    no tile at all: back to the menu
+  ok    nothing left to pick: back to the menu, on the same entry
+  ok    an empty panel: no move
+  ok    a full panel refuses more items
   ok    recent games: the ones played, the latest first; never-played ones left out
   ok    a tab or a line break in a name becomes a space (one record per line)
   ok    the file's text is written
@@ -507,9 +535,12 @@ build/tests/inc/psp2/net/net.h:230:103: note: expected ‘unsigned int *’ but 
   ok    the PC whose library was left last
   ok    no PC with a file: none (the caller takes the first paired one)
   ok    a tie: the first one
-  ok    the other recent games, then the library's next ones, none twice, not the one to pick up
-  ok    a PC with a single game: an empty strip
-  ok    no game to pick up: the library's first
-[home screen] 48 checks, 0 failed
+  ok    first the other recent games, latest first, not the one of the large card
+  ok    then the library's next ones (the favourite was already a recent game: not twice)
+  ok    a favourite comes after the recent games, before the rest
+  ok    at most three recent games, so that favourites show too
+  ok    a PC with a single game: an empty row
+  ok    no game for the large card: the library's first
+[home screen] 59 checks, 0 failed
 
 all tests passed
