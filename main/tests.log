@@ -538,9 +538,10 @@ In function ‘snprintf’,
   ok    first the other recent games, latest first, not the one of the large card
   ok    then the library's next ones (the favourite was already a recent game: not twice)
   ok    a favourite comes after the recent games, before the rest
-  ok    at most three recent games, so that favourites show too
+  ok    a row of four: two recent games, then the favourites
+  ok    no favourite: the other recent game comes next, then the library
   ok    a PC with a single game: an empty row
   ok    no game for the large card: the library's first
-[home screen] 59 checks, 0 failed
+[home screen] 60 checks, 0 failed
 
 all tests passed
