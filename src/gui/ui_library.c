@@ -40,10 +40,10 @@
 #include "../i18n.h"
 
 #define MAX_ITEMS 128
-#define COVER_W 120.0f
-#define COVER_H 160.0f
-#define COVER_FW 150.0f       /* focused cover */
-#define COVER_FH 200.0f
+#define COVER_W 140.0f       /* 1.1.0-beta.4: was 120 x 160, read better on the Vita */
+#define COVER_H 187.0f
+#define COVER_FW 168.0f       /* focused cover (was 150 x 200) */
+#define COVER_FH 224.0f
 #define COVER_GAP 16.0f
 #define SHELF_X ((float)TH_MARGIN)
 #define SHELF_BOTTOM 478.0f

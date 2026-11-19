@@ -68,17 +68,22 @@
 #define TILE_R 16.0f
 #define PREVIEW_TOP 128.0f                  /* under a preview's title */
 #define ICON_SIZE ICON_HOME_SIZE
-/* Home: the large card, then the row of covers */
-#define HERO_H 182.0f
-#define SLOT_W 96.0f
-#define SLOT_H 128.0f
-#define SLOT_Y (AREA_Y + HERO_H + 38)       /* 302 */
-#define SLOT_GAP ((AREA_W - 6 * SLOT_W) / 5)
-#define ROW_GAMES 5                         /* then "See all" */
-/* Library preview: two rows of six covers */
-#define SHELF_W 100.0f
-#define SHELF_H 133.0f
-#define SHELF_GAP_Y 18.0f
+/* Home: the large card, then the row of covers (the size of the Library page's
+ * covers before 1.1.0-beta.4: 96 x 128 could not be read well on the Vita) */
+#define HERO_H 160.0f
+#define HERO_COVER_W 96.0f
+#define HERO_COVER_H 128.0f
+#define SLOT_W 120.0f
+#define SLOT_H 160.0f
+#define SLOT_Y (AREA_Y + HERO_H + 34)       /* 276 */
+#define SLOT_GAP ((AREA_W - (ROW_GAMES + 1) * SLOT_W) / ROW_GAMES)
+#define ROW_GAMES 4                         /* then "See all" */
+/* Library preview: two rows of five covers */
+#define SHELF_COLS 5
+#define SHELF_SHOWN 10
+#define SHELF_W 120.0f
+#define SHELF_H 160.0f
+#define SHELF_GAP_Y 16.0f
 /* Computers preview */
 #define PC_CARD_H 200.0f                    /* one PC */
 #define PC_ROW_H 60.0f                      /* each of several PCs */
@@ -627,11 +632,11 @@ static void panel_layout(int menu, home_panel *p, rect *where) {
     case HOME_MENU_LIBRARY:
       if (!shown_host() || !view.has_games)
         break;
-      for (int k = 0; k < view.games.shelf_count && k < HOME_SHELF_MAX; k++) {
-        float gap = (AREA_W - 6 * SHELF_W) / 5;
-        i = home_panel_add(p, k / 6, k % 6, 1);
-        where[i] = (rect){AREA_X + (k % 6) * (SHELF_W + gap), PREVIEW_TOP + (k / 6) * (SHELF_H + SHELF_GAP_Y), SHELF_W,
-                          SHELF_H};
+      for (int k = 0; k < view.games.shelf_count && k < SHELF_SHOWN; k++) {
+        float gap = (AREA_W - SHELF_COLS * SHELF_W) / (SHELF_COLS - 1);
+        i = home_panel_add(p, k / SHELF_COLS, k % SHELF_COLS, 1);
+        where[i] = (rect){AREA_X + (k % SHELF_COLS) * (SHELF_W + gap),
+                          PREVIEW_TOP + (k / SHELF_COLS) * (SHELF_H + SHELF_GAP_Y), SHELF_W, SHELF_H};
       }
       break;
     case HOME_MENU_COMPUTERS: {
@@ -705,7 +710,7 @@ static void draw_hero(bool focused) {
   card_box(r.x, r.y, r.w, r.h, TILE_R, focused);
   const device_info_t *host = shown_host();
   const char *host_name = host ? host->name : ui_connect_host_label();
-  float cover_x = r.x + 18, cover_y = r.y + 19, cw = 108, ch = 144;
+  float cover_x = r.x + 18, cover_y = r.y + (HERO_H - HERO_COVER_H) / 2, cw = HERO_COVER_W, ch = HERO_COVER_H;
   float tx = cover_x + cw + 22, tw = r.x + r.w - 22 - tx;
   const char *tag = "", *title = "", *button = "", *icon = NULL;
   char title_buf[160] = "", meta[2][200] = {"", ""};
@@ -785,15 +790,15 @@ static void draw_hero(bool focused) {
       theme_text_fit_center(cover_x + cw / 2, cover_y + ch / 2 + 28, TH_TEXT3, TS_MICRO, host_name, (int)cw - 12);
   }
 
-  theme_text_fit(tx, r.y + 40, tag_color, TS_SMALL, tag, (int)tw);
-  theme_text_fit(tx, r.y + 76, TH_TEXT, TS_TITLE, title, (int)tw);
-  draw_wrapped(tx, r.y + 102, TS_SMALL, TH_TEXT3, meta[0], (int)tw, 2, 18);
+  theme_text_fit(tx, r.y + 36, tag_color, TS_SMALL, tag, (int)tw);
+  theme_text_fit(tx, r.y + 70, TH_TEXT, TS_TITLE, title, (int)tw);
+  draw_wrapped(tx, r.y + 94, TS_SMALL, TH_TEXT3, meta[0], (int)tw, 1, 18);
   float bw = theme_text_width(TS_HINT, button) + (icon ? 70 : 52);
   if (bw < 210)
     bw = 210;
   if (bw > tw)
     bw = tw;
-  draw_button(tx, r.y + HERO_H - 14 - 44, bw, 44, icon, button, focused);
+  draw_button(tx, r.y + HERO_H - 16 - 42, bw, 42, icon, button, focused);
 }
 
 static const char *row_kind_label(int kind) {
@@ -806,7 +811,7 @@ static const char *row_kind_label(int kind) {
 
 static void draw_row(void) {
   int focus = nav.in_panel && nav.menu == HOME_MENU_HOME ? nav.item : -1;
-  float label_y = SLOT_Y - 14, under_y = SLOT_Y + SLOT_H + 28;
+  float label_y = SLOT_Y - 12, under_y = SLOT_Y + SLOT_H + 24;
   if (view.row_count == 0) {
     draw_wrapped(slot_x(0), SLOT_Y + 50, TS_HINT, TH_TEXT2, tr("Open the library once: your games will show up here."),
                  (int)(slot_x(ROW_GAMES) - slot_x(0) - SLOT_GAP), 2, 22);

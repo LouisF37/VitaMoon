@@ -3,6 +3,22 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.1.0-beta.4 "Premier Croissant" (2026-11-19)
+
+Bigger covers, after a test on a Vita: at 96 x 128 they could not be read well. Nothing else changes.
+
+- Home: the row under the large card shows four games and *See all* at 120 x 160 (was five at
+  96 x 128): up to two other games played last, then the favourites (so that they stay in sight),
+  then the other recent games and the library. The large card is 160 px high (was 182), its cover
+  96 x 128 (was 108 x 144).
+- Home, Library preview: two rows of five covers at 120 x 160 (was six at 100 x 133), the first
+  ten games.
+- Library page: covers of 140 x 187 (was 120 x 160), 168 x 224 for the selected one (was 150 x 200);
+  about five and a half in sight; the "1 / 8" counter moves up with them.
+- Tests: the row's order checked again (`test_home.c`, 60 checks); every screen rendered in three
+  languages, the 33 journeys, and the home and library screens clean under AddressSanitizer and UBSan;
+  a frame of the home uses at most 7.7% of vita2d's vertex pool, the library 5.8%.
+
 ## 1.1.0-beta.3 "Premier Croissant" (2026-11-18)
 
 The home screen reworked after the first tests on a Vita, a Help page, and Eclipse as the starting

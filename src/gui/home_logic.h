@@ -332,11 +332,12 @@ static inline int home_pick_host(const char *const opened[], int count) {
   return best;
 }
 
-/* The row of games under the large card: the other games played last, then
- * the favourites, then the start of the library, never one twice nor the
+/* The row of games under the large card: up to two other games played last
+ * (so that favourites show in a row of four), then the favourites, then the
+ * other recent games and the start of the library, never one twice nor the
  * game of the large card (skip_id). Returns how many (<= max). */
 enum { HOME_ROW_RECENT, HOME_ROW_FAVOURITE, HOME_ROW_GAMES };
-#define HOME_ROW_RECENT_MAX 3
+#define HOME_ROW_RECENT_MAX 2
 
 typedef struct {
   const home_game *game;
@@ -345,9 +346,12 @@ typedef struct {
 
 static inline int home_row_games(const home_games *g, int skip_id, home_row_game out[], int max) {
   int n = 0;
-  for (int pass = 0; pass < 3 && n < max; pass++) {
-    const home_game *list = pass == 0 ? g->recent : g->shelf;
-    int count = pass == 0 ? g->recent_count : g->shelf_count;
+  /* passes: the first recent games, the favourites, the other recent games, the library */
+  static const int k_kind[4] = {HOME_ROW_RECENT, HOME_ROW_FAVOURITE, HOME_ROW_RECENT, HOME_ROW_GAMES};
+  for (int pass = 0; pass < 4 && n < max; pass++) {
+    bool recent = pass == 0 || pass == 2;
+    const home_game *list = recent ? g->recent : g->shelf;
+    int count = recent ? g->recent_count : g->shelf_count;
     int taken = 0;
     for (int i = 0; i < count && n < max; i++) {
       if (pass == 0 && taken >= HOME_ROW_RECENT_MAX)
@@ -360,7 +364,7 @@ static inline int home_row_games(const home_games *g, int skip_id, home_row_game
         seen = out[k].game->id == id;
       if (seen)
         continue;
-      out[n++] = (home_row_game){&list[i], pass};
+      out[n++] = (home_row_game){&list[i], k_kind[pass]};
       taken++;
     }
   }

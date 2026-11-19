@@ -50,9 +50,9 @@ droite, l'aperçu de l'entrée sous le curseur.
   utilisé, sans passer par la bibliothèque ; Reprendre un stream en pause ; Réveiller le PC quand la
   recherche le voit éteint et que son adresse réseau est connue ; Options du PC s'il ne répond pas ou
   répond d'une nouvelle adresse ; Ouvrir la bibliothèque tant qu'elle n'a pas été ouverte une fois),
-  puis une rangée de jaquettes : jusqu'à trois autres jeux joués récemment, les favoris, la suite de la
-  bibliothèque, et « Tout voir ». ✕ sur une jaquette lance le jeu.
-- Bibliothèque : les douze premiers jeux ; ✕ sur une jaquette lance le jeu.
+  puis une rangée de quatre jaquettes : jusqu'à deux autres jeux joués récemment, les favoris, les autres
+  jeux récents et la suite de la bibliothèque, et « Tout voir ». ✕ sur une jaquette lance le jeu.
+- Bibliothèque : les dix premiers jeux (deux rangées de cinq) ; ✕ sur une jaquette lance le jeu.
 - Ordinateurs : les PC appairés (un seul en détail, plusieurs en liste), « Rechercher sur le réseau » et
   « Saisir une adresse » ; ✕ connecte un PC en ligne ou ouvre le menu d'un PC qui ne répond pas.
 - Réglages : une carte par rubrique avec ses valeurs principales ; ✕ ouvre les réglages directement sur

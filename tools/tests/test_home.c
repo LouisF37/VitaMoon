@@ -249,12 +249,16 @@ int main(void) {
     lots.shelf[lots.shelf_count].id = 200 + i;
     lots.shelf[lots.shelf_count++].favourite = true;
   }
-  k = home_row_games(&lots, lots.recent[0].id, row, 5);
-  int recents = 0;
-  for (int i = 0; i < k; i++)
-    recents += row[i].kind == HOME_ROW_RECENT;
-  CHECK(k == 5 && recents == 3 && row[3].kind == HOME_ROW_FAVOURITE && row[4].kind == HOME_ROW_FAVOURITE,
-        "at most three recent games, so that favourites show too");
+  k = home_row_games(&lots, lots.recent[0].id, row, 4);
+  CHECK(k == 4 && row[0].kind == HOME_ROW_RECENT && row[1].kind == HOME_ROW_RECENT &&
+            row[2].kind == HOME_ROW_FAVOURITE && row[3].kind == HOME_ROW_FAVOURITE,
+        "a row of four: two recent games, then the favourites");
+  for (int i = 0; i < lots.shelf_count; i++)
+    lots.shelf[i].favourite = false;
+  k = home_row_games(&lots, lots.recent[0].id, row, 4);
+  CHECK(lots.recent_count == HOME_RECENT_MAX && k == 4 && row[2].kind == HOME_ROW_RECENT &&
+            row[2].game->id == lots.recent[3].id && row[3].kind == HOME_ROW_GAMES && row[3].game->id == 200,
+        "no favourite: the other recent game comes next, then the library");
   home_games one;
   memset(&one, 0, sizeof(one));
   one.shelf_count = 1;
