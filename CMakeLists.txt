@@ -25,7 +25,7 @@ set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
 set(VERSION_MAJOR "1")
 set(VERSION_MINOR "6")
 set(VERSION_PATCH "0")
-set(VERSION_LABEL "beta.1")   # empty for a final release, e.g. "beta.1" before one
+set(VERSION_LABEL "beta.2")   # empty for a final release, e.g. "beta.1" before one
 set(VERSION_NAME "Premier Croissant")  # milestone name, shown in the docs
 if(VERSION_LABEL)
 	set(VERSION_TEXT "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_LABEL}")

@@ -476,6 +476,7 @@ static void fake_away(void) {
   for (int i = 0; i < 3; i++) {
     g_host_status[i].status = i == 0 ? HOST_ONLINE : HOST_OFFLINE;
     g_host_status[i].on_lan = false;
+    g_host_status[i].via_internet = false;
     g_host_status[i].current_ip[0] = 0;
   }
 }
@@ -554,6 +555,59 @@ static void scenario_away_settings(void) {
   preview_press(SCE_CTRL_CIRCLE);
   preview_wait(2);
   ui_settings_menu();
+}
+
+/* Home, but the Vita is away: MINI-PC is silent at home and answers at its
+ * Internet address (the scan tries it): the large card offers Away, and X on
+ * the PC asks. */
+static void fake_home_away_only(void) {
+  fake_hosts();
+  fake_home_file();
+  snprintf(fake_devices[0].external, sizeof(fake_devices[0].external), "%s", "203.0.113.7");
+  g_host_status[0].status = HOST_OFFLINE;
+  g_host_status[0].via_internet = true;
+  snprintf(g_host_status[0].current_ip, sizeof(g_host_status[0].current_ip), "%s", "192.168.1.24");
+}
+
+/* Away, the large card for the PC last used: no Internet address; no answer
+ * over the Internet. (The script runs after this set-up: one state each.) */
+static void scenario_away_hero_no_address(void) {
+  fake_away();
+  fake_devices[0].external[0] = 0;
+  g_host_status[0].status = HOST_OFFLINE;
+  preview_wait(500);
+  preview_snap("away_hero_1_no_address");
+  preview_wait(2);
+  ui_home();
+}
+
+static void scenario_away_hero_unreachable(void) {
+  fake_away();
+  g_host_status[0].status = HOST_OFFLINE;
+  preview_wait(500);
+  preview_snap("away_hero_2_unreachable");
+  preview_wait(2);
+  ui_home();
+}
+
+static void scenario_home_away_only(void) {
+  fake_home_away_only();
+  preview_wait(500);   /* the first scan takes up to 7 s with three PCs */
+  preview_snap("home_away_only_1_home");
+  preview_wait(2);
+  ui_home();
+}
+
+static void scenario_home_away_only_pcs(void) {
+  fake_home_away_only();
+  preview_wait(12);
+  preview_snap("home_away_only_2_computers");
+  preview_press(SCE_CTRL_CROSS);
+  preview_wait(4);
+  preview_snap("home_away_only_3_question");
+  preview_press(SCE_CTRL_CIRCLE);
+  preview_wait(2);
+  ui_computers_page();
 }
 
 /* At home, the PC does not answer: the error offers the Away connection. */
@@ -890,6 +944,10 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "away_at_home_pcs")) scenario_away_at_home_pcs();
   else if (!strcmp(s, "away_settings")) scenario_away_settings();
   else if (!strcmp(s, "home_no_answer")) scenario_home_no_answer();
+  else if (!strcmp(s, "home_away_only")) scenario_home_away_only();
+  else if (!strcmp(s, "away_hero_no_address")) scenario_away_hero_no_address();
+  else if (!strcmp(s, "away_hero_unreachable")) scenario_away_hero_unreachable();
+  else if (!strcmp(s, "home_away_only_pcs")) scenario_home_away_only_pcs();
   else if (!strcmp(s, "settings_change")) scenario_settings_change();
   else if (!strcmp(s, "library")) scenario_library();
   else if (!strcmp(s, "library_running")) scenario_library_running();

@@ -84,47 +84,81 @@ int main(void) {
 
   /* ---- what the home screen says: Home ---- */
   d = pc("192.168.1.24", "176.133.10.20");
-  CHECK(route_host_state(false, &d, HOST_ONLINE, "192.168.1.24", false, false) == HOST_STATE_ONLINE,
+  CHECK(route_host_state(false, &d, HOST_ONLINE, "192.168.1.24", false, false, false) == HOST_STATE_ONLINE,
         "Home: answers at its home address");
-  CHECK(route_host_state(false, &d, HOST_OFFLINE, "192.168.1.24", false, false) == HOST_STATE_OFFLINE,
+  CHECK(route_host_state(false, &d, HOST_OFFLINE, "192.168.1.24", false, false, false) == HOST_STATE_OFFLINE,
         "Home: no answer");
-  CHECK(route_host_state(false, &d, HOST_IP_CHANGED, "192.168.1.90", false, false) == HOST_STATE_MOVED,
+  CHECK(route_host_state(false, &d, HOST_IP_CHANGED, "192.168.1.90", false, false, false) == HOST_STATE_MOVED,
         "Home: seen at another address");
-  CHECK(route_host_state(false, &d, HOST_OFFLINE, "", false, true) == HOST_STATE_MOVED,
+  CHECK(route_host_state(false, &d, HOST_OFFLINE, "", false, false, true) == HOST_STATE_MOVED,
         "Home: a new address waits to be confirmed");
-  CHECK(route_host_state(false, &d, HOST_ONLINE, "192.168.1.24", true, false) == HOST_STATE_ONLINE,
+  CHECK(route_host_state(false, &d, HOST_ONLINE, "192.168.1.24", true, false, false) == HOST_STATE_ONLINE,
         "Home: the Away flag means nothing");
 
   /* ---- Away ---- */
-  CHECK(route_host_state(true, &d, HOST_ONLINE, "", false, false) == HOST_STATE_ONLINE,
+  CHECK(route_host_state(true, &d, HOST_ONLINE, "", false, false, false) == HOST_STATE_ONLINE,
         "Away: answers over the Internet");
-  CHECK(route_host_state(true, &d, HOST_OFFLINE, "", false, false) == HOST_STATE_OFFLINE,
+  CHECK(route_host_state(true, &d, HOST_OFFLINE, "", false, false, false) == HOST_STATE_OFFLINE,
         "Away: no answer over the Internet");
-  CHECK(route_host_state(true, &d, HOST_ONLINE, "192.168.1.24", true, false) == HOST_STATE_AT_HOME,
+  CHECK(route_host_state(true, &d, HOST_ONLINE, "192.168.1.24", true, false, false) == HOST_STATE_AT_HOME,
         "Away but heard on this network: at home, even when the box answers from outside");
-  CHECK(route_host_state(true, &d, HOST_OFFLINE, "192.168.1.24", true, false) == HOST_STATE_AT_HOME,
+  CHECK(route_host_state(true, &d, HOST_OFFLINE, "192.168.1.24", true, false, false) == HOST_STATE_AT_HOME,
         "Away, heard at home, no answer from outside: at home");
-  CHECK(route_host_state(true, &d, HOST_OFFLINE, "", false, true) == HOST_STATE_OFFLINE,
+  CHECK(route_host_state(true, &d, HOST_OFFLINE, "", false, false, true) == HOST_STATE_OFFLINE,
         "Away: a pending home address is not the Away connection's business");
   device_info_t none = pc("192.168.1.24", "");
-  CHECK(route_host_state(true, &none, HOST_ONLINE, "", false, false) == HOST_STATE_NO_ADDRESS,
+  CHECK(route_host_state(true, &none, HOST_ONLINE, "", false, false, false) == HOST_STATE_NO_ADDRESS,
         "Away with no Internet address");
+  CHECK(route_host_state(true, &none, HOST_ONLINE, "192.168.1.24", true, false, false) == HOST_STATE_AT_HOME,
+        "Away with no Internet address but at home: at home first (switching back is what helps)");
   device_info_t copied = pc("192.168.1.24", "192.168.1.24");
-  CHECK(route_host_state(true, &copied, HOST_ONLINE, "", false, false) == HOST_STATE_NO_ADDRESS,
+  CHECK(route_host_state(true, &copied, HOST_ONLINE, "", false, false, false) == HOST_STATE_NO_ADDRESS,
         "Away with only a copy of the home address: no Internet address");
   device_info_t named = pc("192.168.1.24", "louis.duckdns.org");
-  CHECK(route_host_state(true, &named, HOST_ONLINE, "", false, false) == HOST_STATE_ONLINE, "Away with a name");
+  CHECK(route_host_state(true, &named, HOST_ONLINE, "", false, false, false) == HOST_STATE_ONLINE, "Away with a name");
+
+  /* ---- Home, but the Vita is away: silent at home, answering over the Internet ---- */
+  CHECK(route_host_state(false, &d, HOST_OFFLINE, "192.168.1.24", false, true, false) == HOST_STATE_AWAY_ONLY,
+        "Home: no answer at home, an answer over the Internet: away");
+  CHECK(route_host_state(false, &d, HOST_ONLINE, "192.168.1.24", false, true, false) == HOST_STATE_ONLINE,
+        "Home: an answer at home wins");
+  CHECK(route_host_state(false, &d, HOST_IP_CHANGED, "192.168.1.90", false, true, false) == HOST_STATE_MOVED,
+        "Home: a new home address wins");
+  CHECK(route_host_state(true, &d, HOST_OFFLINE, "", false, true, false) == HOST_STATE_OFFLINE,
+        "Away: the Home flag means nothing");
+
+  /* ---- addresses as typed ---- */
+  char out[64];
+  route_clean_address("  176.133.43.185  ", out, sizeof(out));
+  CHECK(!strcmp(out, "176.133.43.185"), "spaces around an address dropped");
+  route_clean_address("176.133.43.185 : 47989", out, sizeof(out));
+  CHECK(!strcmp(out, "176.133.43.185"), "the menus' \"address : port\" form: the port dropped");
+  route_clean_address("louis.duckdns.org:47989", out, sizeof(out));
+  CHECK(!strcmp(out, "louis.duckdns.org"), "a name with a port: the port dropped");
+  route_clean_address("pc123", out, sizeof(out));
+  CHECK(!strcmp(out, "pc123"), "digits at the end of a name are kept");
+  route_clean_address("", out, sizeof(out));
+  CHECK(out[0] == '\0', "empty stays empty");
+  route_clean_address(" : 47989 ", out, sizeof(out));
+  CHECK(out[0] == '\0', "a port alone gives nothing");
+  route_clean_address(NULL, out, sizeof(out));
+  CHECK(out[0] == '\0', "NULL gives nothing");
+  d = pc("192.168.1.24", "176.133.10.20");
+  route_set_internet_address(&d, " louis.duckdns.org : 47989");
+  route_set_home_address(&d, "192.168.1.30 ");
+  CHECK(!strcmp(d.external, "louis.duckdns.org") && !strcmp(d.internal, "192.168.1.30"),
+        "both setters clean what they are given");
 
   /* ---- the PC saved by 1.5's "Change the address" (both = the public IP),
    *      back home: the scan sees it at its home address ---- */
   device_info_t louis = pc("176.133.10.20", "176.133.10.20");
-  CHECK(route_host_state(false, &louis, HOST_IP_CHANGED, "192.168.1.24", false, true) == HOST_STATE_MOVED,
+  CHECK(route_host_state(false, &louis, HOST_IP_CHANGED, "192.168.1.24", false, false, true) == HOST_STATE_MOVED,
         "1.5's both-public PC at home: its address changed");
   route_set_home_address(&louis, "192.168.1.24");   /* what ui_check_ip_update() does on Yes */
   CHECK(!strcmp(louis.internal, "192.168.1.24") && !strcmp(louis.external, "176.133.10.20"),
         "after Yes: home address 192.168.1.24, the Internet address kept");
-  CHECK(route_host_state(false, &louis, HOST_ONLINE, "192.168.1.24", false, false) == HOST_STATE_ONLINE &&
-            route_host_state(true, &louis, HOST_ONLINE, "", false, false) == HOST_STATE_ONLINE,
+  CHECK(route_host_state(false, &louis, HOST_ONLINE, "192.168.1.24", false, false, false) == HOST_STATE_ONLINE &&
+            route_host_state(true, &louis, HOST_ONLINE, "", false, false, false) == HOST_STATE_ONLINE,
         "then Home and Away both reach it");
 
   return TEST_END();

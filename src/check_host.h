@@ -19,7 +19,8 @@ extern "C" {
 struct host_status {
     int status; // 0: offline, 1: online, 2: ip changed
     char current_ip[64];
-    bool on_lan; // Away connection: heard over mDNS on the network the Vita is on
+    bool on_lan;       // Away: heard over mDNS on the Vita's network, or answers at its home address
+    bool via_internet; // Home: no answer at home, an answer at its Internet address
 };
 
 #include <psp2/kernel/threadmgr.h>

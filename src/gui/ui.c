@@ -84,7 +84,7 @@ int ui_host_state(int host_idx) {
   const device_info_t *info = &known_devices.devices[host_idx];
   struct host_status st = g_host_status[host_idx];
   bool pending = pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0';
-  return route_host_state(config.away, info, st.status, st.current_ip, st.on_lan, pending);
+  return route_host_state(config.away, info, st.status, st.current_ip, st.on_lan, st.via_internet, pending);
 }
 
 const char *ui_host_state_text(int state) {
@@ -93,6 +93,7 @@ const char *ui_host_state_text(int state) {
     case HOST_STATE_MOVED: return tr("Address changed");
     case HOST_STATE_AT_HOME: return tr("On the home network");
     case HOST_STATE_NO_ADDRESS: return tr("No Internet address");
+    case HOST_STATE_AWAY_ONLY: return tr("Reachable away");
     default: return config.away ? tr("Unreachable") : tr("Offline");
   }
 }
@@ -104,9 +105,23 @@ const char *ui_host_advice(int state) {
     case HOST_STATE_AT_HOME: return tr("You are at home: set the connection to At home to play here.");
     case HOST_STATE_NO_ADDRESS:
       return tr("Its Internet address is not known yet: connect to it once at home, or type it in its options.");
+    case HOST_STATE_AWAY_ONLY:
+      return tr("It only answers over the Internet: you are away. Set the connection to Away to play.");
     default:
       return config.away ? tr("No answer over the Internet. Is the PC on, with Sunshine running and its ports open on the box?")
                          : tr("No answer. Is the PC on, with Sunshine running?");
+  }
+}
+
+const char *ui_host_advice_short(int state) {
+  switch (state) {
+    case HOST_STATE_AWAY_ONLY: return tr("It only answers over the Internet: you are away from home.");
+    case HOST_STATE_NO_ADDRESS: return tr("Its Internet address is not known yet: see its options.");
+    case HOST_STATE_OFFLINE:
+      if (config.away)
+        return tr("No answer over the Internet: is the PC on, its ports open?");
+      return ui_host_advice(state);
+    default: return ui_host_advice(state);
   }
 }
 
@@ -115,7 +130,8 @@ static unsigned int host_state_color(int state) {
     case HOST_STATE_ONLINE: return 0xFF00FF00;
     case HOST_STATE_MOVED:
     case HOST_STATE_AT_HOME:
-    case HOST_STATE_NO_ADDRESS: return 0xFF00FFFF;
+    case HOST_STATE_NO_ADDRESS:
+    case HOST_STATE_AWAY_ONLY: return 0xFF00FFFF;
     default: return 0xFF0000FF;
   }
 }
@@ -143,13 +159,21 @@ void ui_hosts_refresh_internet_address(void) {
 }
 
 /* Connect to a saved PC, after the questions the scan may raise: a new home
- * address (Home), or the PC heard on this network while Away (the Vita is at
- * home: back to Home?). */
+ * address (Home), the PC answering only over the Internet while Home (the
+ * Vita is away: Away?), or the PC found on this network while Away (the Vita
+ * is at home: back to Home?). */
 static void host_connect(device_info_t *info, int app_id) {
   int host_idx = host_index(info);
   char name[sizeof(info->name)];
   snprintf(name, sizeof(name), "%s", info->name);
-  if (config.away && host_idx >= 0 && ui_host_state(host_idx) == HOST_STATE_AT_HOME &&
+  if (!config.away && host_idx >= 0 && ui_host_state(host_idx) == HOST_STATE_AWAY_ONLY) {
+    // No: nothing else to do, it does not answer at home
+    if (!display_confirm(tr("This PC only answers over the Internet:\nyou are away from home.\nSet the connection to Away?")))
+      return;
+    config.away = true;
+    ui_settings_save_config();
+    LOGI("route", "connection switched to Away: %s only answers over the Internet", info->name);
+  } else if (config.away && host_idx >= 0 && ui_host_state(host_idx) == HOST_STATE_AT_HOME &&
       display_confirm(tr("This PC is on the Vita's network:\nyou are at home.\nSet the connection back to At home?"))) {
     config.away = false;
     ui_settings_save_config();
@@ -185,7 +209,7 @@ void ui_host_open(int host_idx, int app_id) {
     return;
   device_info_t *info = &known_devices.devices[host_idx];
   int state = ui_host_state(host_idx);
-  if (state == HOST_STATE_ONLINE || state == HOST_STATE_AT_HOME)
+  if (state == HOST_STATE_ONLINE || state == HOST_STATE_AT_HOME || state == HOST_STATE_AWAY_ONLY)
     host_connect(info, app_id);
   else
     ui_host_manage_menu(info);
@@ -251,15 +275,18 @@ static int ui_host_manage_menu_loop(int cursor, void *context, const input_data 
       if (ime_dialog_string(new_address, away ? tr("Internet address of the PC (IP or name):") : tr("Enter new IP:"),
                             route_address(info, away)) != 0)
         return 1;
+      // Spaces and a ":port" typed after it are dropped (route_clean_address)
+      char cleaned[256];
+      route_clean_address(new_address, cleaned, sizeof(cleaned));
       if (away) {
         // Empty is allowed: it forgets the Internet address
-        route_set_internet_address(info, new_address);
+        route_set_internet_address(info, cleaned);
         save_device_info(info);
-        display_notice(1500, tr("Internet address: %s"), new_address[0] ? new_address : tr("(none)"));
-      } else if (new_address[0]) {
-        route_set_home_address(info, new_address);
+        display_notice(1500, tr("Internet address: %s"), cleaned[0] ? cleaned : tr("(none)"));
+      } else if (cleaned[0]) {
+        route_set_home_address(info, cleaned);
         save_device_info(info);
-        display_notice(1200, tr("IP updated: %s"), new_address);
+        display_notice(1200, tr("IP updated: %s"), cleaned);
       }
       return 1;
     }
@@ -521,7 +548,7 @@ static int home_hints(int id, theme_hint_item *out, int max) {
                  id - MAIN_MENU_CONNECT_PAIRED < known_devices.count;
   if (on_host) {
     int state = ui_host_state(id - MAIN_MENU_CONNECT_PAIRED);
-    bool online = state == HOST_STATE_ONLINE || state == HOST_STATE_AT_HOME;
+    bool online = state == HOST_STATE_ONLINE || state == HOST_STATE_AT_HOME || state == HOST_STATE_AWAY_ONLY;
     out[n++] = (theme_hint_item){theme_confirm_glyph(), online ? tr("Connect") : tr("Open")};
     out[n++] = (theme_hint_item){GLYPH_SQUARE, tr("PC options")};
   } else {

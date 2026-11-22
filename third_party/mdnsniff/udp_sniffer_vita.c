@@ -147,6 +147,35 @@ static void check_and_print_ready_entries_vita() {
     }
 }
 
+/* VitaMoon: the question "which GameStream PCs are here?" (a PTR query for
+ * _nvstream._tcp.local). The PCs answer it once: asked only when the socket
+ * opened, a scan that listens again later hears nothing (udp_sniffer_vita_query). */
+static void send_query(void) {
+    static const unsigned char query[] = {
+        0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,
+        9,'_','n','v','s','t','r','e','a','m',
+        4,'_','t','c','p',
+        5,'l','o','c','a','l',0x00,
+        0x00,0x0C,0x00,0x01
+    };
+    SceNetSockaddrIn mcast_addr;
+    memset(&mcast_addr, 0, sizeof(mcast_addr));
+    mcast_addr.sin_family = SCE_NET_AF_INET;
+    sceNetInetPton(SCE_NET_AF_INET, MCAST_ADDR, &mcast_addr.sin_addr.s_addr);
+    mcast_addr.sin_port = sceNetHtons(MCAST_PORT);
+    int sendto_res = sceNetSendto(sock, query, sizeof(query), 0, (SceNetSockaddr*)&mcast_addr, sizeof(mcast_addr));
+    MDNS_LOG("[mdns_log] send_query: sceNetSendto res=%d\n", sendto_res);
+}
+
+void udp_sniffer_vita_query(void) {
+    if (!initialized) {
+        udp_sniffer_vita_poll();   /* opens the socket, which asks */
+        return;
+    }
+    if (sock >= 0)
+        send_query();
+}
+
 void udp_sniffer_vita_poll(void) {
     if (!initialized) {
         MDNS_LOG("[mdns_log] udp_sniffer_vita_poll: INICIO inicialización perezosa\n");
@@ -170,23 +199,9 @@ void udp_sniffer_vita_poll(void) {
         MDNS_LOG("[mdns_log] udp_sniffer_vita_poll: tras sceNetSetsockopt(IP_ADD_MEMBERSHIP), res=%d\n", sockoptres);
         if (sockoptres < 0) { MDNS_LOG("[VITA] sceNetSetsockopt(IP_ADD_MEMBERSHIP) failed\n"); sceNetSocketClose(sock); sock = -1; return; }
         // Enviar consulta mDNS activa
-        unsigned char query[] = {
-            0x00,0x00,0x00,0x00,0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,
-            9,'_','n','v','s','t','r','e','a','m',
-            4,'_','t','c','p',
-            5,'l','o','c','a','l',0x00,
-            0x00,0x0C,0x00,0x01
-        };
-        SceNetSockaddrIn mcast_addr;
-        memset(&mcast_addr, 0, sizeof(mcast_addr));
-        mcast_addr.sin_family = SCE_NET_AF_INET;
-        int ptonres2 = sceNetInetPton(SCE_NET_AF_INET, MCAST_ADDR, &mcast_addr.sin_addr.s_addr);
-        MDNS_LOG("[mdns_log] udp_sniffer_vita_poll: tras sceNetInetPton (mcast_addr), res=%d\n", ptonres2);
-        mcast_addr.sin_port = sceNetHtons(MCAST_PORT);
-        int sendto_res = sceNetSendto(sock, query, sizeof(query), 0, (SceNetSockaddr*)&mcast_addr, sizeof(mcast_addr));
-        MDNS_LOG("[mdns_log] udp_sniffer_vita_poll: tras sceNetSendto, res=%d\n", sendto_res);
         memset(sunshine_table, 0, sizeof(sunshine_table));
         initialized = 1;
+        send_query();
         MDNS_LOG("[VITA] Sniffer UDP mDNS inicializado.\n");
         //psvDebugScreenPrintf("[VITA] Sniffer UDP mDNS inicializado.\n");
     }
@@ -273,4 +288,5 @@ void udp_sniffer_vita_init(void) {
 }
 #else
 void udp_sniffer_vita_poll(void) {}
+void udp_sniffer_vita_query(void) {}
 #endif

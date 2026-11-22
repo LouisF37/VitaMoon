@@ -9,9 +9,6 @@
 #include "log.h"
 #include "route.h"
 
-/* The resolver's wait for one answer, and how many times it asks. */
-#define RESOLVE_TIMEOUT_US (2 * 1000 * 1000)
-#define RESOLVE_RETRIES 2
 
 bool net_resolve_ipv4(const char *host, char *out, size_t n) {
   if (n > 0)
@@ -29,7 +26,9 @@ bool net_resolve_ipv4(const char *host, char *out, size_t n) {
   }
   SceNetInAddr addr;
   memset(&addr, 0, sizeof(addr));
-  int ret = sceNetResolverStartNtoa(rid, host, &addr, RESOLVE_TIMEOUT_US, RESOLVE_RETRIES, 0);
+  // Timeout and retries left to the system (0, 0), as vitasdk's own
+  // gethostbyname() and getaddrinfo() do: their units are not documented.
+  int ret = sceNetResolverStartNtoa(rid, host, &addr, 0, 0, 0);
   sceNetResolverDestroy(rid);
   if (ret < 0) {
     LOGW("net", "%s: name not found (0x%08X)", host, (unsigned int)ret);

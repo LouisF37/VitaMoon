@@ -89,8 +89,9 @@ haut et L3 / R3 en bas, raccourcis des coins) ; ajouter des jeux ; Wi-Fi (écono
 Bluetooth tels que la Vita les indique, bande 2,4 GHz seulement, câble pour le PC).
 
 **Ordinateurs.** La liste des PC appairés avec leur état (en ligne, hors ligne, adresse modifiée ;
-« Vérification… » pendant les quelques secondes de la première recherche ; en connexion À distance :
-en ligne (à distance), injoignable, pas d'adresse Internet, sur le réseau de la maison), et à droite le
+« Vérification… » pendant les quelques secondes de la première recherche ; joignable à distance, en
+connexion Maison quand il ne répond que par Internet ; en connexion À distance : en ligne (à distance),
+injoignable, pas d'adresse Internet, sur le réseau de la maison), et à droite le
 détail du PC sélectionné : adresse de la connexion utilisée, connexion (Maison ou À distance), réveil du
 PC, flux demandé, et un conseil.
 - ✕ sur un PC en ligne : connexion directe. ✕ sur un PC hors ligne : ouvre son menu.
@@ -181,7 +182,8 @@ affiché dans la liste des appareils de Sunshine. Les appairages existants garde
 Chaque PC a deux adresses, gardées à part : son **adresse à la maison** (192.168.x.x, celle de la
 recherche) et son **adresse Internet** (l'adresse publique de la box, ou un nom DynDNS). Le réglage
 **Connexion** choisit laquelle sert :
-- **Maison** (par défaut) : le PC sur le réseau de la Vita, comme avant. Rien ne passe par Internet.
+- **Maison** (par défaut) : le PC sur le réseau de la Vita, comme avant. L'adresse Internet n'y sert
+  qu'à la recherche, pour savoir si l'on est parti (voir plus bas).
 - **À distance** : uniquement l'adresse Internet, avec le **Débit à distance** (Réglages → Vidéo : la
   ligne Débit règle le débit de la connexion utilisée ; Auto = les trois quarts du débit Maison, soit
   6 Mb/s en 960 x 544 à 60 img/s). Chaque Mb/s consomme environ 450 Mo de données par heure.
@@ -192,11 +194,18 @@ de Moonlight, au plus toutes les 10 minutes). Un nom tapé à la main (DynDNS) n
 Pour la voir ou la changer : connexion À distance, □ sur le PC, « Modifier l'adresse Internet »
 (vide : l'oublie). Changer une adresse ne touche jamais l'autre.
 
-Deux rappels si l'on oublie de basculer :
-- en Maison, si le PC ne répond pas, la question propose de passer en À distance ;
-- en À distance, si la recherche entend le PC sur le réseau de la Vita, il apparaît « Sur le réseau de
-  la maison » : ✕ (ou « Passer en Maison » sur l'accueil) propose de repasser en Maison, et reprend son
-  adresse à la maison si elle a changé.
+Si l'on oublie de basculer, la recherche le voit :
+- en Maison, un PC muet à la maison mais qui répond à son adresse Internet apparaît « Joignable à
+  distance » : « Passer en À distance » sur l'accueil, ou ✕ sur le PC (question, puis connexion) ; et si
+  le PC ne répond pas du tout, la question qui suit la tentative propose À distance quand une adresse
+  Internet est connue ;
+- en À distance, un PC entendu sur le réseau de la Vita, ou qui répond à son adresse à la maison,
+  apparaît « Sur le réseau de la maison » : ✕ (ou « Passer en Maison » sur l'accueil) propose de
+  repasser en Maison, et reprend son adresse à la maison si elle a changé.
+
+Une box qui renvoie vers l'intérieur ce qui vise sa propre adresse publique (c'est le cas de la Bbox
+sur laquelle VitaMoon a été essayé) laisse aussi la connexion À distance marcher depuis la maison :
+c'est un moyen d'essayer tout le chemin Internet sans quitter son canapé.
 
 Côté box et PC : les ports de Sunshine redirigés vers le PC (TCP 47984, 47989, 48010 ; UDP 47998 à
 48000), jamais 47990 (la page web de Sunshine), UPnP de Sunshine désactivé, PC qui ne se met pas en

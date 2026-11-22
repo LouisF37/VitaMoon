@@ -8,7 +8,7 @@ out="${1:-$here/out}"
 : > "$out/report.txt"
 for lang in en fr es; do
   mkdir -p "$out/$lang"
-  for scenario in splash home home_empty home_no_games home_paused home_pc_off help_wifi home_wifi home_bt settings settings_change settings_pages sky_setting library library_stats library_running dialogs restart connecting reconnect quickmenu pairing away away_pcs away_at_home away_at_home_pcs away_settings home_no_answer; do
+  for scenario in splash home home_empty home_no_games home_paused home_pc_off help_wifi home_wifi home_bt settings settings_change settings_pages sky_setting library library_stats library_running dialogs restart connecting reconnect quickmenu pairing away away_pcs away_at_home away_at_home_pcs away_settings home_no_answer home_away_only home_away_only_pcs away_hero_no_address away_hero_unreachable; do
     "$out/preview" "$scenario" "$lang" "$out/$lang" 2>> "$out/report.$lang.tmp" || echo "$lang/$scenario: exit $?" >> "$out/report.txt"
   done
   sort -u "$out/report.$lang.tmp" | sed "s/^/[$lang] /" >> "$out/report.txt"

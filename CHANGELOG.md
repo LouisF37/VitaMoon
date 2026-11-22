@@ -3,6 +3,46 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.6.0-beta.2 "Premier Croissant" (2026-11-22)
+
+Fixes the detection of where the Vita is, found on a Vita with beta.1: at home on the Away
+connection, the PC showed *Online (away)* instead of *On the home network*.
+
+- Cause: the network search asks "which GameStream PCs are here?" (mDNS) only when its socket opens,
+  at the start of each scan, and the PCs answer each question once. The status is checked again
+  every few seconds, so only the first pass could hear the PC; the next ones went to the Internet
+  address, which the box sends back inside (NAT loopback). The PC previews simulated an answer on
+  every pass, which hid it.
+- The question is now asked again for each PC on each pass (`udp_sniffer_vita_query`, a 38-byte
+  question on the local network). The *Address changed* detection at home benefits too: it could also
+  only see a change on the first pass.
+- Away, a PC that answers at its home address (a private one: 192.168.x.x and the like) also means
+  the Vita is at home. Away from home, that try fails within 1 s.
+- The other way round, new: at home on the Home connection, a PC silent at home but answering at its
+  Internet address means the Vita is away. It shows *Reachable away*; the large card offers *Switch to
+  Away*, and X on the PC asks before switching and connecting.
+- Away with no Internet address but heard at home: *On the home network* first (switching back is
+  what helps).
+- No answer at home: the question offering the Away connection only comes when an Internet address
+  is known; otherwise the plain message, as before.
+- The box's public address (STUN) is asked in a thread of its own: a slow name server can no longer
+  hold the scan (the menus wait for the scan to stop). The Internet address of a PC just added comes
+  from it, once the PC answers at home, instead of being asked during the pairing.
+- Names are looked up with the system's own timeout and retries (0, 0), as vitasdk's `gethostbyname()`
+  and `getaddrinfo()` do: their units are not documented. A name is looked up once per scan, and
+  again when the PC stops answering, 30 s apart at most.
+- An address typed with spaces or a `:port` after it (the form the menus show) is cleaned.
+- The large card keeps one line of advice: shorter sentences for *No Internet address*,
+  *Unreachable* and *Reachable away* (the Computers page keeps the full ones).
+- When a scan starts, what the previous one found is forgotten first, even if the previous one is
+  still ending: a switch between Home and Away no longer shows the other connection's states for a
+  moment.
+- Tests: `test_route.c` 49 checks (the new state, the order of states, addresses as typed); journeys
+  `j_pc_does_not_answer` (no Internet address: plain message), `j_pc_does_not_answer_offer_away`,
+  `j_pc_does_not_answer_switch_away` (tried at once at the Internet address); preview scenarios
+  `home_away_only`, `home_away_only_pcs`, `away_hero_no_address`, `away_hero_unreachable`. Still not
+  testable on a PC: the network search, the name lookup and STUN on a Vita.
+
 ## 1.6.0-beta.1 "Premier Croissant" (2026-11-22)
 
 Playing away from home: a *Connection* setting, Home or Away, picks which address of the PC is used,

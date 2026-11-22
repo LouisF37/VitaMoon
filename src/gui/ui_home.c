@@ -584,7 +584,7 @@ static bool inside(int tx, int ty, rect r) {
 }
 
 /* What the large card of Home does now. */
-typedef enum { HERO_ADD, HERO_PAUSED, HERO_WAKE, HERO_OPTIONS, HERO_HOME, HERO_CONTINUE, HERO_LIBRARY } hero_kind;
+typedef enum { HERO_ADD, HERO_PAUSED, HERO_WAKE, HERO_OPTIONS, HERO_HOME, HERO_AWAY, HERO_CONTINUE, HERO_LIBRARY } hero_kind;
 
 static hero_kind hero_now(void) {
   if (view.host < 0 && !view.connected)
@@ -597,6 +597,8 @@ static hero_kind hero_now(void) {
     return shown_host() && shown_host()->mac[0] ? HERO_WAKE : HERO_OPTIONS;
   if (state == HOST_STATE_AT_HOME)
     return HERO_HOME;
+  if (state == HOST_STATE_AWAY_ONLY)
+    return HERO_AWAY;
   if (state == HOST_STATE_OFFLINE || state == HOST_STATE_MOVED || state == HOST_STATE_NO_ADDRESS)
     return HERO_OPTIONS;
   return view.resume ? HERO_CONTINUE : HERO_LIBRARY;
@@ -750,13 +752,14 @@ static void draw_hero(bool focused) {
       icon = ICON_POWER;
       break;
     case HERO_OPTIONS:
-    case HERO_HOME: {
+    case HERO_HOME:
+    case HERO_AWAY: {
       int state = shown_state();
       tag = ui_host_state_text(state);
       tag_color = state == HOST_STATE_OFFLINE ? TH_TEXT3 : TH_WARN;
       title = host_name;
-      snprintf(meta[0], sizeof(meta[0]), "%s", ui_host_advice(state));
-      button = kind == HERO_HOME ? tr("Switch to At home") : tr("PC options");
+      snprintf(meta[0], sizeof(meta[0]), "%s", ui_host_advice_short(state));
+      button = kind == HERO_HOME ? tr("Switch to At home") : kind == HERO_AWAY ? tr("Switch to Away") : tr("PC options");
       icon = kind == HERO_HOME ? ICON_HOME : NULL;
       game = view.resume;
       break;
@@ -1037,6 +1040,7 @@ static const char *hero_action(void) {
     case HERO_WAKE: return tr("Wake the PC");
     case HERO_OPTIONS: return tr("PC options");
     case HERO_HOME: return tr("Switch to At home");
+    case HERO_AWAY: return tr("Switch to Away");
     case HERO_CONTINUE: return tr("Continue");
     default: return tr("Open the library");
   }
@@ -1067,7 +1071,9 @@ static int home_hints(theme_hint_item *out) {
           int i = view.connected ? view.host : view.paired[nav.item];
           int state = view.connected ? HOST_STATE_ONLINE : ui_host_state(i);
           what = view.connected ? tr("Resume")
-                 : state == HOST_STATE_ONLINE || state == HOST_STATE_AT_HOME ? tr("Connect") : tr("Open");
+                 : state == HOST_STATE_ONLINE || state == HOST_STATE_AT_HOME || state == HOST_STATE_AWAY_ONLY
+                     ? tr("Connect")
+                     : tr("Open");
         }
         break;
       case HOME_MENU_SETTINGS:
@@ -1152,7 +1158,8 @@ static void open_host_menu(int host) {
 }
 
 static void act_hero(void) {
-  switch (hero_now()) {
+  hero_kind kind = hero_now();
+  switch (kind) {
     case HERO_ADD:
       before_page(false);
       ui_computers_page();
@@ -1167,10 +1174,11 @@ static void act_hero(void) {
       break;
     case HERO_OPTIONS: open_host_menu(view.host); break;
     case HERO_HOME:
-      /* back to the home address; the scan looks again */
-      LOGI("home", "connection switched to Home from the large card");
+    case HERO_AWAY:
+      /* the other address; the scan looks again */
+      LOGI("home", "connection switched to %s from the large card", kind == HERO_AWAY ? "Away" : "Home");
       before_page(true);
-      config.away = false;
+      config.away = kind == HERO_AWAY;
       ui_settings_save_config();
       after_page();
       break;

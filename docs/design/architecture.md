@@ -95,9 +95,12 @@ Threads that are not the stream's: the home screen's PC detection (`src/check_ho
 the network search (`src/gui/ui_device.c`, `mdns`) both read mDNS answers with
 `third_party/mdnsniff`, so one runs at a time; each is stopped by a flag it checks at every step,
 waited for and deleted. The detection reads the list of PCs under `devices_lock()`, which every change
-of the list takes as well. With the Away connection it also looks up each PC's Internet name and tries
-its Internet address; at home it asks the box's public address (STUN) at most every 10 minutes and
-keeps it under the same lock, and the menus' thread gives it to the PCs and saves them. The PS button is locked and unlocked only by the input thread.
+of the list takes as well. It asks the network for the PCs (mDNS) before listening for each one: the
+PCs answer each question once. With the Away connection it also tries each PC at its home address,
+then at its Internet address (a name looked up once per scan); at home, a PC silent there is tried at
+its Internet address too. At home it has the box's public address asked (STUN) at most every 10
+minutes, in a short thread of its own (a slow name server must not hold the scan), kept under the
+same lock; the menus' thread gives it to the PCs and saves them. The PS button is locked and unlocked only by the input thread.
 
 The in-game quick menu (`src/gui/quickmenu.c`) lives inside the stream: the input thread calls
 `quickmenu_handle_input()` with each sample before anything is sent to the PC, which opens the menu on

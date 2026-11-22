@@ -932,15 +932,9 @@ device_info_t* ui_connect_and_pairing(device_info_t *info) {
     return NULL;
 
   remember_pairing(info);
-  // Added from home: the box's public address is its Internet address, for the
-  // Away connection (moonlight-qt does the same when a PC is added).
-  if (route_is_private_ipv4(info->internal) && route_internet_address_refreshable(info->external)) {
-    char public_ip[16];
-    if (net_find_public_ipv4(public_ip, sizeof(public_ip)) && route_apply_public_ip(info, public_ip)) {
-      save_device_info(info);
-      LOGI("pair", "Internet address of %s: %s", info->name, info->external);
-    }
-  }
+  // Its Internet address comes from the scan, back on the menus: the box's
+  // public address (STUN) once the PC answers at home
+  // (ui_hosts_refresh_internet_address).
   display_notice(1500, tr("%s is paired with this Vita."), info->name);
   return info;
 }
@@ -1025,7 +1019,7 @@ void ui_connect_paired_device(device_info_t *info) {
     if (silent && config.away) {
       display_error(tr("No answer from %s over the Internet (%s).\nIs the PC on, with Sunshine running and its ports open on the box?"),
                     info->name, addr);
-    } else if (silent) {
+    } else if (silent && route_internet_address_usable(info->external)) {
       // Not at home, maybe: offer the Internet address (once: Away does not offer it again)
       char msg[512];
       snprintf(msg, sizeof(msg), tr("No answer from %s.\nIs the PC on, with Sunshine running?\n\nAway from home?\nSwitch the connection to Away?"),
@@ -1037,6 +1031,7 @@ void ui_connect_paired_device(device_info_t *info) {
         ui_connect_paired_device(info);
       }
     } else {
+      // no Internet address to offer, or the PC answered wrongly: said as before
       report_host_error(ret, info->name);
     }
     return;

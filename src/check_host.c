@@ -57,11 +57,14 @@ static void scan_mdns_found_cb(int idx, const char* host, const char* pcname, co
 volatile int g_host_status_changed = 0;
 
 /* The box's public IPv4 (STUN), under devices_lock(); asked again at most
- * every PUBLIC_IP_EVERY_US, and only while a PC answers at a home address. */
+ * every PUBLIC_IP_EVERY_US, and only while a PC answers at a home address.
+ * Asked in a thread of its own: a slow name server or STUN server must not
+ * hold the scan (the menus wait for the scan to stop before they go on). */
 #define PUBLIC_IP_EVERY_US (10 * 60 * 1000000ULL)
 static char public_ip[16] = "";
 static SceUInt64 public_ip_asked_us = 0;
 static bool public_ip_asked = false;
+static volatile int public_ip_busy = 0;
 
 bool host_scan_public_ip(char *out, size_t n) {
     devices_lock();
@@ -70,30 +73,77 @@ bool host_scan_public_ip(char *out, size_t n) {
     return out[0] != '\0';
 }
 
+static int public_ip_thread(SceSize args, void *argp) {
+    char ip[16];
+    if (net_find_public_ipv4(ip, sizeof(ip))) {
+        devices_lock();
+        snprintf(public_ip, sizeof(public_ip), "%s", ip);
+        devices_unlock();
+        g_host_status_changed = 1;   /* the menus apply it to the PCs seen at home */
+    }
+    public_ip_busy = 0;
+    return sceKernelExitDeleteThread(0);
+}
+
 static void ask_public_ip(void) {
     SceUInt64 now = sceKernelGetProcessTimeWide();
-    if (public_ip_asked && now - public_ip_asked_us < PUBLIC_IP_EVERY_US)
+    if (public_ip_busy || (public_ip_asked && now - public_ip_asked_us < PUBLIC_IP_EVERY_US))
         return;
     public_ip_asked = true;
     public_ip_asked_us = now;
-    char ip[16];
-    if (!net_find_public_ipv4(ip, sizeof(ip)))
-        return;
-    devices_lock();
-    snprintf(public_ip, sizeof(public_ip), "%s", ip);
-    devices_unlock();
-    g_host_status_changed = 1;   /* the menus apply it to the PCs seen at home */
+    public_ip_busy = 1;
+    SceUID tid = sceKernelCreateThread("publicip", public_ip_thread, 0x10000100, 0x10000, 0, 0, NULL);
+    if (tid < 0 || sceKernelStartThread(tid, 0, NULL) < 0) {
+        if (tid >= 0)
+            sceKernelDeleteThread(tid);
+        public_ip_busy = 0;
+    }
 }
 
 /* Writes a host's status; flags a change for the menus when it differs. */
-static void set_status(int i, int status, const char *ip, bool on_lan, const char *why, const char *name) {
-    if (g_host_status[i].status != status || g_host_status[i].on_lan != on_lan) {
-        vita_debug_log("[SCAN] Host %s: %d%s (%s)\n", name, status, on_lan ? ", on this network" : "", why);
+static void set_status(int i, int status, const char *ip, bool on_lan, bool via_internet, const char *why,
+                       const char *name) {
+    if (g_host_status[i].status != status || g_host_status[i].on_lan != on_lan ||
+        g_host_status[i].via_internet != via_internet) {
+        vita_debug_log("[SCAN] Host %s: %d%s%s (%s)\n", name, status, on_lan ? ", on this network" : "",
+                       via_internet ? ", over the Internet only" : "", why);
         g_host_status_changed = 1;
     }
     g_host_status[i].status = status;
     g_host_status[i].on_lan = on_lan;
+    g_host_status[i].via_internet = via_internet;
     snprintf(g_host_status[i].current_ip, sizeof(g_host_status[i].current_ip), "%s", ip ? ip : "");
+}
+
+/* Each PC's Internet address as an IP: looked up at the first try of a scan,
+ * then again when it stops answering, 30 s apart at most (a DynDNS name's IP
+ * may change; a name server that does not answer is not asked every round). */
+#define INTERNET_LOOKUP_EVERY_US (30 * 1000000ULL)
+static char internet_ip[MAX_HOSTS][16];
+static SceUInt64 internet_lookup_us[MAX_HOSTS];
+
+static bool scan_running(void);
+
+/* True when the PC answers at its Internet address. */
+static bool internet_answers(int i, const device_info_t *info) {
+    if (!route_internet_address_usable(info->external))
+        return false;
+    SceUInt64 now = sceKernelGetProcessTimeWide();
+    if (internet_ip[i][0] == '\0') {
+        if (internet_lookup_us[i] != 0 && now - internet_lookup_us[i] < INTERNET_LOOKUP_EVERY_US)
+            return false;
+        internet_lookup_us[i] = now;
+        if (!net_resolve_ipv4(info->external, internet_ip[i], sizeof(internet_ip[i]))) {
+            internet_ip[i][0] = '\0';
+            return false;
+        }
+    }
+    if (!scan_running())
+        return false;
+    bool answers = ping_host(internet_ip[i], info->port);
+    if (!answers && now - internet_lookup_us[i] >= INTERNET_LOOKUP_EVERY_US)
+        internet_ip[i][0] = '\0';   /* looked up again next round */
+    return answers;
 }
 
 static bool scan_running(void) {
@@ -109,6 +159,8 @@ static void scan_sleep(int ms) {
 static int host_scan_thread(SceSize args, void *argp) {
     int ticks = 0;
     vita_debug_log("[SCAN] Scan thread started\n");
+    memset(internet_ip, 0, sizeof(internet_ip));
+    memset(internet_lookup_us, 0, sizeof(internet_lookup_us));
     udp_sniffer_vita_deinit();
     udp_sniffer_vita_init();
     while (scan_running() && ticks < 1000) { // 1000 rounds: several minutes
@@ -130,6 +182,7 @@ static int host_scan_thread(SceSize args, void *argp) {
                 }
                 g_host_status[i].status = HOST_OFFLINE;
                 g_host_status[i].on_lan = false;
+                g_host_status[i].via_internet = false;
                 g_host_status[i].current_ip[0] = '\0';
                 continue;
             }
@@ -139,6 +192,9 @@ static int host_scan_thread(SceSize args, void *argp) {
             strncpy(scan_mdns_hostname_ref, info->name, sizeof(scan_mdns_hostname_ref)-1);
             scan_mdns_hostname_ref[sizeof(scan_mdns_hostname_ref)-1] = '\0';
             udp_sniffer_vita_set_callback(scan_mdns_found_cb);
+            // The PCs answer each question once: ask again for each PC, or only
+            // the first round of a scan would hear them.
+            udp_sniffer_vita_query();
             int mdns_ticks = 0;
             while (!scan_mdns_found && mdns_ticks < 10 && scan_running()) { // 1 s max
                 udp_sniffer_vita_poll();
@@ -149,26 +205,29 @@ static int host_scan_thread(SceSize args, void *argp) {
             if (!scan_running())
                 break;
             if (config.away) {
-                // Away: heard on this network means the Vita is at home; the
-                // Internet address is tried all the same (route_host_state).
-                // The address kept is the one it was heard at on this network
-                // (a switch back to Home offers it as the home address).
-                bool on_lan = scan_mdns_found != 0;
-                const char *seen = on_lan ? (const char *)scan_mdns_found_ip : "";
-                if (!route_internet_address_usable(info->external)) {
-                    set_status(i, HOST_OFFLINE, seen, on_lan, "no Internet address", info->name);
-                    continue;
-                }
-                // A name is looked up again on each round: its IP may change.
-                char ip[64];
-                if (!net_resolve_ipv4(info->external, ip, sizeof(ip))) {
-                    set_status(i, HOST_OFFLINE, seen, on_lan, "Internet name not found", info->name);
-                    continue;
-                }
+                // Away. Heard on this network, or answering at its home address
+                // (a private one: a public one answers from anywhere): the Vita
+                // is at home, whatever the Internet address answers (the box may
+                // send it back inside). The address kept is the one it was found
+                // at here (a switch back to Home offers it as the home address).
+                bool heard = scan_mdns_found != 0;
+                bool home_answers = !heard && route_is_private_ipv4(info->internal) &&
+                                    ping_host(info->internal, info->port);
                 if (!scan_running())
                     break;
-                bool answers = ping_host(ip, info->port);
-                set_status(i, answers ? HOST_ONLINE : HOST_OFFLINE, seen, on_lan,
+                if (heard || home_answers) {
+                    set_status(i, HOST_ONLINE, heard ? (const char *)scan_mdns_found_ip : info->internal, true, false,
+                               heard ? "heard on this network" : "answers at its home address", info->name);
+                    continue;
+                }
+                if (!route_internet_address_usable(info->external)) {
+                    set_status(i, HOST_OFFLINE, "", false, false, "no Internet address", info->name);
+                    continue;
+                }
+                bool answers = internet_answers(i, info);
+                if (!scan_running())
+                    break;
+                set_status(i, answers ? HOST_ONLINE : HOST_OFFLINE, "", false, false,
                            answers ? "answers over the Internet" : "no answer over the Internet", info->name);
                 continue;
             }
@@ -182,6 +241,7 @@ static int host_scan_thread(SceSize args, void *argp) {
                         }
                         g_host_status[i].status = HOST_ONLINE;
                         g_host_status[i].on_lan = false;
+                        g_host_status[i].via_internet = false;
                         strncpy(g_host_status[i].current_ip, scan_mdns_found_ip, sizeof(g_host_status[i].current_ip)-1);
                         g_host_status[i].current_ip[sizeof(g_host_status[i].current_ip)-1] = '\0';
                         if (route_is_private_ipv4(scan_mdns_found_ip))
@@ -196,6 +256,7 @@ static int host_scan_thread(SceSize args, void *argp) {
                         }
                         g_host_status[i].status = HOST_IP_CHANGED;
                         g_host_status[i].on_lan = false;
+                        g_host_status[i].via_internet = false;
                         strncpy(g_host_status[i].current_ip, scan_mdns_found_ip, sizeof(g_host_status[i].current_ip)-1);
                         g_host_status[i].current_ip[sizeof(g_host_status[i].current_ip)-1] = '\0';
                         // Set the global flags for the menu
@@ -221,20 +282,22 @@ static int host_scan_thread(SceSize args, void *argp) {
                 }
                 g_host_status[i].status = HOST_ONLINE;
                 g_host_status[i].on_lan = false;
+                g_host_status[i].via_internet = false;
                 strncpy(g_host_status[i].current_ip, info->internal, sizeof(g_host_status[i].current_ip)-1);
                 g_host_status[i].current_ip[sizeof(g_host_status[i].current_ip)-1] = '\0';
                 if (route_is_private_ipv4(info->internal))
                     ask_public_ip();
                 continue;
             }
-            if (g_host_status[i].status != HOST_OFFLINE) {
-                vita_debug_log("[SCAN] Host %s OFFLINE (no answer)\n", info->name);
-                g_host_status_changed = 1;
-            }
-            g_host_status[i].status = HOST_OFFLINE;
-            g_host_status[i].on_lan = false;
-            strncpy(g_host_status[i].current_ip, info->internal, sizeof(g_host_status[i].current_ip)-1);
-            g_host_status[i].current_ip[sizeof(g_host_status[i].current_ip)-1] = '\0';
+            // Silent at home: if it answers at its Internet address, the Vita is
+            // away (the menus offer the Away connection). Not when it was heard
+            // here, nor when its home address is a public one (tried just above).
+            bool via_internet = !scan_mdns_found && route_is_private_ipv4(info->internal) &&
+                                internet_answers(i, info);
+            if (!scan_running())
+                break;
+            set_status(i, HOST_OFFLINE, info->internal, false, via_internet,
+                       via_internet ? "no answer at home, answers over the Internet" : "no answer", info->name);
         }
         scan_sleep(500);
         ticks++;
@@ -262,16 +325,19 @@ static int reap_scan_threads(SceUInt wait_us) {
 
 void start_host_scan_thread() {
     if (g_host_scan_thread_status == 1) return;
+    // What the last scan found may be from the other connection (Home, Away):
+    // forgotten before anything else, even when no scan can start yet.
+    for (int i = 0; i < MAX_HOSTS; i++) {
+        g_host_status[i].status = HOST_OFFLINE;
+        g_host_status[i].on_lan = false;
+        g_host_status[i].via_internet = false;
+        g_host_status[i].current_ip[0] = '\0';
+    }
     // A scan asked to stop may still be finishing (a ping in flight): two would
     // share the sniffer, so none starts until it has ended.
     if (reap_scan_threads(0) > 0) {
         vita_debug_log("[SCAN] The previous scan has not ended yet: not starting another one\n");
         return;
-    }
-    for (int i = 0; i < MAX_HOSTS; i++) {
-        g_host_status[i].status = HOST_OFFLINE;
-        g_host_status[i].on_lan = false;
-        g_host_status[i].current_ip[0] = '\0';
     }
     // Running before the thread starts, so that a stop right after is not undone.
     g_host_scan_thread_status = 1;

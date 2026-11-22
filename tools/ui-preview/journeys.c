@@ -246,18 +246,25 @@ static const journey k_journeys[] = {
    {{AT_PLAYING, 3000, DO_PAUSE}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
    {"open*", "library", "launch 1000", "connect", "library", "menu", "stop", "home"}},
 
-  /* At home, no answer: the question offers the Away connection; No. */
+  /* At home, no answer, no Internet address known: said as before. */
   {"j_pc_does_not_answer", {.answers = false}, true, 1,
+   {{"alert", {X}}},
+   {{0}},
+   {"open 192.168.1.24:47989", "alert: No answer from MINI-PC.", "home"}},
+
+  /* At home, no answer, an Internet address known: the question offers the
+   * Away connection; No. */
+  {"j_pc_does_not_answer_offer_away", {.answers = false}, true, 1,
    {{"confirm", {O}}},
    {{0}},
-   {"open 192.168.1.24:47989", "confirm: No answer from MINI-PC.", "home"}},
+   {"open 192.168.1.24:47989", "confirm: No answer from MINI-PC.", "home"}, false, false, "203.0.113.7"},
 
-  /* ... Yes: the Away connection, but no Internet address is known yet. */
+  /* ... Yes: tried at once at its Internet address (it does not answer there either). */
   {"j_pc_does_not_answer_switch_away", {.answers = false}, true, 1,
    {{"confirm", {X}}, {"alert", {X}}},
    {{0}},
-   {"open 192.168.1.24:47989", "confirm: No answer from MINI-PC.", "alert: The Internet address of MINI-PC*",
-    "home"}, false, false, ""},
+   {"open 192.168.1.24:47989", "confirm: No answer from MINI-PC.", "open 203.0.113.7:47989",
+    "alert: No answer from MINI-PC over the Internet*", "home"}, false, false, "203.0.113.7"},
 
   /* Away: the PC is opened at its Internet address only, and a game plays. */
   {"j_away_play", PC_IDLE, true, 1,

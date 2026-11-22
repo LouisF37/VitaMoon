@@ -46,6 +46,12 @@ void udp_sniffer_vita_set_callback(moonlight_found_cb cb);
 void udp_sniffer_vita_poll(void);
 
 /**
+ * VitaMoon: asks the question again (the PCs answer each question once; the
+ * first poll asks it when it opens the socket). Opens the socket if needed.
+ */
+void udp_sniffer_vita_query(void);
+
+/**
  * Cierra el sniffer UDP y libera recursos. Debe llamarse antes de reiniciar una búsqueda.
  */
 void udp_sniffer_vita_deinit(void);

@@ -18,8 +18,9 @@ enum {
   HOST_STATE_OFFLINE,     /* Home: no answer. Away: no answer over the Internet */
   HOST_STATE_ONLINE,      /* answers at the address of the current connection */
   HOST_STATE_MOVED,       /* Home: seen on the network at another address */
-  HOST_STATE_AT_HOME,     /* Away: seen on the network the Vita is on (it is at home) */
+  HOST_STATE_AT_HOME,     /* Away: heard on the network the Vita is on (it is at home) */
   HOST_STATE_NO_ADDRESS,  /* Away: no Internet address known for it */
+  HOST_STATE_AWAY_ONLY,   /* Home: no answer at home, but at its Internet address (the Vita is away) */
 };
 
 /* "a.b.c.d", each number 0..255 written with 1 to 3 digits; nothing else. */
@@ -37,7 +38,10 @@ bool route_internet_address_refreshable(const char *external);
 
 /* The saved address for a connection: external when away, internal at home. */
 const char *route_address(const device_info_t *info, bool away);
-/* Change one address of a PC; the other is left as it is. */
+/* An address as typed, cleaned: spaces around it removed, and a ":port" after
+ * it too (the menus show "address : port"; the PC's port is used anyway). */
+void route_clean_address(const char *in, char *out, size_t n);
+/* Change one address of a PC (cleaned); the other is left as it is. */
 void route_set_home_address(device_info_t *info, const char *address);
 void route_set_internet_address(device_info_t *info, const char *address);
 /* The box's public IPv4 (found from home): becomes the Internet address when
@@ -47,7 +51,9 @@ bool route_apply_public_ip(device_info_t *info, const char *public_ip);
 /* HOST_STATE_* of a saved PC.
  *   scan_status   HOST_OFFLINE / HOST_ONLINE / HOST_IP_CHANGED of the scan (check_host.h)
  *   current_ip    Home: the address the scan last saw it at ("" if none)
- *   on_lan        Away: the scan heard it on the network the Vita is on
+ *   on_lan        Away: the scan heard it on the network the Vita is on, or it
+ *                 answered at its home address
+ *   via_internet  Home: no answer at home, an answer at its Internet address
  *   pending_update Home: the scan offers a new home address for it */
 int route_host_state(bool away, const device_info_t *info, int scan_status, const char *current_ip, bool on_lan,
-                     bool pending_update);
+                     bool via_internet, bool pending_update);

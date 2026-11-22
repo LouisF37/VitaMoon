@@ -19,8 +19,10 @@ bool ui_host_wake(device_info_t *info);
  * background scan and the Connection setting. */
 int ui_host_state(int host_idx);
 const char *ui_host_state_text(int state);
-/* One sentence on what stands between the user and a stream on this PC. */
+/* One sentence on what stands between the user and a stream on this PC;
+ * the short form fits the one line of the home screen's large card. */
 const char *ui_host_advice(int state);
+const char *ui_host_advice_short(int state);
 /* X on a saved PC (index in known_devices): connect when it answers (straight
  * into app_id when not 0), offer to switch back to Home when the Away scan
  * hears it at home, its menu otherwise. */

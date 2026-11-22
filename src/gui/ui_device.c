@@ -209,7 +209,7 @@ static int ui_search_device_callback(int id, void *context, const input_data *in
 
     // Address, port (and MAC when known) come from the mDNS answer
     device_info_t *dev = &devices[id - DEVICE_ITEM];
-    // ui_connect_and_pairing also fills its Internet address (from home)
+    // Its Internet address is filled by the scan once it answers at home
     device_info_t *info = ui_connect_and_pairing(dev);
     if (info == NULL) {
       return 0;

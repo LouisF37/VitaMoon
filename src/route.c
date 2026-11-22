@@ -58,12 +58,38 @@ const char *route_address(const device_info_t *info, bool away) {
   return away ? info->external : info->internal;
 }
 
+void route_clean_address(const char *in, char *out, size_t n) {
+  if (n == 0)
+    return;
+  out[0] = '\0';
+  if (in == NULL)
+    return;
+  while (*in == ' ' || *in == '\t')
+    in++;
+  size_t len = strlen(in);
+  /* a port written after it: "a.b.c.d:47989", "name : 47989" */
+  size_t end = len;
+  while (end > 0 && (in[end - 1] == ' ' || in[end - 1] == '\t'))
+    end--;
+  size_t digits = end;
+  while (digits > 0 && in[digits - 1] >= '0' && in[digits - 1] <= '9')
+    digits--;
+  size_t colon = digits;
+  while (colon > 0 && (in[colon - 1] == ' ' || in[colon - 1] == '\t'))
+    colon--;
+  if (digits < end && colon > 0 && in[colon - 1] == ':')
+    end = colon - 1;
+  while (end > 0 && (in[end - 1] == ' ' || in[end - 1] == '\t'))
+    end--;
+  snprintf(out, n, "%.*s", (int)end, in);
+}
+
 void route_set_home_address(device_info_t *info, const char *address) {
-  snprintf(info->internal, sizeof(info->internal), "%s", address ? address : "");
+  route_clean_address(address, info->internal, sizeof(info->internal));
 }
 
 void route_set_internet_address(device_info_t *info, const char *address) {
-  snprintf(info->external, sizeof(info->external), "%s", address ? address : "");
+  route_clean_address(address, info->external, sizeof(info->external));
 }
 
 bool route_apply_public_ip(device_info_t *info, const char *public_ip) {
@@ -76,19 +102,22 @@ bool route_apply_public_ip(device_info_t *info, const char *public_ip) {
 }
 
 int route_host_state(bool away, const device_info_t *info, int scan_status, const char *current_ip, bool on_lan,
-                     bool pending_update) {
+                     bool via_internet, bool pending_update) {
   if (away) {
-    if (!route_internet_address_usable(info->external))
-      return HOST_STATE_NO_ADDRESS;
     /* Heard on this network: the Vita is at home, whatever the Internet
      * address answers (the box may send it back inside). */
     if (on_lan)
       return HOST_STATE_AT_HOME;
+    if (!route_internet_address_usable(info->external))
+      return HOST_STATE_NO_ADDRESS;
     return scan_status == HOST_ONLINE ? HOST_STATE_ONLINE : HOST_STATE_OFFLINE;
   }
   if (pending_update)
     return HOST_STATE_MOVED;
   if (current_ip && current_ip[0] && strcmp(info->internal, current_ip) != 0)
     return HOST_STATE_MOVED;
-  return scan_status == HOST_ONLINE ? HOST_STATE_ONLINE : HOST_STATE_OFFLINE;
+  if (scan_status == HOST_ONLINE)
+    return HOST_STATE_ONLINE;
+  /* Silent at home, answering over the Internet: the Vita is away. */
+  return via_internet ? HOST_STATE_AWAY_ONLY : HOST_STATE_OFFLINE;
 }
