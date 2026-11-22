@@ -544,4 +544,19 @@ In function ‘snprintf’,
   ok    no game for the large card: the library's first
 [home screen] 60 checks, 0 failed
 
+[cover_shape]
+  ok    the four corner pixels are transparent
+  ok    the four corners are the same
+  ok    pixels outside the corners (and the row padding) are untouched
+  ok    colours are kept: no dark fringe once filtered
+  ok    the edge is smoothed over one or two pixels
+  ok    opacity only grows from the corner inwards
+  ok    the straight edges start right after the radius
+  ok    the cleared area matches a circle of the radius
+  ok    a radius too large for the picture is reduced to half its height
+  ok    no picture: nothing happens
+  ok    a 120 px cover has 10 px corners, like the tiles
+  ok    a cover drawn at its own size keeps the picture's radius
+[cover_shape] 12 checks, 0 failed
+
 all tests passed

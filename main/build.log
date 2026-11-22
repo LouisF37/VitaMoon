@@ -26,27 +26,28 @@ to suppress it.
 -- Check for working CXX compiler: /home/runner/work/VitaMoon/VitaMoon/vitasdk/bin/arm-vita-eabi-g++ - skipped
 -- Detecting CXX compile features
 -- Detecting CXX compile features - done
--- Configuring done (0.7s)
+-- Configuring done (0.5s)
 -- Generating done (0.0s)
 -- Build files have been written to: /home/runner/work/VitaMoon/VitaMoon/build
-[  1%] Generating low-delay-stub/libSceAvcodecUser_stub_weak.a
-[  2%] Building C object third_party/CMakeFiles/mdnsniff.dir/mdnsniff/udp_sniffer_vita.c.obj
-[  2%] Building C object third_party/CMakeFiles/enet.dir/enet/callbacks.c.obj
-[  3%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_nal.c.obj
+[  2%] Generating low-delay-stub/libSceAvcodecUser_stub_weak.a
 [  3%] Built target low-delay-stub
-[  4%] Building C object third_party/CMakeFiles/inih.dir/inih/ini.c.obj
+[  2%] Building C object third_party/CMakeFiles/enet.dir/enet/callbacks.c.obj
+[  4%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_sei.c.obj
+[  3%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_nal.c.obj
+[  1%] Building C object third_party/CMakeFiles/mdnsniff.dir/mdnsniff/udp_sniffer_vita.c.obj
+[  8%] Linking C static library libmdnsniff.a
+[  8%] Built target mdnsniff
+[  9%] Building C object third_party/CMakeFiles/inih.dir/inih/ini.c.obj
+[ 10%] Linking C static library libinih.a
+[ 10%] Built target inih
+[  7%] Building C object third_party/CMakeFiles/enet.dir/enet/host.c.obj
+[ 11%] Building C object third_party/CMakeFiles/enet.dir/enet/list.c.obj
 [  5%] Building C object third_party/CMakeFiles/enet.dir/enet/compress.c.obj
-[  6%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_sei.c.obj
-[  7%] Linking C static library libinih.a
-[  7%] Built target inih
-[  8%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_stream.c.obj
-[  9%] Linking C static library libmdnsniff.a
-[  9%] Built target mdnsniff
-[ 10%] Building C object third_party/CMakeFiles/enet.dir/enet/host.c.obj
-[ 11%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/clear.c.obj
-[ 12%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/compare.c.obj
-[ 13%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/copy.c.obj
-[ 14%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/gen_uuid.c.obj
+[ 12%] Building C object third_party/CMakeFiles/enet.dir/enet/packet.c.obj
+[ 15%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/clear.c.obj
+[ 16%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/compare.c.obj
+[ 16%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/copy.c.obj
+[ 17%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/gen_uuid.c.obj
 /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/gen_uuid.c: In function 'random_get_bytes':
 /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/gen_uuid.c:97:24: warning: unused variable 'cbuf' [-Wunused-variable]
    97 |         unsigned char *cbuf = buf;
@@ -61,67 +62,66 @@ to suppress it.
 /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/gen_uuid.c:232:42: warning: unused variable 'state_f' [-Wunused-variable]
   232 |         THREAD_LOCAL FILE               *state_f;
       |                                          ^~~~~~~
-[ 15%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/isnull.c.obj
-[ 16%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/pack.c.obj
-[ 16%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/parse.c.obj
-[ 17%] Building C object third_party/CMakeFiles/enet.dir/enet/list.c.obj
-[ 17%] Built target param.sfo
-[ 18%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unpack.c.obj
+[ 18%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/isnull.c.obj
+[ 19%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/pack.c.obj
+[ 20%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/parse.c.obj
 In file included from /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/parse.c:37:
 /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/parse.c: In function 'uuid_parse':
 /home/runner/work/VitaMoon/VitaMoon/third_party/libuuid/src/parse.c:62:31: warning: array subscript has type 'char' [-Wchar-subscripts]
    62 |                 if (!isxdigit(*cp))
       |                               ^~~
-[ 19%] Building C object third_party/CMakeFiles/enet.dir/enet/packet.c.obj
-[ 20%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unparse.c.obj
-[ 21%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/uuid_time.c.obj
-[ 22%] Building C object third_party/CMakeFiles/enet.dir/enet/peer.c.obj
-[ 23%] Linking C static library liblibuuid.a
-[ 23%] Built target libuuid
-[ 24%] Building C object third_party/CMakeFiles/enet.dir/enet/protocol.c.obj
-[ 25%] Building C object third_party/CMakeFiles/enet.dir/enet/unix.c.obj
+[ 21%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unpack.c.obj
+[ 13%] Building C object third_party/CMakeFiles/enet.dir/enet/peer.c.obj
+[ 22%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/unparse.c.obj
+[ 24%] Building C object third_party/CMakeFiles/libuuid.dir/libuuid/src/uuid_time.c.obj
+[ 25%] Linking C static library liblibuuid.a
+[ 25%] Built target libuuid
+[ 25%] Built target param.sfo
+[ 23%] Building C object third_party/CMakeFiles/enet.dir/enet/unix.c.obj
+[ 14%] Building C object third_party/CMakeFiles/enet.dir/enet/protocol.c.obj
 [ 26%] Linking C static library libenet.a
 [ 26%] Built target enet
-[ 27%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/AudioStream.c.obj
-[ 29%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ByteBuffer.c.obj
-[ 29%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Connection.c.obj
+[ 28%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ByteBuffer.c.obj
+[ 29%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/AudioStream.c.obj
+[ 27%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Connection.c.obj
 [ 30%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ConnectionTester.c.obj
-[ 31%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ControlStream.c.obj
 [ 32%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/FakeCallbacks.c.obj
-[ 33%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/InputStream.c.obj
-[ 34%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/LinkedBlockingQueue.c.obj
-[ 35%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Misc.c.obj
-[ 36%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Platform.c.obj
-[ 37%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/PlatformCrypto.c.obj
-[ 38%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/PlatformSockets.c.obj
-[ 39%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/RecorderCallbacks.c.obj
+[ 33%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/LinkedBlockingQueue.c.obj
+[ 34%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Misc.c.obj
+[ 35%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/Platform.c.obj
+[ 31%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/ControlStream.c.obj
+[ 36%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/PlatformCrypto.c.obj
+[ 32%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/InputStream.c.obj
+[ 38%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/RecorderCallbacks.c.obj
+[ 37%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/PlatformSockets.c.obj
 [ 39%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/RtpAudioQueue.c.obj
 [ 40%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/RtpVideoQueue.c.obj
-[ 41%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/RtspConnection.c.obj
 [ 42%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/RtspParser.c.obj
-[ 43%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/SdpGenerator.c.obj
+[ 41%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/RtspConnection.c.obj
 [ 44%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/SimpleStun.c.obj
-[ 45%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/VideoDepacketizer.c.obj
+[ 43%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/SdpGenerator.c.obj
 [ 46%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/VideoStream.c.obj
-[ 47%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/nanors/rs.c.obj
 [ 48%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/nanors/deps/obl/oblas_common.c.obj
+[ 47%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/nanors/rs.c.obj
+[ 45%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/src/VideoDepacketizer.c.obj
 [ 49%] Building C object third_party/CMakeFiles/moonlight-common-c.dir/moonlight-common-c/nanors/deps/obl/oblas_lite.c.obj
-[ 50%] Linking C static library libmoonlight-common-c.a
-[ 50%] Built target moonlight-common-c
-[ 51%] Linking C static library libh264bitstream.a
-[ 51%] Built target h264bitstream
-[ 52%] Building C object CMakeFiles/vitamoon.elf.dir/src/config.c.obj
-[ 53%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/mapping.c.obj
-[ 54%] Building C object CMakeFiles/vitamoon.elf.dir/src/connection.c.obj
-[ 55%] Building C object CMakeFiles/vitamoon.elf.dir/src/debug.c.obj
-[ 56%] Building C object CMakeFiles/vitamoon.elf.dir/src/log.c.obj
-[ 57%] Building C object CMakeFiles/vitamoon.elf.dir/src/log_core.c.obj
-[ 58%] Building C object CMakeFiles/vitamoon.elf.dir/src/main.c.obj
-[ 59%] Building C object CMakeFiles/vitamoon.elf.dir/src/platform.c.obj
-[ 60%] Building C object CMakeFiles/vitamoon.elf.dir/src/util.c.obj
-[ 60%] Building C object CMakeFiles/vitamoon.elf.dir/src/device.c.obj
+[ 49%] Linking C static library libmoonlight-common-c.a
+[ 49%] Built target moonlight-common-c
+[  6%] Building C object third_party/CMakeFiles/h264bitstream.dir/h264bitstream/h264_stream.c.obj
+[ 50%] Linking C static library libh264bitstream.a
+[ 50%] Built target h264bitstream
+[ 54%] Building C object CMakeFiles/vitamoon.elf.dir/src/debug.c.obj
+[ 52%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/mapping.c.obj
+[ 53%] Building C object CMakeFiles/vitamoon.elf.dir/src/connection.c.obj
+[ 56%] Building C object CMakeFiles/vitamoon.elf.dir/src/log_core.c.obj
+[ 58%] Building C object CMakeFiles/vitamoon.elf.dir/src/platform.c.obj
+[ 57%] Building C object CMakeFiles/vitamoon.elf.dir/src/main.c.obj
+[ 59%] Building C object CMakeFiles/vitamoon.elf.dir/src/util.c.obj
+[ 55%] Building C object CMakeFiles/vitamoon.elf.dir/src/log.c.obj
 [ 61%] Building C object CMakeFiles/vitamoon.elf.dir/src/check_dir.c.obj
 [ 62%] Building C object CMakeFiles/vitamoon.elf.dir/src/wake_on_lan.c.obj
+[ 51%] Building C object CMakeFiles/vitamoon.elf.dir/src/config.c.obj
+[ 60%] Building C object CMakeFiles/vitamoon.elf.dir/src/device.c.obj
 /home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'remove_device':
 /home/runner/work/VitaMoon/VitaMoon/src/device.c:72:41: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
    72 |   snprintf(dir_path, sizeof(dir_path), "%s/%s", config.key_dir, name);
@@ -144,8 +144,6 @@ In function 'device_file_path',
 /home/runner/work/VitaMoon/VitaMoon/src/device.c:83:7: note: 'snprintf' output between 2 and 768 bytes into a destination of size 512
    83 |       snprintf(full_path, sizeof(full_path), "%s/%s", dir_path, dirent.d_name);
       |       ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[ 63%] Building C object CMakeFiles/vitamoon.elf.dir/src/audio/vita.c.obj
-[ 64%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/vita.c.obj
 /home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'device_file_path':
 /home/runner/work/VitaMoon/VitaMoon/src/device.c:123:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
   123 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
@@ -153,7 +151,6 @@ In function 'device_file_path',
 /home/runner/work/VitaMoon/VitaMoon/src/device.c:123:3: note: 'snprintf' output 12 or more bytes (assuming 4107) into a destination of size 512
   123 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[ 65%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/pacing.c.obj
 /home/runner/work/VitaMoon/VitaMoon/src/device.c: In function 'load_device_info':
 /home/runner/work/VitaMoon/VitaMoon/src/device.c:123:23: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 512 [-Wformat-truncation=]
   123 |   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
@@ -189,23 +186,24 @@ In function 'device_file_path',
 /home/runner/work/VitaMoon/VitaMoon/src/device.c:34:3: note: 'snprintf' output 1 or more bytes (assuming 4096) into a destination of size 512
    34 |   snprintf(new_dir, sizeof(new_dir), "%s%s", config.key_dir, new_name);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 65%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/pacing.c.obj
+[ 63%] Building C object CMakeFiles/vitamoon.elf.dir/src/audio/vita.c.obj
+[ 67%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/boxart.c.obj
+[ 68%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/cover_shape.c.obj
+[ 66%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/latency_test.c.obj
+[ 64%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/vita.c.obj
 [ 66%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/stream_stats.c.obj
-[ 67%] Building C object CMakeFiles/vitamoon.elf.dir/src/video/latency_test.c.obj
-[ 68%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/boxart.c.obj
-[ 69%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_library.c.obj
-[ 70%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_home.c.obj
 [ 71%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_help.c.obj
 [ 72%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/home_data.c.obj
 [ 73%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/quickmenu.c.obj
-[ 74%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/vita.c.obj
 [ 75%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/shortcuts.c.obj
 [ 76%] Building C object CMakeFiles/vitamoon.elf.dir/src/power/vita.c.obj
+[ 69%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_library.c.obj
 [ 77%] Building C object CMakeFiles/vitamoon.elf.dir/src/thread_policy.c.obj
 [ 78%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/motion.c.obj
-[ 79%] Building C object CMakeFiles/vitamoon.elf.dir/src/graphics.c.obj
 [ 80%] Building C object CMakeFiles/vitamoon.elf.dir/src/font.c.obj
-[ 80%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/guilib.c.obj
-[ 81%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/theme.c.obj
+[ 79%] Building C object CMakeFiles/vitamoon.elf.dir/src/graphics.c.obj
+[ 74%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/vita.c.obj
 /home/runner/work/VitaMoon/VitaMoon/src/input/vita.c: In function 'vitainput_config':
 /home/runner/work/VitaMoon/VitaMoon/src/input/vita.c:1075:65: warning: '%s' directive output may be truncated writing up to 4095 bytes into a region of size 256 [-Wformat-truncation=]
  1075 |         snprintf(mapping_file_path, sizeof(mapping_file_path), "%s/%s", config.key_dir, config.mapping);
@@ -213,24 +211,28 @@ In function 'device_file_path',
 /home/runner/work/VitaMoon/VitaMoon/src/input/vita.c:1075:9: note: 'snprintf' output 2 or more bytes (assuming 4097) into a destination of size 256
  1075 |         snprintf(mapping_file_path, sizeof(mapping_file_path), "%s/%s", config.key_dir, config.mapping);
       |         ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[ 82%] Building C object CMakeFiles/vitamoon.elf.dir/src/i18n.c.obj
+[ 83%] Building C object CMakeFiles/vitamoon.elf.dir/src/i18n.c.obj
 [ 83%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ime.c.obj
-[ 84%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui.c.obj
+[ 81%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/guilib.c.obj
+[ 70%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_home.c.obj
 [ 85%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/splash.c.obj
+[ 84%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui.c.obj
 /home/runner/work/VitaMoon/VitaMoon/src/gui/ui.c: In function 'ui_host_wake':
 /home/runner/work/VitaMoon/VitaMoon/src/gui/ui.c:116:3: warning: 'strncpy' output may be truncated copying 27 bytes from a string of length 255 [-Wstringop-truncation]
   116 |   strncpy(broadcast, info->internal, sizeof(broadcast) - 5);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[ 86%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_settings.c.obj
-[ 87%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_connect.c.obj
-[ 88%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_device.c.obj
+[ 82%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/theme.c.obj
 [ 89%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_check.c.obj
-[ 90%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/client.c.obj
+[ 88%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_device.c.obj
 [ 91%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/http.c.obj
+[ 87%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_connect.c.obj
+[ 92%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/mkcert.c.obj
+[ 94%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/url.c.obj
+[ 93%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/sps.c.obj
+[ 90%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/client.c.obj
 /home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:370:13: warning: 'hex_to_bytes' defined but not used [-Wunused-function]
   370 | static void hex_to_bytes(const char *in, unsigned char* out, size_t len) {
       |             ^~~~~~~~~~~~
-[ 92%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/mkcert.c.obj
 /home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c: In function 'gs_pair':
 /home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:517:137: warning: '%s' directive output may be truncated writing up to 8191 bytes into a region of size between 4682 and 5025 [-Wformat-truncation=]
   517 |   snprintf(url, sizeof(url), "http://%s:%u/pair?uniqueid=%s&uuid=%s&devicename=%s&updateState=1&phrase=getservercert&salt=%s&clientcert=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str, device_name, salt_hex, cert_hex);
@@ -238,11 +240,9 @@ In function 'device_file_path',
 /home/runner/work/VitaMoon/VitaMoon/libgamestream/client.c:517:3: note: 'snprintf' output 96 or more bytes (assuming 8630) into a destination of size 5120
   517 |   snprintf(url, sizeof(url), "http://%s:%u/pair?uniqueid=%s&uuid=%s&devicename=%s&updateState=1&phrase=getservercert&salt=%s&clientcert=%s", server->serverInfo.address, server->httpPort, unique_id, uuid_str, device_name, salt_hex, cert_hex);
       |   ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-[ 93%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/sps.c.obj
-[ 94%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/url.c.obj
+[ 97%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/keyboardkeys.c.obj
 [ 95%] Building C object CMakeFiles/vitamoon.elf.dir/libgamestream/xml.c.obj
 [ 96%] Building C object CMakeFiles/vitamoon.elf.dir/src/keyboardsystem.c.obj
-[ 97%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/keyboardkeys.c.obj
 [ 98%] Building C object CMakeFiles/vitamoon.elf.dir/src/input/touchabsolute.c.obj
 [ 99%] Building C object CMakeFiles/vitamoon.elf.dir/src/check_host.c.obj
 /home/runner/work/VitaMoon/VitaMoon/src/check_host.c: In function 'host_scan_thread':
@@ -258,6 +258,7 @@ In function 'device_file_path',
 /home/runner/work/VitaMoon/VitaMoon/src/check_host.c:145:17: warning: 'strncpy' output may be truncated copying 63 bytes from a string of length 530 [-Wstringop-truncation]
   145 |                 strncpy(g_host_status[i].current_ip, info->internal, sizeof(g_host_status[i].current_ip)-1);
       |                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+[ 86%] Building C object CMakeFiles/vitamoon.elf.dir/src/gui/ui_settings.c.obj
 [100%] Linking C executable vitamoon.elf
 /home/runner/work/VitaMoon/VitaMoon/vitasdk/arm-vita-eabi/bin/ld: warning: /home/runner/work/VitaMoon/VitaMoon/vitasdk/bin/../lib/gcc/arm-vita-eabi/15.2.0/crtn.o: missing .note.GNU-stack section implies executable stack
 /home/runner/work/VitaMoon/VitaMoon/vitasdk/arm-vita-eabi/bin/ld: NOTE: This behaviour is deprecated and will be removed in a future version of the linker
@@ -265,15 +266,15 @@ In function 'device_file_path',
 [100%] Built target vitamoon.velf
 [100%] Built target vitamoon.vpk
 total 25M
--rw-r--r--  1 runner runner  17K Nov 19 07:02 CMakeCache.txt
-drwxr-xr-x 10 runner runner 4.0K Nov 19 07:03 CMakeFiles
--rw-r--r--  1 runner runner  54K Nov 19 07:02 Makefile
--rw-r--r--  1 runner runner 2.3K Nov 19 07:02 cmake_install.cmake
--rw-r--r--  1 runner runner 2.9M Nov 19 07:03 eboot.bin
-drwxr-xr-x  2 runner runner 4.0K Nov 19 07:02 livearea
-drwxr-xr-x  2 runner runner 4.0K Nov 19 07:02 low-delay-stub
--rw-r--r--  1 runner runner  912 Nov 19 07:02 param.sfo
-drwxr-xr-x  3 runner runner 4.0K Nov 19 07:03 third_party
--rwxr-xr-x  1 runner runner 7.9M Nov 19 07:03 vitamoon.elf
--rw-r--r--  1 runner runner 9.3M Nov 19 07:03 vitamoon.velf
--rw-r--r--  1 runner runner 4.1M Nov 19 07:03 vitamoon.vpk
+-rw-r--r--  1 runner runner  17K Nov 22 09:12 CMakeCache.txt
+drwxr-xr-x 10 runner runner 4.0K Nov 22 09:13 CMakeFiles
+-rw-r--r--  1 runner runner  56K Nov 22 09:12 Makefile
+-rw-r--r--  1 runner runner 2.3K Nov 22 09:12 cmake_install.cmake
+-rw-r--r--  1 runner runner 2.9M Nov 22 09:13 eboot.bin
+drwxr-xr-x  2 runner runner 4.0K Nov 22 09:12 livearea
+drwxr-xr-x  2 runner runner 4.0K Nov 22 09:12 low-delay-stub
+-rw-r--r--  1 runner runner  912 Nov 22 09:12 param.sfo
+drwxr-xr-x  3 runner runner 4.0K Nov 22 09:12 third_party
+-rwxr-xr-x  1 runner runner 7.9M Nov 22 09:13 vitamoon.elf
+-rw-r--r--  1 runner runner 9.3M Nov 22 09:13 vitamoon.velf
+-rw-r--r--  1 runner runner 4.1M Nov 22 09:13 vitamoon.vpk
