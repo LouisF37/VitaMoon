@@ -488,7 +488,7 @@ static const char *k_categories[CAT_COUNT] = {
 typedef enum { ROW_CHOICE, ROW_TOGGLE, ROW_ACTION } row_type;
 
 enum {
-  S_LANGUAGE, S_THEME, S_TWINKLE, S_MOVING_SKY, S_SKY_DIRECTION, S_SHOW_STATS, S_LIBRARY_STATS, S_SWAP_XO, S_KEEP_AWAKE, S_AUTO_RECONNECT,
+  S_CONNECTION, S_LANGUAGE, S_THEME, S_TWINKLE, S_MOVING_SKY, S_SKY_DIRECTION, S_SHOW_STATS, S_LIBRARY_STATS, S_SWAP_XO, S_KEEP_AWAKE, S_AUTO_RECONNECT,
   S_DEBUG_LOG,
   S_RESOLUTION, S_FPS, S_BITRATE, S_CROP, S_LOCAL_AUDIO,
   S_PROFILE, S_DISPLAY_MODE, S_LL_AUDIO, S_CATCHUP, S_YUV, S_REORDER, S_BOOST, S_MATCH_REFRESH,
@@ -510,6 +510,8 @@ typedef struct {
 
 static const setting_row k_rows[] = {
   /* General */
+  {S_CONNECTION, CAT_GENERAL, ROW_CHOICE, N_("Connection"),
+   N_("At home: the PC on your network. Away: over the Internet, with its Internet address and the away bitrate.")},
   {S_LANGUAGE, CAT_GENERAL, ROW_CHOICE, N_("Language"),
    N_("Interface language. Takes effect immediately.")},
   {S_THEME, CAT_GENERAL, ROW_CHOICE, N_("Theme"),
@@ -607,7 +609,7 @@ static const setting_row k_rows[] = {
 
   /* Advanced */
   {S_REMOTE, CAT_ADVANCED, ROW_TOGGLE, N_("Optimise for the Internet"),
-   N_("For playing away from home. Leave off on your home network.")},
+   N_("Removes the priority marks of the video and sound. With Sunshine, nothing else: leave off, at home and away.")},
   {S_RFI, CAT_ADVANCED, ROW_TOGGLE, N_("Reference frame invalidation"),
    N_("Recovers from lost frames without a key frame. NVIDIA hosts only: leave off otherwise.")},
   {S_SOPS, CAT_ADVANCED, ROW_TOGGLE, N_("Let the PC adapt its screen"),
@@ -636,6 +638,19 @@ static const setting_row k_rows[] = {
    N_("The PC sends sound every 5 ms instead of 10: less sound delay, twice as many packets on the Wi-Fi.")},
 };
 #define ROW_COUNT ((int)(sizeof(k_rows) / sizeof(k_rows[0])))
+
+/* The Bitrate row sets the bitrate of the connection in use (Home or Away). */
+static const char *row_label(const setting_row *row) {
+  if (row->id == S_BITRATE && config.away)
+    return tr("Away bitrate");
+  return tr(row->label);
+}
+
+static const char *row_help(const setting_row *row) {
+  if (row->id == S_BITRATE && config.away)
+    return tr("For the Away connection. Each Mbps uses about 450 MB of data an hour. X: type a value.");
+  return tr(row->help);
+}
 
 /* ---- values ---- */
 
@@ -858,10 +873,13 @@ static void row_value(int id, char *out, size_t n) {
     case S_FPS:
       snprintf(out, n, tr("%d fps"), config.stream.fps);
       break;
+    case S_CONNECTION:
+      snprintf(out, n, "%s", config.away ? tr("Away") : tr("At home"));
+      break;
     case S_BITRATE: {
       char mbps[32];
-      format_mbps(config.stream.bitrate, mbps, sizeof(mbps));
-      if (config.auto_bitrate)
+      format_mbps(config_stream_bitrate(&config), mbps, sizeof(mbps));
+      if (config.away ? config.away_auto_bitrate : config.auto_bitrate)
         snprintf(out, n, tr("Auto (%s)"), mbps);
       else
         snprintf(out, n, "%s", mbps);
@@ -1038,26 +1056,34 @@ static bool row_change(int id, int dir) {
       config_apply_auto_bitrate(&config);
       return true;
     }
+    case S_CONNECTION:
+      config.away = !config.away;
+      LOGI("settings", "connection: %s", config.away ? "Away" : "Home");
+      return true;
     case S_BITRATE: {
+      /* the bitrate of the connection in use */
+      int *bitrate = config.away ? &config.away_bitrate : &config.stream.bitrate;
+      bool *automatic = config.away ? &config.away_auto_bitrate : &config.auto_bitrate;
       if (dir == 0) {
         if (!ask_number(tr("Bitrate in kbps (for example 8000)"), typed, sizeof(typed)))
           return false;
         int kbps = atoi(typed);
-        if (kbps < 500 || kbps > 100000) {
+        // the settings file keeps 500..50000 (config_sanitize)
+        if (kbps < 500 || kbps > 50000) {
           display_error(tr("Incorrect bitrate entered: %s"), typed);
           return false;
         }
-        config.stream.bitrate = kbps;
-        config.auto_bitrate = false;
+        *bitrate = kbps;
+        *automatic = false;
         return true;
       }
       const int count = sizeof(k_bitrate_values) / sizeof(int);
-      int pos = step_in_list(k_bitrate_values, count, config.auto_bitrate ? 0 : config.stream.bitrate, step);
-      config.auto_bitrate = k_bitrate_values[pos] == 0;
-      if (config.auto_bitrate)
+      int pos = step_in_list(k_bitrate_values, count, *automatic ? 0 : *bitrate, step);
+      *automatic = k_bitrate_values[pos] == 0;
+      if (*automatic)
         config_apply_auto_bitrate(&config);
       else
-        config.stream.bitrate = k_bitrate_values[pos];
+        *bitrate = k_bitrate_values[pos];
       return true;
     }
     case S_PROFILE: {
@@ -1318,7 +1344,7 @@ static void settings_draw_screen(settings_view *v) {
       theme_chevron(right - 6, cy, 5.5f, 1, !enabled ? RGBA8(255, 255, 255, 40) : (focused ? TH_TEXT : RGBA8(255, 255, 255, 90)));
       label_right = right - 28;
     }
-    theme_text_fit(SET_PANE_X + 18, cy + TS_BODY * 0.36f, label_color, TS_BODY, tr(row->label),
+    theme_text_fit(SET_PANE_X + 18, cy + TS_BODY * 0.36f, label_color, TS_BODY, row_label(row),
                    (int)(label_right - (SET_PANE_X + 18)));
   }
   if (scrollable) {
@@ -1337,7 +1363,7 @@ static void settings_draw_screen(settings_view *v) {
     if (!row_enabled(row->id))
       snprintf(text, sizeof(text), "%s", row_blocked_reason(row->id));
     else
-      snprintf(text, sizeof(text), "%s", tr(row->help));
+      snprintf(text, sizeof(text), "%s", row_help(row));
     char lines[4][256];
     int n = theme_wrap(TS_SMALL, text, SET_PANE_W - 36, lines, 4);
 #ifdef UI_PREVIEW
@@ -1543,6 +1569,7 @@ static int summary_row(int which) {
     case SETTINGS_SUM_THEME: return S_THEME;
     case SETTINGS_SUM_MOVING_SKY: return S_MOVING_SKY;
     case SETTINGS_SUM_REMOTE: return S_REMOTE;
+    case SETTINGS_SUM_CONNECTION: return S_CONNECTION;
     default: return -1;
   }
 }
@@ -1551,7 +1578,7 @@ const char *ui_settings_label(int which) {
   int id = summary_row(which);
   for (int i = 0; id >= 0 && i < ROW_COUNT; i++)
     if (k_rows[i].id == id)
-      return tr(k_rows[i].label);
+      return row_label(&k_rows[i]);
   return "";
 }
 

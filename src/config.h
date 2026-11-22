@@ -93,6 +93,9 @@ typedef struct _CONFIGURATION {
   int display_mode;         // DISPLAY_MODE_*
   bool decoder_catchup;     // pull pictures the hardware decoder holds back
   bool auto_bitrate;        // bitrate follows resolution and frame rate
+  bool away;                // Connection: false = Home (the PC's home address), true = Away (its Internet address)
+  int away_bitrate;         // bitrate of the Away connection, kbps (stream.bitrate is the Home one)
+  bool away_auto_bitrate;   // ... follows resolution and frame rate (config_away_auto_bitrate)
   bool http_keepalive;      // keep the menu connections to the PC open between requests
   bool ui_msaa;             // 4x multisampling (read once, when the graphics start)
   bool decode_yuv;          // the decoder outputs YUV and the GPU converts it (faster)
@@ -154,8 +157,13 @@ extern CONFIGURATION config;
 
 /* Bitrate (kbps) suited to the Vita's Wi-Fi for a resolution and frame rate. */
 int config_auto_bitrate(int width, int height, int fps);
-/* Recomputes stream.bitrate when the automatic bitrate is on. */
+/* The automatic bitrate of the Away connection: three quarters of the Home
+ * one (6 Mbps at 960 x 544, 60 fps), for a phone's or a hotel's connection. */
+int config_away_auto_bitrate(int width, int height, int fps);
+/* Recomputes stream.bitrate and away_bitrate when their automatic bitrate is on. */
 void config_apply_auto_bitrate(PCONFIGURATION config);
+/* The bitrate a stream starts with: the Away one or the Home one. */
+int config_stream_bitrate(const CONFIGURATION *config);
 extern char *config_path;
 
 extern bool inputAdded;

@@ -3,6 +3,7 @@
 #define CHECK_HOST_H
 
 #include "device.h"
+#include <stdbool.h>
 #include <stdint.h>
 #include <stddef.h>
 
@@ -18,6 +19,7 @@ extern "C" {
 struct host_status {
     int status; // 0: offline, 1: online, 2: ip changed
     char current_ip[64];
+    bool on_lan; // Away connection: heard over mDNS on the network the Vita is on
 };
 
 #include <psp2/kernel/threadmgr.h>
@@ -30,6 +32,11 @@ extern volatile int g_host_status_changed;
 
 void start_host_scan_thread();
 void stop_host_scan_thread();
+
+/* The home box's public IPv4, found by the scan (STUN) while a PC answers at a
+ * home address, for the Internet address of the PCs (route_apply_public_ip).
+ * Copied into out (empty when unknown); false when unknown. */
+bool host_scan_public_ip(char *out, size_t n);
 
 #ifdef __cplusplus
 }

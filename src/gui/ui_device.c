@@ -209,21 +209,11 @@ static int ui_search_device_callback(int id, void *context, const input_data *in
 
     // Address, port (and MAC when known) come from the mDNS answer
     device_info_t *dev = &devices[id - DEVICE_ITEM];
+    // ui_connect_and_pairing also fills its Internet address (from home)
     device_info_t *info = ui_connect_and_pairing(dev);
     if (info == NULL) {
       return 0;
     }
-
-    unsigned int extern_addr = 0;
-    if (LiFindExternalAddressIP4("stun.stunprotocol.org", 3478, &extern_addr) == 0) {
-      struct sockaddr_in addr;
-      addr.sin_family = AF_INET;
-      addr.sin_addr.s_addr = extern_addr;
-      ipv4_address_to_string(&addr, info->external, 16);
-    }
-
-    save_device_info(info);
-
     return 1;
   }
   //TODO: Return proper on all code paths

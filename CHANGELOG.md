@@ -3,6 +3,55 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.6.0-beta.1 "Premier Croissant" (2026-11-22)
+
+Playing away from home: a *Connection* setting, Home or Away, picks which address of the PC is used,
+each with its own bitrate. Settings and pairings are kept; at home nothing changes unless Away is
+chosen.
+
+- *Settings > General > Connection*: **At home** (the default) uses only the PC's address on the home
+  network: the Internet address is no longer tried after it. **Away** uses only its Internet address
+  (the box's public IP, or a name such as a DynDNS one), with the Away bitrate.
+- A saved PC keeps its two addresses apart. Up to 1.5, *Change the address* and the "new address"
+  question wrote the same address in both, which lost the Internet address; and a `prefer_external`
+  flag chose the order of the tries (no longer read). Now a new home address (found by the scan or
+  typed) never touches the Internet address, and the reverse; in Away, the PC's menu offers *Change
+  the Internet address* (empty forgets it).
+- The Internet address fills itself: when a PC is added from home, and while the scan sees a PC at its
+  home address, the box's public IP is asked to a STUN server (Moonlight's own,
+  `stun.moonlight-stream.org`, as moonlight-qt does, then `stun.stunprotocol.org`), at most every 10
+  minutes. A name typed by hand is never replaced; an old copy of the home address is.
+- Names are looked up with the Vita's own resolver (`sceNetResolverStartNtoa`, `src/net_address.c`):
+  libcurl, moonlight-common-c and the STUN request only ever get IPs. VitaRPS5 found the usual lookup
+  unreliable on the Vita.
+- Away, the scan tries each PC at its Internet address (one TCP connection to port 47989 per round,
+  a few hundred bytes) and still listens for it on the Vita's network. States: *Online (away)*,
+  *Unreachable*, *No Internet address*, *On the home network*. Wake-on-LAN is not offered: it does not
+  cross the Internet.
+- Reminders: at home, when the PC does not answer, the question offers the Away connection. Away,
+  when the PC is heard on the Vita's network, X (or *Switch to At home* on the home screen) offers to go
+  back to Home, and takes the address it was heard at as its home address if it changed.
+- The *Bitrate* row sets the bitrate of the connection in use (*Away bitrate* in Away). Away's Auto is
+  three quarters of Home's: 6 Mbps at 960 x 544, 60 fps. A stream keeps the bitrate it started with:
+  Sunshine does not lower it on its own.
+- *Optimise for the Internet* (Advanced) says what it does with Sunshine: it only removes the priority
+  marks of the video and sound packets. Sunshine computes the video bitrate from the bitrate chosen,
+  so the 500 kbps moonlight-common-c takes off for the Internet do not apply. Off by default, at home and
+  away.
+- Computers page and home preview: the details show the address of the connection in use and the
+  connection, instead of the pairing (only paired PCs are listed).
+- A bitrate typed by hand goes up to 50 Mbps, what the settings file keeps: a higher one was reset to
+  Auto at the next start.
+- French: *Réveil du PC* instead of *Réveil à distance* for Wake-on-LAN, not to be read as the Away
+  connection.
+- The logs and the session statistics say which connection and bitrate a stream used, and at which
+  address the PC was opened.
+- Tests: `tools/tests/test_route.c` (36 checks), `test_config.c` (the connection and both bitrates);
+  preview scenarios `away`, `away_pcs`, `away_at_home`, `away_at_home_pcs`, `away_settings`,
+  `home_no_answer`; journeys `j_away_play` (opened at the Internet address, 6000 kbps),
+  `j_away_name`, `j_away_no_answer`, `j_pc_does_not_answer_switch_away`. Not tested on a Vita yet:
+  the name lookup and the STUN request.
+
 ## 1.5.0 "Premier Croissant" (2026-11-22)
 
 The first final version since 1.0.0: everything of the four 1.1.0 betas (in short at the end of this

@@ -447,9 +447,10 @@ static void open_session_files(void) {
              APP_NAME " stream statistics\n"
              "build: %s\n"
              "date: %04d-%02d-%02d %02d:%02d:%02d\n"
-             "stream: %dx%d @ %d fps, requested bitrate %d kbps, packets %d bytes\n",
+             "stream: %dx%d @ %d fps, requested bitrate %d kbps, packets %d bytes, %s connection\n",
              BUILD_ID, t.year, t.month, t.day, t.hour, t.minute, t.second,
-             s_width, s_height, s_fps, config.stream.bitrate, config.stream.packetSize);
+             s_width, s_height, s_fps, config_stream_bitrate(&config), config.stream.packetSize,
+             config.away ? "Away" : "Home");
     write_fd(info, line);
     snprintf(line, sizeof(line),
              "settings: vblank_wait=%d frame_pacer=%d ref_frame_invalidation=%d center_region_only=%d\n"

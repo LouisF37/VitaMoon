@@ -238,7 +238,7 @@ static void write_result(void) {
            "settings: decoder_catchup=%d yuv_decode=%d reorder_wait_ms=%d low_latency_audio=%d\n"
            "tests: decoder_delay=%d decoder_refs=%d skip_late=%d immediate_flip=%d audio_5ms=%d\n\n",
            BUILD_ID, t.year, t.month, t.day, t.hour, t.minute, t.second,
-           config.stream.width, config.stream.height, config.stream.fps, config.stream.bitrate, config.display_mode,
+           config.stream.width, config.stream.height, config.stream.fps, config_stream_bitrate(&config), config.display_mode,
            config.decoder_catchup, config.decode_yuv, config.video_reorder_wait_ms, config.low_latency_audio,
            config.test_decoder_delay, config.test_decoder_refs, config.test_skip_late, config.test_immediate_flip,
            config.test_audio_5ms);

@@ -7,10 +7,9 @@ struct device_info {
   char name[256];
   uint16_t port;
   bool paired;
-  char internal[256];
-  char external[256];
+  char internal[256];   // address on the home network (Home connection)
+  char external[256];   // address of the home box on the Internet, an IP or a name (Away connection)
   char mac[18]; // XX:XX:XX:XX:XX:XX\0
-  bool prefer_external;
 };
 
 typedef struct device_infos device_infos_t;
@@ -28,7 +27,6 @@ void devices_lock(void);
 void devices_unlock(void);
 
 device_info_t* find_device(const char *name);
-device_info_t* find_device_by_address(const char *address);
 device_info_t* append_device(device_info_t *info);
 bool update_device(device_info_t *info);
 void load_all_known_devices();

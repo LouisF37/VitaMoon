@@ -2,6 +2,7 @@
 
 #include <stdbool.h>
 #include "../device.h"
+#include "../route.h"
 
 /* The home screen: a side menu (Home, Library, Computers, Settings, Help, Quit)
  * and a preview of the entry under the cursor; on Home, a dashboard with the
@@ -14,7 +15,17 @@ void ui_computers_page(void);
 void ui_host_manage_menu(device_info_t *info);
 /* Sends the Wake-on-LAN packet and says so; false when nothing could be sent. */
 bool ui_host_wake(device_info_t *info);
-/* HOST_STATE_* of a saved PC (index in known_devices), from the background scan. */
-enum { HOST_STATE_OFFLINE, HOST_STATE_ONLINE, HOST_STATE_MOVED };
+/* HOST_STATE_* (route.h) of a saved PC (index in known_devices), from the
+ * background scan and the Connection setting. */
 int ui_host_state(int host_idx);
 const char *ui_host_state_text(int state);
+/* One sentence on what stands between the user and a stream on this PC. */
+const char *ui_host_advice(int state);
+/* X on a saved PC (index in known_devices): connect when it answers (straight
+ * into app_id when not 0), offer to switch back to Home when the Away scan
+ * hears it at home, its menu otherwise. */
+void ui_host_open(int host_idx, int app_id);
+/* Gives the box's public address found by the scan (check_host.h) to the PCs
+ * that answer at home, as their Internet address when it may be replaced
+ * (route_apply_public_ip); saves those that changed. */
+void ui_hosts_refresh_internet_address(void);

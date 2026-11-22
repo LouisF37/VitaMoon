@@ -197,9 +197,7 @@ static void load_settings_cards(void) {
   c = &view.settings[SETTINGS_CAT_GENERAL];
   ui_settings_value(SETTINGS_SUM_LANGUAGE, c->value, sizeof(c->value));
   label_value(c->line[0], sizeof(c->line[0]), SETTINGS_SUM_THEME);
-  char sky[64];
-  ui_settings_value(SETTINGS_SUM_MOVING_SKY, sky, sizeof(sky));
-  snprintf(c->line[1], sizeof(c->line[1]), tr("Sky: %s"), sky);
+  label_value(c->line[1], sizeof(c->line[1]), SETTINGS_SUM_CONNECTION);
 
   c = &view.settings[SETTINGS_CAT_VIDEO];
   ui_settings_value(SETTINGS_SUM_RESOLUTION, c->value, sizeof(c->value));
@@ -530,7 +528,7 @@ static void state_line(float x, float baseline, int state, const char *paused_te
     dot = TH_TEXT3;
     text = tr("Checking...");
   } else {
-    dot = state == HOST_STATE_ONLINE ? TH_OK : state == HOST_STATE_MOVED ? TH_WARN : TH_ERR;
+    dot = state == HOST_STATE_ONLINE ? TH_OK : state == HOST_STATE_OFFLINE ? TH_ERR : TH_WARN;
     text = ui_host_state_text(state);
   }
   theme_circle(x + 4, baseline - 4, 4, dot);
@@ -586,7 +584,7 @@ static bool inside(int tx, int ty, rect r) {
 }
 
 /* What the large card of Home does now. */
-typedef enum { HERO_ADD, HERO_PAUSED, HERO_WAKE, HERO_OPTIONS, HERO_CONTINUE, HERO_LIBRARY } hero_kind;
+typedef enum { HERO_ADD, HERO_PAUSED, HERO_WAKE, HERO_OPTIONS, HERO_HOME, HERO_CONTINUE, HERO_LIBRARY } hero_kind;
 
 static hero_kind hero_now(void) {
   if (view.host < 0 && !view.connected)
@@ -594,9 +592,12 @@ static hero_kind hero_now(void) {
   if (view.connected)
     return HERO_PAUSED;
   int state = shown_state();
-  if (state == HOST_STATE_OFFLINE)
+  /* Wake-on-LAN only reaches the network the Vita is on: at home */
+  if (state == HOST_STATE_OFFLINE && !config.away)
     return shown_host() && shown_host()->mac[0] ? HERO_WAKE : HERO_OPTIONS;
-  if (state == HOST_STATE_MOVED)
+  if (state == HOST_STATE_AT_HOME)
+    return HERO_HOME;
+  if (state == HOST_STATE_OFFLINE || state == HOST_STATE_MOVED || state == HOST_STATE_NO_ADDRESS)
     return HERO_OPTIONS;
   return view.resume ? HERO_CONTINUE : HERO_LIBRARY;
 }
@@ -748,15 +749,15 @@ static void draw_hero(bool focused) {
       button = tr("Wake the PC");
       icon = ICON_POWER;
       break;
-    case HERO_OPTIONS: {
-      bool moved = shown_state() == HOST_STATE_MOVED;
-      tag = moved ? tr("Address changed") : tr("Offline");
-      tag_color = moved ? TH_WARN : TH_TEXT3;
+    case HERO_OPTIONS:
+    case HERO_HOME: {
+      int state = shown_state();
+      tag = ui_host_state_text(state);
+      tag_color = state == HOST_STATE_OFFLINE ? TH_TEXT3 : TH_WARN;
       title = host_name;
-      snprintf(meta[0], sizeof(meta[0]), "%s",
-               moved ? tr("This PC answers from a new address: open it to update.")
-                     : tr("No answer. Is the PC on, with Sunshine running?"));
-      button = tr("PC options");
+      snprintf(meta[0], sizeof(meta[0]), "%s", ui_host_advice(state));
+      button = kind == HERO_HOME ? tr("Switch to At home") : tr("PC options");
+      icon = kind == HERO_HOME ? ICON_HOME : NULL;
       game = view.resume;
       break;
     }
@@ -944,7 +945,10 @@ static void draw_computers_preview(void) {
       state = -1;
     const char *paused = view.connected ? tr("Stream paused") : NULL;
     char address[320];
-    snprintf(address, sizeof(address), "%s : %d", d->internal, d->port);
+    if (config.away && !route_internet_address_usable(d->external))
+      snprintf(address, sizeof(address), "%s", tr("Not known yet"));
+    else
+      snprintf(address, sizeof(address), "%s : %d", route_address(d, config.away), d->port);
     if (n == 1) {
       draw_icon(ICON_DESKTOP, r.x + 24, r.y + 46, TH_TEXT);
       theme_text_fit(r.x + 24, r.y + 104, TH_TEXT, TS_LEAD, d->name, 200);
@@ -952,9 +956,10 @@ static void draw_computers_preview(void) {
       float dx = r.x + 250, dw = r.w - 250 - 24;
       char stream[64];
       snprintf(stream, sizeof(stream), "%d x %d, %d fps", config.stream.width, config.stream.height, config.stream.fps);
-      detail_row(dx, r.y + 52, dw, tr("Address"), address);
-      detail_row(dx, r.y + 88, dw, tr("Pairing"), d->paired ? tr("Paired") : tr("Not paired"));
-      detail_row(dx, r.y + 124, dw, tr("Wake-on-LAN"), d->mac[0] ? tr("Ready") : tr("Not ready yet"));
+      detail_row(dx, r.y + 52, dw, config.away ? tr("Internet address") : tr("Address"), address);
+      detail_row(dx, r.y + 88, dw, tr("Connection"), config.away ? tr("Away") : tr("At home"));
+      detail_row(dx, r.y + 124, dw, tr("Wake-on-LAN"),
+                 config.away ? tr("At home only") : d->mac[0] ? tr("Ready") : tr("Not ready yet"));
       detail_row(dx, r.y + 160, dw, tr("Stream"), stream);
     } else {
       draw_icon(ICON_DESKTOP, r.x + 18, r.y + r.h / 2, TH_TEXT2);
@@ -962,7 +967,8 @@ static void draw_computers_preview(void) {
       state_line(r.x + 52, r.y + 47, state, paused);
       theme_text_fit_right(r.x + r.w - 18, r.y + 26, TH_TEXT2, TS_SMALL, address, 260);
       theme_text_fit_right(r.x + r.w - 18, r.y + 46, TH_TEXT3, TS_MICRO,
-                           d->mac[0] ? tr("Wake-on-LAN ready") : tr("Wake-on-LAN not ready"), 260);
+                           config.away ? tr("Away connection")
+                                       : d->mac[0] ? tr("Wake-on-LAN ready") : tr("Wake-on-LAN not ready"), 260);
     }
   }
   if (view.connected)
@@ -1030,6 +1036,7 @@ static const char *hero_action(void) {
     case HERO_PAUSED: return tr("Resume");
     case HERO_WAKE: return tr("Wake the PC");
     case HERO_OPTIONS: return tr("PC options");
+    case HERO_HOME: return tr("Switch to At home");
     case HERO_CONTINUE: return tr("Continue");
     default: return tr("Open the library");
   }
@@ -1058,7 +1065,9 @@ static int home_hints(theme_hint_item *out) {
       case HOME_MENU_COMPUTERS:
         if (nav.item < pcs_shown()) {
           int i = view.connected ? view.host : view.paired[nav.item];
-          what = view.connected ? tr("Resume") : ui_host_state(i) == HOST_STATE_ONLINE ? tr("Connect") : tr("Open");
+          int state = view.connected ? HOST_STATE_ONLINE : ui_host_state(i);
+          what = view.connected ? tr("Resume")
+                 : state == HOST_STATE_ONLINE || state == HOST_STATE_AT_HOME ? tr("Connect") : tr("Open");
         }
         break;
       case HOME_MENU_SETTINGS:
@@ -1126,8 +1135,9 @@ static void open_host(int app_id) {
   }
   int state = shown_state();
   before_page(true);
-  if (state == HOST_STATE_OFFLINE || state == HOST_STATE_MOVED)
-    ui_host_manage_menu(host);
+  if (state >= 0)
+    ui_host_open(view.host, app_id);
+  /* not seen by the scan yet: try it at once */
   else if (app_id)
     ui_connect_paired_device_launch(host, app_id);
   else
@@ -1156,6 +1166,14 @@ static void act_hero(void) {
       gui_touch_reset();
       break;
     case HERO_OPTIONS: open_host_menu(view.host); break;
+    case HERO_HOME:
+      /* back to the home address; the scan looks again */
+      LOGI("home", "connection switched to Home from the large card");
+      before_page(true);
+      config.away = false;
+      ui_settings_save_config();
+      after_page();
+      break;
     default: open_host(view.resume ? view.resume->id : 0); break;
   }
 }
@@ -1168,12 +1186,8 @@ static void act_computers(int item) {
   }
   if (item < n) {
     int i = view.paired[item];
-    device_info_t *d = &known_devices.devices[i];
     before_page(true);
-    if (ui_host_state(i) == HOST_STATE_ONLINE)
-      ui_connect_paired_device(d);
-    else
-      ui_host_manage_menu(d);
+    ui_host_open(i, 0);
     after_page();
   } else {
     before_page(true);
@@ -1289,6 +1303,7 @@ void ui_home(void) {
 
   while (true) {
     scan_check();
+    ui_hosts_refresh_internet_address();
     if (g_host_status_changed && !view.connected)
       g_host_status_changed = 0;   /* seen: the states are read every frame */
 

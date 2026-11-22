@@ -90,6 +90,8 @@ int LiStartConnection(PSERVER_INFORMATION server, PSTREAM_CONFIGURATION config, 
     return -1;
   }
   preview_pc.session_ready = false;
+  /* not a step the journeys check unless they expect it */
+  preview_record("bitrate %d", config->bitrate);
   bool fail = preview_pc.fail_connect > 0;
   if (fail)
     preview_pc.fail_connect--;

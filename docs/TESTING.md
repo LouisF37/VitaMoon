@@ -16,7 +16,8 @@ by CI on every push.
 | `test_pacing.c` | the *Paced* display against simulated streams: steady, 0-15 ms jitter, PC clock 200 ppm and 0.1 % off both ways, a matched 59.94 fps stream, 30 fps, a 3 s pause; frames shown in order, drops and repeated frames, bounded wait |
 | `test_late.c` | *Skip late frames* (`src/video/late_frames.h`): nothing hidden with 30 ms of jitter, clocks drifting 150 ppm either way or a still scene at 20 fps; after a 0.7 s and a 2.7 s freeze only the frames over 100 ms late are hidden; a delay grown by 300 ms for good is hidden for about a second, then taken as the new reference |
 | `test_latency.c` | the press-to-picture test (`src/video/latency_logic.h`) against a simulated PC page, capture, decoder and screen: every press measured, the warm-up presses left out, the parts adding up, the mean equal to the simulated delay; the test stops when the page is absent, never reacts or stays white, and releases A when stopped |
-| `test_config.c` | every setting survives a save and a load; old keys ignored, out-of-range values reset; automatic bitrate; a file that cannot be written is logged and the app goes on |
+| `test_config.c` | every setting survives a save and a load; old keys ignored, out-of-range values reset; automatic bitrate, Home and Away (the Away one three quarters of the Home one, the stream starting with the one of the connection in use); a file that cannot be written is logged and the app goes on |
+| `test_route.c` | the Home and Away connections (`src/route.c`): IPv4 addresses, private ranges, names; the home and Internet addresses of a PC changed one without the other; the box's public address taken as the Internet address only when that one is empty or an IP (never a name typed by hand, never a private address); the state shown for each case at home and away; a PC saved by 1.5 with its public IP in both addresses, back home |
 | `test_sps.c` | the SPS rewrite sets the low-latency hints, stays within the room the renderer keeps, passes anything it cannot parse through unchanged |
 | `test_misc.c` | URL encoding of the pairing name, percentiles of the session summary, the decisions of the automatic reconnection, PC names checked before they are used as folder names, which statistics files are deleted (the last 30 streams are kept, nothing else in the folder is touched) |
 | `test_quickmenu.c` | the in-game quick menu: what opens it, moves in it, acts and closes it, when the game gets its buttons back |
@@ -87,14 +88,18 @@ replaced). Under them:
 A journey gives the answers to the screens as they come (library, classic menu, settings,
 dialogs), what other threads do meanwhile (quick menu, stream lost, stream ended by the PC, game
 closed on the PC) and what the Vita must ask the PC, in order. Any other request, screen or dialog
-fails it, as does a stream left open. 29 journeys: play; pause, resume, quit; quick menu quit;
+fails it, as does a stream left open. 33 journeys: play; pause, resume, quit; quick menu quit;
 stream lost and resumed, cancelled, given up, lost three times quickly, lost while the game was
 closed; switch game, accepted or declined; resume a running game; quit it from the library;
 classic menu launch, resume and disconnect; settings during a pause with and without the restart;
 stream start failing, PC refusing, then working; back and reopen; PC ending the stream, with and
 without the game; PC ending it or the Wi-Fi dropping during a pause; game closed on the PC while in
 the library; pairing again, cancelled, or refused because a request is still pending; PC not
-answering. Failures are written in `report.txt`; `PREVIEW_JOURNEY_LOG=1` prints every log:
+answering at home, the Away connection offered and declined or taken (no Internet address yet);
+Away: opened at the Internet address only and played with the Away bitrate, a DynDNS name looked up
+first, no answer over the Internet. The PC is opened at an address the log shows (`open
+192.168.1.24:47989`) and a stream's bitrate is logged (`bitrate 8000`), checked where a journey
+expects it. Failures are written in `report.txt`; `PREVIEW_JOURNEY_LOG=1` prints every log:
 
 ```sh
 tools/ui-preview/build.sh /tmp/p && /tmp/p/preview journeys en /tmp/p   # the list

@@ -107,18 +107,6 @@ device_info_t* find_device(const char *name) {
   return NULL;
 }
 
-device_info_t* find_device_by_address(const char *address) {
-  if (address == NULL)
-    return NULL;
-  for (int i = 0; i < known_devices.count; i++) {
-    device_info_t *d = &known_devices.devices[i];
-    if (strcmp(d->internal, address) == 0 || strcmp(d->external, address) == 0) {
-      return d;
-    }
-  }
-  return NULL;
-}
-
 void device_file_path(char *out, const char *dir) {
   snprintf(out, 512, "%s%s/%s", config.key_dir, dir, DEVICE_FILE);
 }
@@ -138,9 +126,9 @@ static int device_ini_handle(void *out, const char *section, const char *name,
     info->mac[17] = '\0';
   } else if (strcmp(name, "port") == 0) {
     info->port = INT(value);
-  } else if (strcmp(name, "prefer_external") == 0) {
-    info->prefer_external = BOOL(value);
   }
+  // "prefer_external" (up to 1.5) is no longer read: the Connection setting
+  // chooses the address (route.h).
   return 1;
 }
 
@@ -182,7 +170,6 @@ device_info_t* append_device(device_info_t *info) {
   snprintf(p->external, sizeof(p->external), "%s", info->external);
   snprintf(p->mac, sizeof(p->mac), "%s", info->mac);
   p->port = info->port;
-  p->prefer_external = info->prefer_external;
   vita_debug_log("append_device: device %s is added to the list\n", p->name);
 
   known_devices.count++;
@@ -199,9 +186,11 @@ bool update_device(device_info_t *info) {
   devices_lock();
   p->paired = info->paired;
   snprintf(p->internal, sizeof(p->internal), "%s", info->internal);
-  snprintf(p->external, sizeof(p->external), "%s", info->external);
+  // A PC added again (search, typed address) comes with no Internet address:
+  // the saved one is kept.
+  if (info->external[0])
+    snprintf(p->external, sizeof(p->external), "%s", info->external);
   p->port = info->port;
-  p->prefer_external = info->prefer_external;
   devices_unlock();
   return true;
 }
@@ -253,7 +242,6 @@ bool load_device_info(device_info_t *info) {
     vita_debug_log("load_device_info:   info->internal = %s\n", info->internal);
     vita_debug_log("load_device_info:   info->external = %s\n", info->external);
     vita_debug_log("load_device_info:   info->port= %d\n", info->port);
-    vita_debug_log("load_device_info:   info->prefer_external = %s\n", info->prefer_external ? "true" : "false");
     return true;
   } else {
     vita_debug_log("load_device_info: ini_parse returned %d\n", ret);
@@ -289,9 +277,6 @@ void save_device_info(const device_info_t *info) {
 
   vita_debug_log("save_device_info: port = %d\n", info->port);
   write_int(fd, "port", info->port);
-
-  vita_debug_log("save_device_info: prefer_external = %s\n", info->prefer_external ? "true" : "false");
-  write_bool(fd, "prefer_external", info->prefer_external);
 
   fclose(fd);
   vita_debug_log("save_device_info: file closed\n");

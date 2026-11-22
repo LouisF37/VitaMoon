@@ -56,7 +56,8 @@ droite, l'aperçu de l'entrée sous le curseur.
 - Accueil : une grande carte qui dit ce que fait ✕ (Continuer le dernier jeu joué sur le dernier PC
   utilisé, sans passer par la bibliothèque ; Reprendre un stream en pause ; Réveiller le PC quand la
   recherche le voit éteint et que son adresse réseau est connue ; Options du PC s'il ne répond pas ou
-  répond d'une nouvelle adresse ; Ouvrir la bibliothèque tant qu'elle n'a pas été ouverte une fois),
+  répond d'une nouvelle adresse ; Passer en Maison si la connexion est À distance alors que la Vita est
+  à la maison ; Ouvrir la bibliothèque tant qu'elle n'a pas été ouverte une fois),
   puis une rangée de quatre jaquettes : jusqu'à deux autres jeux joués récemment, les favoris, les autres
   jeux récents et la suite de la bibliothèque, et « Tout voir ». ✕ sur une jaquette lance le jeu.
 - Bibliothèque : les dix premiers jeux (deux rangées de cinq) ; ✕ sur une jaquette lance le jeu.
@@ -88,10 +89,13 @@ haut et L3 / R3 en bas, raccourcis des coins) ; ajouter des jeux ; Wi-Fi (écono
 Bluetooth tels que la Vita les indique, bande 2,4 GHz seulement, câble pour le PC).
 
 **Ordinateurs.** La liste des PC appairés avec leur état (en ligne, hors ligne, adresse modifiée ;
-« Vérification… » pendant les quelques secondes de la première recherche), et à droite le détail du PC
-sélectionné : adresse, appairage, réveil à distance, flux demandé, et un conseil.
+« Vérification… » pendant les quelques secondes de la première recherche ; en connexion À distance :
+en ligne (à distance), injoignable, pas d'adresse Internet, sur le réseau de la maison), et à droite le
+détail du PC sélectionné : adresse de la connexion utilisée, connexion (Maison ou À distance), réveil du
+PC, flux demandé, et un conseil.
 - ✕ sur un PC en ligne : connexion directe. ✕ sur un PC hors ligne : ouvre son menu.
-- □ : menu du PC (se connecter, réveiller, modifier l'adresse, renommer, oublier).
+- □ : menu du PC (se connecter, réveiller, modifier l'adresse, renommer, oublier). En connexion
+  À distance : pas de réveil (il ne passe pas par Internet), et « Modifier l'adresse Internet ».
 - △ : relance la recherche des PC. ○ : retour à l'accueil.
 
 **Ajouter un PC.** Dans Ordinateurs, « Rechercher sur le réseau » ou « Saisir une adresse ». La Vita affiche un code à
@@ -154,6 +158,7 @@ affiché dans la liste des appareils de Sunshine. Les appairages existants garde
 **Réglages.** Sept rubriques à gauche, les options à droite, une explication de l'option sélectionnée en bas.
 - Haut / bas : option. Gauche / droite : changer la valeur. ✕ : basculer, valeur suivante ou ouvrir.
 - L / R : rubrique précédente / suivante. ○ : retour (les réglages sont enregistrés).
+- Connexion : Maison ou À distance (rubrique Général, première option) ; voir *Jouer hors de chez soi*.
 - Langue : English, Français, Español (rubrique Général).
 - Thème : Nuit, Aube, Aurore, Crépuscule, Éclipse (rubrique Général ; Éclipse par défaut depuis la 1.1.0-bêta.3) ; appliqué tout de suite, avec son
   propre ciel lunaire (étoiles et grand croissant ; Éclipse : disque sombre et sa couronne).
@@ -170,6 +175,33 @@ affiché dans la liste des appareils de Sunshine. Les appairages existants garde
   clics involontaires.
 - Touche PS envoyée au PC (Commandes) : un appui va au PC (le menu de Steam, par exemple), deux
   appuis rapprochés ramènent à l'écran d'accueil de la Vita.
+
+## Jouer hors de chez soi (Réglages → Général → Connexion)
+
+Chaque PC a deux adresses, gardées à part : son **adresse à la maison** (192.168.x.x, celle de la
+recherche) et son **adresse Internet** (l'adresse publique de la box, ou un nom DynDNS). Le réglage
+**Connexion** choisit laquelle sert :
+- **Maison** (par défaut) : le PC sur le réseau de la Vita, comme avant. Rien ne passe par Internet.
+- **À distance** : uniquement l'adresse Internet, avec le **Débit à distance** (Réglages → Vidéo : la
+  ligne Débit règle le débit de la connexion utilisée ; Auto = les trois quarts du débit Maison, soit
+  6 Mb/s en 960 x 544 à 60 img/s). Chaque Mb/s consomme environ 450 Mo de données par heure.
+
+L'adresse Internet se remplit seule : à l'ajout d'un PC depuis la maison, puis chaque fois que la
+recherche voit le PC à la maison (la Vita demande l'adresse publique de la box à un serveur STUN, celui
+de Moonlight, au plus toutes les 10 minutes). Un nom tapé à la main (DynDNS) n'est jamais remplacé.
+Pour la voir ou la changer : connexion À distance, □ sur le PC, « Modifier l'adresse Internet »
+(vide : l'oublie). Changer une adresse ne touche jamais l'autre.
+
+Deux rappels si l'on oublie de basculer :
+- en Maison, si le PC ne répond pas, la question propose de passer en À distance ;
+- en À distance, si la recherche entend le PC sur le réseau de la Vita, il apparaît « Sur le réseau de
+  la maison » : ✕ (ou « Passer en Maison » sur l'accueil) propose de repasser en Maison, et reprend son
+  adresse à la maison si elle a changé.
+
+Côté box et PC : les ports de Sunshine redirigés vers le PC (TCP 47984, 47989, 48010 ; UDP 47998 à
+48000), jamais 47990 (la page web de Sunshine), UPnP de Sunshine désactivé, PC qui ne se met pas en
+veille. « Optimiser pour Internet » (Avancé) ne fait qu'enlever les marques de priorité des paquets :
+avec Sunshine, à laisser sur Non, à la maison comme à distance.
 
 ## Performance (Réglages → Performance)
 
@@ -386,3 +418,6 @@ fichiers `stats/session-*` de la session. Les journaux des bêtas (`vitamoon.log
 - Menus lents ou erreurs de connexion après avoir activé `Garder la liaison avec le PC ouverte` : la désactiver.
 - Le PC n'apparaît pas en ligne alors qu'il est allumé : □ sur le PC, puis « Se connecter » (l'essai
   s'arrête au bout de quelques secondes si le PC ne répond pas).
+- À distance, « Injoignable » : PC allumé, Sunshine lancé, ports redirigés sur la box ; l'adresse
+  Internet est-elle la bonne (□, « Modifier l'adresse Internet ») ? Le journal note chaque essai
+  (`host` : connexion et adresse utilisées ; `net` : nom cherché, adresse publique trouvée).

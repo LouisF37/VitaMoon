@@ -37,6 +37,9 @@ static CONFIGURATION sample(void) {
   c.stream.fps = 30;
   c.stream.bitrate = 7000;
   c.auto_bitrate = false;
+  c.away = true;              /* not the default: the file must carry it */
+  c.away_bitrate = 4500;
+  c.away_auto_bitrate = false;
   c.stream.packetSize = 1200;
   c.sops = false;
   c.localaudio = true;
@@ -114,7 +117,8 @@ int main(void) {
   SAME(test_immediate_flip); SAME(test_audio_5ms);
   SAME(library_stats); SAME(twinkle_stars); SAME(sky_speed); SAME(sky_anticlockwise); SAME(tap_time_ms);
   SAME(stream.width); SAME(stream.height); SAME(stream.fps); SAME(stream.bitrate);
-  SAME(auto_bitrate); SAME(stream.packetSize); SAME(sops); SAME(localaudio);
+  SAME(auto_bitrate); SAME(away); SAME(away_bitrate); SAME(away_auto_bitrate);
+  SAME(stream.packetSize); SAME(sops); SAME(localaudio);
   SAME(enable_frame_pacer); SAME(center_region_only); SAME(disable_powersave); SAME(jp_layout);
   SAME(show_fps); SAME(save_debug_log); SAME(enable_front_touchzones); SAME(mouse_acceleration);
   SAME(enable_ref_frame_invalidation); SAME(stream.streamingRemotely); SAME(enable_vita_vblank_wait);
@@ -154,6 +158,22 @@ int main(void) {
   write_text("bitrate = 5000\n");
   config_file_parse((char *)k_file, &c);
   CHECK(c.stream.bitrate == 5000 && !c.auto_bitrate, "old bitrate line read as a manual bitrate");
+
+  /* The Away bitrate is read the same way: a value with no away_auto_bitrate
+   * line after it was chosen by hand; "connection" other than "away" is Home. */
+  memset(&c, 0, sizeof(c));
+  c.away_auto_bitrate = true;
+  write_text("away_bitrate = 3000\nconnection = away\n");
+  config_file_parse((char *)k_file, &c);
+  CHECK(c.away_bitrate == 3000 && !c.away_auto_bitrate && c.away, "away bitrate and connection read");
+  write_text("connection = somewhere\n");
+  config_file_parse((char *)k_file, &c);
+  CHECK(!c.away, "unknown connection value: Home");
+  memset(&c, 0, sizeof(c));
+  write_text("away_bitrate = 900000\n");
+  config_file_parse((char *)k_file, &c);
+  config_sanitize(&c);
+  CHECK(c.away_bitrate == -1 && c.away_auto_bitrate, "sanitize: absurd away bitrate back to automatic");
 
   /* Out-of-range values from a file go back to their defaults. */
   memset(&c, 0, sizeof(c));
@@ -207,6 +227,23 @@ int main(void) {
   CHECK(b720_30 <= b720, "auto bitrate lower at 30 fps");
   CHECK(b720 <= 20000, "auto bitrate stays within 20 Mbps");
 
+  /* Away: three quarters of the Home bitrate, both recomputed together; a
+   * stream starts with the bitrate of the connection in use. */
+  CHECK(config_away_auto_bitrate(960, 544, 60) == 6000, "away auto bitrate: 6 Mbps at 960x544, 60 fps");
+  CHECK(config_away_auto_bitrate(1280, 720, 60) == 7500, "away auto bitrate: 7.5 Mbps at 1280x720, 60 fps");
+  memset(&c, 0, sizeof(c));
+  c.stream.width = 960; c.stream.height = 544; c.stream.fps = 60;
+  c.auto_bitrate = true; c.away_auto_bitrate = true;
+  config_apply_auto_bitrate(&c);
+  CHECK(c.stream.bitrate == 8000 && c.away_bitrate == 6000, "auto bitrates applied: Home 8000, Away 6000");
+  c.away_auto_bitrate = false; c.away_bitrate = 12000;
+  c.stream.fps = 30;
+  config_apply_auto_bitrate(&c);
+  CHECK(c.stream.bitrate == 5000 && c.away_bitrate == 12000, "a manual Away bitrate is left alone");
+  CHECK(config_stream_bitrate(&c) == 5000, "Home connection: the stream uses the Home bitrate");
+  c.away = true;
+  CHECK(config_stream_bitrate(&c) == 12000, "Away connection: the stream uses the Away bitrate");
+
   /* A settings file that cannot be written is logged, and the app goes on. */
   config_save("/nonexistent-folder/vitamoon.conf", &a);
   CHECK(errors_logged == 1, "settings file that cannot be written: logged, app keeps running");
@@ -221,6 +258,8 @@ int main(void) {
         "default sky: moving (Medium), twinkling, clockwise");
   CHECK(d.stream.width == 960 && d.stream.height == 544 && d.stream.fps == 60 && d.sops && d.thread_pinning,
         "config_set_defaults sets the stream and the rest as config_parse did");
+  CHECK(!d.away && d.away_auto_bitrate && d.stream.streamingRemotely == 0,
+        "default connection: Home, automatic Away bitrate, not optimised for the Internet");
 
   remove(k_file);
   return TEST_END();

@@ -109,6 +109,14 @@ static int ini_handle(void *out, const char *section, const char *name,
       config->auto_bitrate = false;
     } else if (strcmp(name, "auto_bitrate") == 0) {
       config->auto_bitrate = BOOL(value);
+    } else if (strcmp(name, "connection") == 0) {
+      config->away = strcmp(value, "away") == 0;
+    } else if (strcmp(name, "away_bitrate") == 0) {
+      // As "bitrate": a value with no away_auto_bitrate line after it was chosen by hand.
+      config->away_bitrate = INT(value);
+      config->away_auto_bitrate = false;
+    } else if (strcmp(name, "away_auto_bitrate") == 0) {
+      config->away_auto_bitrate = BOOL(value);
     } else if (strcmp(name, "packet_size") == 0) {
       // Earlier versions wrote "packetsize" but never read it back, so a value
       // under that key was never a choice that took effect: it is ignored and
@@ -238,6 +246,10 @@ void config_sanitize(PCONFIGURATION config) {
     config->stream.bitrate = -1;
     config->auto_bitrate = true;
   }
+  if (config->away_bitrate != -1 && (config->away_bitrate < 500 || config->away_bitrate > 50000)) {
+    config->away_bitrate = -1;
+    config->away_auto_bitrate = true;
+  }
   if (config->stream.packetSize < PACKET_SIZE_MIN || config->stream.packetSize > PACKET_SIZE_MAX)
     config->stream.packetSize = PACKET_SIZE_DEFAULT;
   if (config->display_mode < DISPLAY_MODE_DIRECT || config->display_mode > DISPLAY_MODE_PACED)
@@ -294,6 +306,9 @@ void config_save(const char* filename, PCONFIGURATION config) {
   // no auto_bitrate line (older versions) as a manual choice.
   write_config_int(fd, "bitrate", config->stream.bitrate);
   write_config_bool(fd, "auto_bitrate", config->auto_bitrate);
+  write_config_string(fd, "connection", config->away ? "away" : "home");
+  write_config_int(fd, "away_bitrate", config->away_bitrate);
+  write_config_bool(fd, "away_auto_bitrate", config->away_auto_bitrate);
   write_config_int(fd, "packet_size", config->stream.packetSize);
   if (!config->sops)
     write_config_bool(fd, "sops", config->sops);
@@ -389,9 +404,19 @@ int config_auto_bitrate(int width, int height, int fps) {
   return kbps;
 }
 
+int config_away_auto_bitrate(int width, int height, int fps) {
+  return config_auto_bitrate(width, height, fps) * 3 / 4;
+}
+
 void config_apply_auto_bitrate(PCONFIGURATION config) {
   if (config->auto_bitrate)
     config->stream.bitrate = config_auto_bitrate(config->stream.width, config->stream.height, config->stream.fps);
+  if (config->away_auto_bitrate)
+    config->away_bitrate = config_away_auto_bitrate(config->stream.width, config->stream.height, config->stream.fps);
+}
+
+int config_stream_bitrate(const CONFIGURATION *config) {
+  return config->away ? config->away_bitrate : config->stream.bitrate;
 }
 
 void update_layout() {
@@ -417,6 +442,9 @@ void config_set_defaults(PCONFIGURATION config) {
   config->stream.fps = 60;
   config->stream.bitrate = -1;
   config->auto_bitrate = true;
+  config->away = false;
+  config->away_bitrate = -1;
+  config->away_auto_bitrate = true;
   // 1024, Moonlight's value. Measured on a Vita by juanjsebgarcia/vita-moonlight:
   // 1392-byte packets saved no receive time and lost more (59 vs 43 per minute).
   config->stream.packetSize = PACKET_SIZE_DEFAULT;
@@ -550,6 +578,8 @@ void config_parse(int argc, char* argv[], PCONFIGURATION config) {
 
   if (config->stream.bitrate <= 0)
     config->auto_bitrate = true;
+  if (config->away_bitrate <= 0)
+    config->away_auto_bitrate = true;
   config_apply_auto_bitrate(config);
 
   if (inputAdded) {

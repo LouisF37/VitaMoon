@@ -68,9 +68,10 @@ static int serve(char *url, PHTTP_DATA data) {
   char name[32] = "";
   snprintf(name, sizeof(name), "%.*s", path ? (int)strcspn(path, "?") : 0, path ? path : "");
 
-  /* gs_init() starts with the plain status request: the PC is being opened */
+  /* gs_init() starts with the plain status request: the PC is being opened
+   * (at the address the menus chose: "open 192.168.1.24:47989") */
   if (!strcmp(name, "/serverinfo") && !https)
-    preview_record("open");
+    preview_record("open %.*s", path ? (int)(path - url - 7) : 0, url + 7);
   if (!preview_pc.answers) {
     gs_error = "Couldn't connect to server";
     return GS_FAILED;

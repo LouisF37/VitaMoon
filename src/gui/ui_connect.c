@@ -28,6 +28,8 @@
 #include "quickmenu.h"
 #include "moon.h"
 #include "../device_name.h"
+#include "../route.h"
+#include "../net_address.h"
 #include "preview_hooks.h"
 
 #include <stdbool.h>
@@ -149,7 +151,7 @@ static void read_start_settings(stream_start_settings *out, int width, int heigh
   out->width = width;
   out->height = height;
   out->fps = config.stream.fps;
-  out->bitrate = config.stream.bitrate;
+  out->bitrate = config_stream_bitrate(&config);   /* Home or Away */
   out->packet_size = config.stream.packetSize;
   out->sops = config.sops;
   out->localaudio = config.localaudio;
@@ -257,10 +259,18 @@ void ui_connect_preview_moon(const char *host, int stage) {
  * report_errors is set (a reconnection retries quietly instead). */
 static int start_stream(int appId, bool report_errors) {
   const SceUInt64 began = sceKernelGetProcessTimeWide();
-  LOGI("stream", "%s app %d: %dx%d at %d fps, %d kbps%s, packets %d bytes, %s, adapt the PC screen %d, sound on the PC %d",
-       server.currentGame == appId ? "resuming" : "launching", appId, config.stream.width, config.stream.height,
-       config.stream.fps, config.stream.bitrate, config.auto_bitrate ? " (auto)" : "", config.stream.packetSize,
-       config.stream.streamingRemotely == STREAM_CFG_REMOTE ? "Internet" : "home network", config.sops, config.localaudio);
+  // The Away connection has its own bitrate: the stream starts from a copy of
+  // the settings that carries it (gs_start_app and LiStartConnection both read
+  // the copy; gs_start_app also writes the input key in it for the other).
+  STREAM_CONFIGURATION stream = config.stream;
+  stream.bitrate = config_stream_bitrate(&config);
+  bool auto_bitrate = config.away ? config.away_auto_bitrate : config.auto_bitrate;
+  LOGI("stream", "%s app %d: %dx%d at %d fps, %d kbps%s, packets %d bytes, %s connection, %s, adapt the PC screen %d, "
+       "sound on the PC %d",
+       server.currentGame == appId ? "resuming" : "launching", appId, stream.width, stream.height,
+       stream.fps, stream.bitrate, auto_bitrate ? " (auto)" : "", stream.packetSize, config.away ? "Away" : "Home",
+       stream.streamingRemotely == STREAM_CFG_REMOTE ? "optimised for the Internet" : "not optimised for the Internet",
+       config.sops, config.localaudio);
   LOGI("stream", "display mode %d, low-latency sound %d, decoder catch-up %d, fast colour %d, reorder wait %d ms, "
        "cores %d, controls in step %d, clocks %d, reference frame invalidation %d, controller type %d, touch mode %d",
        config.display_mode, config.low_latency_audio, config.decoder_catchup, config.decode_yuv,
@@ -269,7 +279,7 @@ static int start_stream(int appId, bool report_errors) {
   log_system_state("before the stream");
   // Clocks up from the launch request to the end of the stream setup (RTSP).
   vitapower_busy_begin();
-  int ret = gs_start_app(&server, &config.stream, appId, config.sops, config.localaudio, 1);
+  int ret = gs_start_app(&server, &stream, appId, config.sops, config.localaudio, 1);
   if (ret < 0) {
     vitapower_busy_end();
     LOGE("stream", "the PC refused to start the app: %d %s", ret, gs_error ? gs_error : "");
@@ -347,7 +357,7 @@ static int start_stream(int appId, bool report_errors) {
     else
       audio_callback->capabilities |= CAPABILITY_SLOW_OPUS_DECODER;
   }
-  ret = LiStartConnection(&server.serverInfo, &config.stream, &connection_callbacks,
+  ret = LiStartConnection(&server.serverInfo, &stream, &connection_callbacks,
                           video_callback, audio_callback,
                           NULL, drFlags, NULL, 0);
   connection_set_stage_hook(NULL);
@@ -678,7 +688,7 @@ int ui_connect_loop(int id, void *context, const input_data *input) {
       if (pair_with_code(connected_host_name) != GS_OK)
         return 0;
       connection_paired();
-      device_info_t *dev = find_device_by_address(server.serverInfo.address);
+      device_info_t *dev = find_device(connected_host_name);
       if (dev)
         remember_pairing(dev);
       display_notice(1500, tr("%s is paired with this Vita."), connected_host_name);
@@ -922,6 +932,15 @@ device_info_t* ui_connect_and_pairing(device_info_t *info) {
     return NULL;
 
   remember_pairing(info);
+  // Added from home: the box's public address is its Internet address, for the
+  // Away connection (moonlight-qt does the same when a PC is added).
+  if (route_is_private_ipv4(info->internal) && route_internet_address_refreshable(info->external)) {
+    char public_ip[16];
+    if (net_find_public_ipv4(public_ip, sizeof(public_ip)) && route_apply_public_ip(info, public_ip)) {
+      save_device_info(info);
+      LOGI("pair", "Internet address of %s: %s", info->name, info->external);
+    }
+  }
   display_notice(1500, tr("%s is paired with this Vita."), info->name);
   return info;
 }
@@ -955,6 +974,29 @@ void ui_connect_manual() {
   ui_connect_and_pairing(&info);
 }
 
+/* An IP to reach a PC at for the connection in use: its home address, or
+ * its Internet address with a name looked up (kept here, the session reads it
+ * for as long as it lasts: server.serverInfo.address). NULL, said on screen,
+ * when there is none. */
+static char *connection_address(device_info_t *info) {
+  static char resolved[64];
+  if (!config.away)
+    return info->internal;
+  if (!route_internet_address_usable(info->external)) {
+    display_error(tr("The Internet address of %s is not known yet.\nConnect to it once at home, or type it in its options."),
+                  info->name);
+    return NULL;
+  }
+  if (route_is_ipv4(info->external))
+    return info->external;
+  if (!net_resolve_ipv4(info->external, resolved, sizeof(resolved))) {
+    display_error(tr("The name %s could not be found on the Internet.\nCheck it in the options of %s."), info->external,
+                  info->name);
+    return NULL;
+  }
+  return resolved;
+}
+
 void ui_connect_paired_device(device_info_t *info) {
   // A stream is running or paused: go back to it
   if (connection_is_ready()) {
@@ -970,33 +1012,34 @@ void ui_connect_paired_device(device_info_t *info) {
   snprintf(title, sizeof(title), tr("Connecting to %s..."), info->name);
   flash_moon(0, title, NULL, false);
 
-  // Home address first, unless the Internet address worked last time. One status
-  // request per address; the first PC that answers is used as it is (the
-  // original code asked twice: once to test the address, once to connect).
-  char *order[2] = { info->internal, info->external };
-  if (info->prefer_external) {
-    order[0] = info->external;
-    order[1] = info->internal;
-  }
-  char *addr = NULL;
-  int ret = GS_FAILED;
-  for (int i = 0; i < 2 && addr == NULL; i++) {
-    if (!order[i][0] || (i == 1 && strcmp(order[0], order[1]) == 0))
-      continue;
-    ret = host_open(info->name, order[i], info->port);
-    if (ret == GS_OK)
-      addr = order[i];
-  }
-
-  if (addr == NULL) {
-    report_host_error(ret, info->name);
+  // One address, the one of the connection in use (route.h): the home address
+  // at home, the Internet address away. One status request; the PC that
+  // answers is used as it is.
+  char *addr = connection_address(info);
+  if (addr == NULL)
     return;
-  }
-
-  bool external = addr == info->external && strcmp(info->internal, info->external) != 0;
-  if (external != info->prefer_external) {
-    info->prefer_external = external;
-    save_device_info(info);
+  LOGI("host", "%s: %s connection, at %s", info->name, config.away ? "Away" : "Home", addr);
+  int ret = host_open(info->name, addr, info->port);
+  if (ret != GS_OK) {
+    bool silent = ret != GS_OUT_OF_MEMORY && ret != GS_INVALID && ret != GS_UNSUPPORTED_VERSION && ret != GS_ERROR;
+    if (silent && config.away) {
+      display_error(tr("No answer from %s over the Internet (%s).\nIs the PC on, with Sunshine running and its ports open on the box?"),
+                    info->name, addr);
+    } else if (silent) {
+      // Not at home, maybe: offer the Internet address (once: Away does not offer it again)
+      char msg[512];
+      snprintf(msg, sizeof(msg), tr("No answer from %s.\nIs the PC on, with Sunshine running?\n\nAway from home?\nSwitch the connection to Away?"),
+               info->name);
+      if (display_confirm(msg)) {
+        config.away = true;
+        ui_settings_save_config();
+        LOGI("host", "connection switched to Away after no answer at home");
+        ui_connect_paired_device(info);
+      }
+    } else {
+      report_host_error(ret, info->name);
+    }
+    return;
   }
 
   snprintf(connected_host_name, sizeof(connected_host_name), "%.127s", info->name);

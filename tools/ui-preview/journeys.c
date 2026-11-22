@@ -26,6 +26,7 @@
 #include "gui/ui_connect.h"
 #include "gui/ui_home.h"
 #include "check_host.h"
+#include "config.h"
 
 #define X   SCE_CTRL_CROSS
 #define O   SCE_CTRL_CIRCLE
@@ -79,6 +80,8 @@ typedef struct {
   bg_event events[8];
   const char *expect[MAX_ITEMS];   /* log lines in order; "text*" matches a start */
   bool from_home;              /* starts on the home screen (one paired PC), not by opening the PC */
+  bool away;                   /* the Away connection (config.away) */
+  const char *external;        /* the PC's Internet address ("" when none) */
 } journey;
 
 /* The library opens on the game last played from this Vita (preview_main.c
@@ -91,7 +94,7 @@ static const journey k_journeys[] = {
   {"j_play", PC_IDLE, true, 1,
    {{"library", {X}}},
    {{AT_PLAYING, 5000, DO_PC_ENDS, 1}},
-   {"open*", "library", "launch 1000", "connect", "stop", "home"}},
+   {"open 192.168.1.24:47989", "library", "launch 1000", "bitrate 8000", "connect", "stop", "home"}},
 
   {"j_pause_resume_quit", PC_IDLE, true, 1,
    {{"library", {X}}, {"library", {X}}, {"library", {SQ}}, {"library", {O}}},
@@ -243,10 +246,38 @@ static const journey k_journeys[] = {
    {{AT_PLAYING, 3000, DO_PAUSE}, {AT_PLAYING, 3000, DO_PC_ENDS, 1}},
    {"open*", "library", "launch 1000", "connect", "library", "menu", "stop", "home"}},
 
+  /* At home, no answer: the question offers the Away connection; No. */
   {"j_pc_does_not_answer", {.answers = false}, true, 1,
+   {{"confirm", {O}}},
+   {{0}},
+   {"open 192.168.1.24:47989", "confirm: No answer from MINI-PC.", "home"}},
+
+  /* ... Yes: the Away connection, but no Internet address is known yet. */
+  {"j_pc_does_not_answer_switch_away", {.answers = false}, true, 1,
+   {{"confirm", {X}}, {"alert", {X}}},
+   {{0}},
+   {"open 192.168.1.24:47989", "confirm: No answer from MINI-PC.", "alert: The Internet address of MINI-PC*",
+    "home"}, false, false, ""},
+
+  /* Away: the PC is opened at its Internet address only, and a game plays. */
+  {"j_away_play", PC_IDLE, true, 1,
+   {{"library", {X}}},
+   {{AT_PLAYING, 5000, DO_PC_ENDS, 1}},
+   {"open 203.0.113.7:47989", "library", "launch 1000", "bitrate 6000", "connect", "stop", "home"}, false, true,
+    "203.0.113.7"},
+
+  /* Away with a name (DynDNS): looked up, then opened at its IP. */
+  {"j_away_name", PC_IDLE, true, 1,
+   {{"library", {O}}},
+   {{0}},
+   {"open 203.0.113.7:47989", "library", "home"}, false, true, "example.duckdns.org"},
+
+  /* Away, no answer: said once, with the address tried; no Home question. */
+  {"j_away_no_answer", {.answers = false}, true, 1,
    {{"alert", {X}}},
    {{0}},
-   {"open*", "alert: *", "home"}},
+   {"open 203.0.113.7:47989", "alert: No answer from MINI-PC over the Internet*", "home"}, false, true,
+    "203.0.113.7"},
 
   /* From the home screen (each ends with Quit in its menu). No home.txt at
    * first: its large tile opens the library, which leaves the file when it is
@@ -480,6 +511,8 @@ bool journey_run(const char *name) {
     memset(&pc, 0, sizeof(pc));
     snprintf(pc.name, sizeof(pc.name), "MINI-PC");
     snprintf(pc.internal, sizeof(pc.internal), "192.168.1.24");
+    snprintf(pc.external, sizeof(pc.external), "%s", cur->external ? cur->external : "");
+    config.away = cur->away;
     pc.port = 47989;
     pc.paired = cur->vita_paired;
     for (int open = 0; open < cur->opens; open++) {

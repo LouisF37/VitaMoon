@@ -19,6 +19,7 @@
 #include "config.h"
 #include "device.h"
 #include "check_host.h"
+#include "route.h"
 #include "connection.h"
 #include "quickmenu.h"
 #include "client.h"
@@ -71,8 +72,24 @@ void save_device_info(const device_info_t *info) {}
 bool update_device(device_info_t *info) { return true; }
 bool remove_device(const char *name) { return true; }
 bool rename_device(device_info_t *info, const char *new_name) { return true; }
-device_info_t *find_device(const char *name) { return NULL; }
-device_info_t *find_device_by_address(const char *address) { return NULL; }
+device_info_t *find_device(const char *name) {
+  for (int i = 0; i < known_devices.count; i++)
+    if (!strcmp(known_devices.devices[i].name, name))
+      return &known_devices.devices[i];
+  return NULL;
+}
+void devices_lock(void) {}
+void devices_unlock(void) {}
+/* The Away connection: names resolve to a documentation address, the box's
+ * public address is 203.0.113.7 (RFC 5737 examples, never a real one). */
+bool net_resolve_ipv4(const char *host, char *out, size_t n) {
+  if (route_is_ipv4(host)) { snprintf(out, n, "%s", host); return true; }
+  snprintf(out, n, "%s", "203.0.113.7");
+  return host && host[0];
+}
+bool net_find_public_ipv4(char *out, size_t n) { snprintf(out, n, "%s", "203.0.113.7"); return true; }
+static char fake_public_ip[16] = "";
+bool host_scan_public_ip(char *out, size_t n) { snprintf(out, n, "%s", fake_public_ip); return out[0] != 0; }
 device_info_t *append_device(device_info_t *info) { return info; }
 int ime_dialog_string(char *text, const char *title, const char *def) { return -1; }
 int ime_dialog_number(char *text, const char *title, const char *def) { return -1; }
@@ -222,7 +239,7 @@ static void scenario_sky(void) {
 static void scenario_sky_setting(void) {
   preview_wait(12);
   preview_press(SCE_CTRL_RIGHT);
-  for (int i = 0; i < 3; i++) preview_press(SCE_CTRL_DOWN);
+  for (int i = 0; i < 4; i++) preview_press(SCE_CTRL_DOWN);   /* Connection, Language, Theme, Twinkle, Sky */
   preview_snap("sky_setting_1_off");
   preview_press(SCE_CTRL_DOWN);
   preview_snap("sky_setting_2_direction_blocked");
@@ -444,6 +461,114 @@ static void scenario_home_paused(void) {
   ui_home();
 }
 
+/* The Away connection: MINI-PC answers over the Internet, DESKTOP-BUREAU has
+ * no Internet address yet, the third one (a DynDNS name) does not answer.
+ * Addresses are RFC 5737 examples. */
+static void fake_away(void) {
+  fake_hosts();
+  fake_home_file();
+  config.away = true;
+  config.away_auto_bitrate = true;
+  config_apply_auto_bitrate(&config);
+  snprintf(fake_devices[0].external, sizeof(fake_devices[0].external), "%s", "203.0.113.7");
+  fake_devices[1].external[0] = 0;
+  snprintf(fake_devices[2].external, sizeof(fake_devices[2].external), "%s", "example.duckdns.org");
+  for (int i = 0; i < 3; i++) {
+    g_host_status[i].status = i == 0 ? HOST_ONLINE : HOST_OFFLINE;
+    g_host_status[i].on_lan = false;
+    g_host_status[i].current_ip[0] = 0;
+  }
+}
+
+/* Away: the dashboard and the Computers preview. */
+static void scenario_away(void) {
+  fake_away();
+  preview_wait(12);
+  preview_snap("away_1_home");
+  preview_press(SCE_CTRL_LEFT);
+  preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN);
+  preview_snap("away_2_computers_preview");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("away_3_settings_card");
+  preview_wait(2);
+  ui_home();
+}
+
+/* Away: the Computers page, one PC per state, then MINI-PC's own menu. */
+static void scenario_away_pcs(void) {
+  fake_away();
+  preview_wait(12);
+  preview_snap("away_pcs_1_online");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("away_pcs_2_no_address");
+  preview_press(SCE_CTRL_DOWN);
+  preview_snap("away_pcs_3_unreachable");
+  preview_press(SCE_CTRL_UP); preview_press(SCE_CTRL_UP);
+  preview_press(SCE_CTRL_SQUARE);
+  preview_snap("away_pcs_4_menu");
+  preview_press(SCE_CTRL_CIRCLE);
+  preview_wait(2);
+  ui_computers_page();
+}
+
+/* Away while the Vita is back home: the scan hears MINI-PC on the network. */
+static void scenario_away_at_home(void) {
+  fake_away();
+  g_host_status[0].on_lan = true;
+  snprintf(g_host_status[0].current_ip, sizeof(g_host_status[0].current_ip), "%s", "192.168.1.24");
+  preview_wait(500);   /* the first scan takes up to 7 s with three PCs */
+  preview_snap("away_at_home_1_home");
+  preview_wait(2);
+  ui_home();
+}
+
+static void scenario_away_at_home_pcs(void) {
+  fake_away();
+  g_host_status[0].on_lan = true;
+  snprintf(g_host_status[0].current_ip, sizeof(g_host_status[0].current_ip), "%s", "192.168.1.24");
+  preview_wait(12);
+  preview_snap("away_at_home_2_computers");
+  preview_press(SCE_CTRL_CROSS);
+  preview_wait(4);
+  preview_snap("away_at_home_3_question");
+  preview_press(SCE_CTRL_CIRCLE);
+  preview_wait(2);
+  ui_computers_page();
+}
+
+/* Away: the settings that differ (General, Video, Advanced). */
+static void scenario_away_settings(void) {
+  fake_away();
+  preview_wait(12);
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("away_settings_1_connection");
+  preview_press(SCE_CTRL_CIRCLE);
+  preview_press(SCE_CTRL_RTRIGGER);
+  preview_press(SCE_CTRL_RIGHT);
+  preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN);
+  preview_snap("away_settings_2_bitrate");
+  preview_press(SCE_CTRL_CIRCLE);
+  for (int i = 0; i < 4; i++) preview_press(SCE_CTRL_RTRIGGER);
+  preview_press(SCE_CTRL_RIGHT);
+  preview_snap("away_settings_3_optimise");
+  preview_press(SCE_CTRL_CIRCLE);
+  preview_wait(2);
+  ui_settings_menu();
+}
+
+/* At home, the PC does not answer: the error offers the Away connection. */
+static void scenario_home_no_answer(void) {
+  fake_hosts();
+  preview_pc.answers = false;
+  preview_wait(12);
+  preview_press(SCE_CTRL_CROSS);
+  preview_wait(6);
+  preview_snap("home_no_answer_offer_away");
+  preview_press(SCE_CTRL_CIRCLE);
+  preview_wait(2);
+  ui_computers_page();
+}
+
 static void scenario_settings(void) {
   preview_wait(12);
   preview_snap("settings_1_categories");
@@ -491,7 +616,7 @@ static void scenario_settings_change(void) {
   preview_press(SCE_CTRL_CIRCLE);
   for (int i = 0; i < 5; i++) preview_press(SCE_CTRL_LTRIGGER);
   preview_press(SCE_CTRL_RIGHT);
-  preview_press(SCE_CTRL_DOWN);
+  preview_press(SCE_CTRL_DOWN); preview_press(SCE_CTRL_DOWN);   /* Connection, Language, Theme */
   preview_press(SCE_CTRL_RIGHT);
   preview_snap("settings_theme_changed");
   preview_press(SCE_CTRL_LEFT);
@@ -759,6 +884,12 @@ int main(int argc, char **argv) {
   else if (!strcmp(s, "pairing")) scenario_pairing();
   else if (!strcmp(s, "settings_pages")) scenario_settings_pages();
   else if (!strcmp(s, "settings")) scenario_settings();
+  else if (!strcmp(s, "away")) scenario_away();
+  else if (!strcmp(s, "away_pcs")) scenario_away_pcs();
+  else if (!strcmp(s, "away_at_home")) scenario_away_at_home();
+  else if (!strcmp(s, "away_at_home_pcs")) scenario_away_at_home_pcs();
+  else if (!strcmp(s, "away_settings")) scenario_away_settings();
+  else if (!strcmp(s, "home_no_answer")) scenario_home_no_answer();
   else if (!strcmp(s, "settings_change")) scenario_settings_change();
   else if (!strcmp(s, "library")) scenario_library();
   else if (!strcmp(s, "library_running")) scenario_library_running();

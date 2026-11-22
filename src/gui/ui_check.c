@@ -5,13 +5,15 @@
 #include "../debug.h"
 #include <string.h>
 #include "../i18n.h"
+#include "../route.h"
 
 // Globals declared here so they can be cleared
 extern int pending_ip_update_idx;
 extern char pending_ip_update[64];
 
-/* The scan found a saved PC at another address: ask once, then save the new
- * address (the pairing keys are stored under the PC's name and stay valid).
+/* The scan found a saved PC at another address on the home network: ask once,
+ * then save it as the PC's home address (the pairing keys are stored under the
+ * PC's name and stay valid). Its Internet address is left as it is (route.h).
  * The caller restarts the host scan when it is back on the home screen; it must
  * not run here, a connection attempt usually follows.
  * Returns 1 when the address was updated. */
@@ -26,11 +28,7 @@ int ui_check_ip_update(device_info_t *info, const char *new_ip) {
         return 0;
     }
 
-    strncpy(info->internal, new_ip, sizeof(info->internal)-1);
-    info->internal[sizeof(info->internal)-1] = '\0';
-    strncpy(info->external, new_ip, sizeof(info->external)-1);
-    info->external[sizeof(info->external)-1] = '\0';
-    info->prefer_external = false;
+    route_set_home_address(info, new_ip);
     info->paired = true;
     info->port = info->port ? info->port : 47989;
     save_device_info(info);

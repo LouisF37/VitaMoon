@@ -15,7 +15,7 @@ srcs="$here/fake_vita2d.c $here/preview_sys.c $here/preview_main.c $here/fake_pc
   $root/src/connection.c $root/libgamestream/xml.c $root/libgamestream/mkcert.c $root/libgamestream/url.c $root/src/util.c
   $root/src/gui/guilib.c $root/src/gui/theme.c $root/src/gui/cover_shape.c $root/src/gui/ui_settings.c $root/src/gui/ui_library.c
   $root/src/gui/ui.c $root/src/gui/ui_home.c $root/src/gui/ui_help.c $root/src/gui/home_data.c $root/src/gui/ui_connect.c $root/src/gui/quickmenu.c $root/src/gui/splash.c
-  $root/src/i18n.c $root/src/config.c $root/third_party/inih/ini.c"
+  $root/src/i18n.c $root/src/config.c $root/src/route.c $root/third_party/inih/ini.c"
 # PREVIEW_SANITIZE=1 builds with AddressSanitizer and UBSan: every scenario then
 # also checks the menus for memory errors and undefined behaviour (shifts
 # excepted: vita2d's RGBA8 macro shifts a signed int by 24).

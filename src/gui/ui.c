@@ -19,6 +19,8 @@
 #include "../power/vita.h"
 #include "../util.h"
 #include "../check_host.h"
+#include "../route.h"
+#include "../log.h"
 #include "../debug.h"
 
 #include <stdarg.h>
@@ -75,33 +77,118 @@ static int host_index(const device_info_t *info) {
 }
 
 
-/* What the background scan knows about a saved host. */
+/* What the background scan knows about a saved host, for the connection in use. */
 int ui_host_state(int host_idx) {
-  if (host_idx < 0 || host_idx >= MAX_HOSTS)
+  if (host_idx < 0 || host_idx >= MAX_HOSTS || host_idx >= known_devices.count)
     return HOST_STATE_OFFLINE;
   const device_info_t *info = &known_devices.devices[host_idx];
   struct host_status st = g_host_status[host_idx];
-  if (pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0')
-    return HOST_STATE_MOVED;
-  if (st.current_ip[0] && strcmp(info->internal, st.current_ip) != 0)
-    return HOST_STATE_MOVED;
-  return st.status == HOST_ONLINE ? HOST_STATE_ONLINE : HOST_STATE_OFFLINE;
+  bool pending = pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0';
+  return route_host_state(config.away, info, st.status, st.current_ip, st.on_lan, pending);
 }
 
 const char *ui_host_state_text(int state) {
   switch (state) {
-    case HOST_STATE_ONLINE: return tr("Online");
+    case HOST_STATE_ONLINE: return config.away ? tr("Online (away)") : tr("Online");
     case HOST_STATE_MOVED: return tr("Address changed");
-    default: return tr("Offline");
+    case HOST_STATE_AT_HOME: return tr("On the home network");
+    case HOST_STATE_NO_ADDRESS: return tr("No Internet address");
+    default: return config.away ? tr("Unreachable") : tr("Offline");
+  }
+}
+
+const char *ui_host_advice(int state) {
+  switch (state) {
+    case HOST_STATE_ONLINE: return tr("Ready to play.");
+    case HOST_STATE_MOVED: return tr("This PC answers from a new address: open it to update.");
+    case HOST_STATE_AT_HOME: return tr("You are at home: set the connection to At home to play here.");
+    case HOST_STATE_NO_ADDRESS:
+      return tr("Its Internet address is not known yet: connect to it once at home, or type it in its options.");
+    default:
+      return config.away ? tr("No answer over the Internet. Is the PC on, with Sunshine running and its ports open on the box?")
+                         : tr("No answer. Is the PC on, with Sunshine running?");
   }
 }
 
 static unsigned int host_state_color(int state) {
   switch (state) {
     case HOST_STATE_ONLINE: return 0xFF00FF00;
-    case HOST_STATE_MOVED: return 0xFF00FFFF;
+    case HOST_STATE_MOVED:
+    case HOST_STATE_AT_HOME:
+    case HOST_STATE_NO_ADDRESS: return 0xFF00FFFF;
     default: return 0xFF0000FF;
   }
+}
+
+void ui_hosts_refresh_internet_address(void) {
+  char ip[16];
+  if (config.away || !host_scan_public_ip(ip, sizeof(ip)))
+    return;
+  for (int i = 0; i < known_devices.count && i < MAX_HOSTS; i++) {
+    device_info_t *d = &known_devices.devices[i];
+    // Only a PC that answers at its home address now is behind this box.
+    if (g_host_status[i].status != HOST_ONLINE || !route_is_private_ipv4(d->internal) ||
+        strcmp(g_host_status[i].current_ip, d->internal) != 0)
+      continue;
+    char before[sizeof(d->external)];
+    snprintf(before, sizeof(before), "%s", d->external);
+    devices_lock();
+    bool changed = route_apply_public_ip(d, ip);
+    devices_unlock();
+    if (changed) {
+      save_device_info(d);
+      LOGI("route", "%s: Internet address %s (was %s)", d->name, d->external, before[0] ? before : "none");
+    }
+  }
+}
+
+/* Connect to a saved PC, after the questions the scan may raise: a new home
+ * address (Home), or the PC heard on this network while Away (the Vita is at
+ * home: back to Home?). */
+static void host_connect(device_info_t *info, int app_id) {
+  int host_idx = host_index(info);
+  char name[sizeof(info->name)];
+  snprintf(name, sizeof(name), "%s", info->name);
+  if (config.away && host_idx >= 0 && ui_host_state(host_idx) == HOST_STATE_AT_HOME &&
+      display_confirm(tr("This PC is on the Vita's network:\nyou are at home.\nSet the connection back to At home?"))) {
+    config.away = false;
+    ui_settings_save_config();
+    LOGI("route", "connection switched to Home: %s is on this network", info->name);
+    // The address it was heard at becomes its home address if it changed.
+    char seen[64];
+    snprintf(seen, sizeof(seen), "%s", g_host_status[host_idx].current_ip);
+    if (seen[0] && route_is_ipv4(seen) && strcmp(seen, info->internal) != 0) {
+      if (!ui_check_ip_update(info, seen))
+        return;
+      info = find_device(name);
+      if (!info)
+        return;
+    }
+  } else if (!config.away && host_idx >= 0 && pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0') {
+    // The scan saw this PC at another home address: offer to use it first
+    if (!ui_check_ip_update(info, pending_ip_update))
+      return;
+    // the list was reloaded: look the PC up again
+    info = find_device(name);
+    if (!info)
+      return;
+  }
+  ui_hosts_refresh_internet_address();
+  if (app_id)
+    ui_connect_paired_device_launch(info, app_id);
+  else
+    ui_connect_paired_device(info);
+}
+
+void ui_host_open(int host_idx, int app_id) {
+  if (host_idx < 0 || host_idx >= known_devices.count)
+    return;
+  device_info_t *info = &known_devices.devices[host_idx];
+  int state = ui_host_state(host_idx);
+  if (state == HOST_STATE_ONLINE || state == HOST_STATE_AT_HOME)
+    host_connect(info, app_id);
+  else
+    ui_host_manage_menu(info);
 }
 
 /* Sends the Wake-on-LAN packet to a PC and says so on screen. False when
@@ -143,19 +230,7 @@ static int ui_host_manage_menu_loop(int cursor, void *context, const input_data 
     case HOST_MANAGE_CONNECT: {
       vita_debug_log("[UI] Host menu: connect to %s", info->name);
       stop_host_scan();
-      // The scan saw this PC at another address: offer to use it first
-      int host_idx = host_index(info);
-      if (host_idx >= 0 && pending_ip_update_idx == host_idx && pending_ip_update[0] != '\0') {
-        char name[sizeof(info->name)];
-        snprintf(name, sizeof(name), "%s", info->name);
-        if (!ui_check_ip_update(info, pending_ip_update))
-          return 1;
-        // the list was reloaded: look the PC up again
-        info = find_device(name);
-        if (!info)
-          return 1;
-      }
-      ui_connect_paired_device(info);
+      host_connect(info, 0);
       return 1;
     }
     case HOST_MANAGE_DELETE: {
@@ -169,16 +244,22 @@ static int ui_host_manage_menu_loop(int cursor, void *context, const input_data 
       return 0;
     }
     case HOST_MANAGE_CHANGE_IP: {
-      vita_debug_log("[UI] Host menu: change IP %s", info->name);
-      char new_ip[256] = "";
-      if (ime_dialog_string(new_ip, tr("Enter new IP:"), info->internal) == 0 && strlen(new_ip) > 0) {
-        strncpy(info->internal, new_ip, sizeof(info->internal)-1);
-        info->internal[sizeof(info->internal)-1] = '\0';
-        strncpy(info->external, new_ip, sizeof(info->external)-1);
-        info->external[sizeof(info->external)-1] = '\0';
-        info->prefer_external = false;
+      // The address of the connection in use; the other one is left as it is.
+      bool away = config.away;
+      vita_debug_log("[UI] Host menu: change the %s address of %s", away ? "Internet" : "home", info->name);
+      char new_address[256] = "";
+      if (ime_dialog_string(new_address, away ? tr("Internet address of the PC (IP or name):") : tr("Enter new IP:"),
+                            route_address(info, away)) != 0)
+        return 1;
+      if (away) {
+        // Empty is allowed: it forgets the Internet address
+        route_set_internet_address(info, new_address);
         save_device_info(info);
-        display_notice(1200, tr("IP updated: %s"), new_ip);
+        display_notice(1500, tr("Internet address: %s"), new_address[0] ? new_address : tr("(none)"));
+      } else if (new_address[0]) {
+        route_set_home_address(info, new_address);
+        save_device_info(info);
+        display_notice(1200, tr("IP updated: %s"), new_address);
       }
       return 1;
     }
@@ -209,9 +290,12 @@ void ui_host_manage_menu(device_info_t *info) {
   int idx = 0;
   int state = ui_host_state(host_index(info));
 
-  // Address and state of the host, then the actions
+  // Address of the connection in use and state of the host, then the actions
   char address[320];
-  snprintf(address, sizeof(address), "%s : %d", info->internal, info->port);
+  if (config.away && !route_internet_address_usable(info->external))
+    snprintf(address, sizeof(address), "%s", tr("No Internet address"));
+  else
+    snprintf(address, sizeof(address), "%s : %d", route_address(info, config.away), info->port);
   menu[idx] = (menu_entry){ .name = address, .disabled = true, .is_host_entry = true, .color = host_state_color(state) };
   snprintf(menu[idx].subname, sizeof(menu[idx].subname), "%s, %s", ui_host_state_text(state),
            info->paired ? tr("paired") : tr("not paired"));
@@ -219,8 +303,11 @@ void ui_host_manage_menu(device_info_t *info) {
   // Connect is offered whatever the state shown: the scan can miss a PC that is
   // on, and a PC that does not answer is given up on after a few seconds.
   menu[idx++] = (menu_entry){ .name = tr("Connect"), .id = HOST_MANAGE_CONNECT };
-  menu[idx++] = (menu_entry){ .name = tr("Wake the PC (Wake-on-LAN)"), .id = HOST_MANAGE_WAKE };
-  menu[idx++] = (menu_entry){ .name = tr("Change the address"), .id = HOST_MANAGE_CHANGE_IP };
+  // Wake-on-LAN only reaches the network the Vita is on: not from away.
+  if (!config.away)
+    menu[idx++] = (menu_entry){ .name = tr("Wake the PC (Wake-on-LAN)"), .id = HOST_MANAGE_WAKE };
+  menu[idx++] = (menu_entry){ .name = config.away ? tr("Change the Internet address") : tr("Change the address"),
+                              .id = HOST_MANAGE_CHANGE_IP };
   menu[idx++] = (menu_entry){ .name = tr("Rename"), .id = HOST_MANAGE_CHANGE_NAME };
   menu[idx++] = (menu_entry){ .name = tr("Forget this PC"), .id = HOST_MANAGE_DELETE };
 
@@ -276,6 +363,7 @@ static int ui_computers_loop(int cursor, void *context, const input_data *input)
     return 2; // Force a menu refresh
   }
 
+  ui_hosts_refresh_internet_address();
   home_focus_id = cursor;
   home_has_focus = true;
 
@@ -292,15 +380,10 @@ static int ui_computers_loop(int cursor, void *context, const input_data *input)
     return 0;
   }
   // X on a host that answers: connect straight away. Anything else (offline,
-  // address changed) goes through the host menu, which handles those cases.
+  // address changed, no Internet address) goes through the host menu.
   if (on_host) {
-    int host_idx = cursor - MAIN_MENU_CONNECT_PAIRED;
-    device_info_t *info = &known_devices.devices[host_idx];
     stop_host_scan();
-    if (ui_host_state(host_idx) == HOST_STATE_ONLINE)
-      ui_connect_paired_device(info);
-    else
-      ui_host_manage_menu(info);
+    ui_host_open(cursor - MAIN_MENU_CONNECT_PAIRED, 0);
     start_host_scan();
     return 2;
   }
@@ -377,7 +460,7 @@ static void home_draw(void) {
     int host_idx = id - MAIN_MENU_CONNECT_PAIRED;
     const device_info_t *info = &known_devices.devices[host_idx];
     int state = ui_host_state(host_idx);
-    unsigned int state_color = state == HOST_STATE_ONLINE ? TH_OK : (state == HOST_STATE_MOVED ? TH_WARN : TH_ERR);
+    unsigned int state_color = state == HOST_STATE_ONLINE ? TH_OK : (state == HOST_STATE_OFFLINE ? TH_ERR : TH_WARN);
 
     theme_text_fit(HOME_PANE_X + 24, HOME_PANE_Y + 44, TH_TEXT, TS_LEAD, info->name, HOME_PANE_W - 48);
     theme_circle(HOME_PANE_X + 29, HOME_PANE_Y + 65, 5, state_color);
@@ -385,31 +468,29 @@ static void home_draw(void) {
 
     char value[320];
     int y = HOME_PANE_Y + 112;
-    snprintf(value, sizeof(value), "%s : %d", info->internal, info->port);
-    home_detail_row(y, tr("Address"), value, TH_TEXT);
-    home_detail_row(y + 38, tr("Pairing"), info->paired ? tr("Paired") : tr("Not paired"), TH_TEXT);
-    home_detail_row(y + 76, tr("Wake-on-LAN"), info->mac[0] ? tr("Ready") : tr("Not ready yet"),
-                    info->mac[0] ? TH_TEXT : TH_TEXT3);
+    if (config.away && !route_internet_address_usable(info->external))
+      snprintf(value, sizeof(value), "%s", tr("Not known yet"));
+    else
+      snprintf(value, sizeof(value), "%s : %d", route_address(info, config.away), info->port);
+    home_detail_row(y, config.away ? tr("Internet address") : tr("Address"), value, TH_TEXT);
+    // Only paired PCs are listed: the connection in use says more.
+    home_detail_row(y + 38, tr("Connection"), config.away ? tr("Away") : tr("At home"), TH_TEXT);
+    home_detail_row(y + 76, tr("Wake-on-LAN"), config.away ? tr("At home only") : (info->mac[0] ? tr("Ready") : tr("Not ready yet")),
+                    !config.away && info->mac[0] ? TH_TEXT : TH_TEXT3);
     snprintf(value, sizeof(value), "%d x %d, %d fps", config.stream.width, config.stream.height, config.stream.fps);
     home_detail_row(y + 114, tr("Stream"), value, TH_TEXT);
 
     /* One piece of advice: what stands between the user and a good stream. */
     bool warn = false;
-    const char *advice;
-    if (state == HOST_STATE_MOVED) {
-      advice = tr("This PC answers from a new address: open it to update.");
-    } else if (state != HOST_STATE_ONLINE) {
-      advice = tr("No answer. Is the PC on, with Sunshine running?");
-    } else if (home_wifi_power_save == 1) {
+    const char *advice = ui_host_advice(state);
+    if (state == HOST_STATE_ONLINE && home_wifi_power_save == 1) {
       advice = tr("Wi-Fi power save is on and adds lag: turn it off in the Vita's Settings, Power Save Settings.");
       warn = true;
-    } else if (home_bluetooth == 1) {
+    } else if (state == HOST_STATE_ONLINE && home_bluetooth == 1) {
       // juanjsebgarcia measured frame loss going from about 50 a minute to 0
       // with a strong signal and Bluetooth off.
       advice = tr("Bluetooth is on and can disturb the Wi-Fi: if you use no Bluetooth device, turn it off in the Vita's Settings.");
       warn = true;
-    } else {
-      advice = tr("Ready to play.");
     }
     char lines[3][256];
     int n = theme_wrap(TS_SMALL, advice, HOME_PANE_W - 48, lines, 3);
@@ -439,7 +520,8 @@ static int home_hints(int id, theme_hint_item *out, int max) {
   bool on_host = id >= MAIN_MENU_CONNECT_PAIRED && id < MAIN_MENU_QUIT &&
                  id - MAIN_MENU_CONNECT_PAIRED < known_devices.count;
   if (on_host) {
-    bool online = ui_host_state(id - MAIN_MENU_CONNECT_PAIRED) == HOST_STATE_ONLINE;
+    int state = ui_host_state(id - MAIN_MENU_CONNECT_PAIRED);
+    bool online = state == HOST_STATE_ONLINE || state == HOST_STATE_AT_HOME;
     out[n++] = (theme_hint_item){theme_confirm_glyph(), online ? tr("Connect") : tr("Open")};
     out[n++] = (theme_hint_item){GLYPH_SQUARE, tr("PC options")};
   } else {
