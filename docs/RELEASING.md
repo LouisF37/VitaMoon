@@ -73,9 +73,11 @@ it by hand, as a dry run unless *apply* is ticked.
 
 Until 22 November 2026 every pre-release had its own release page. That day they were archived:
 1.0.0-beta.1 to beta.11 into `vitamoon-v1.0.0-betas.zip` on the 1.0.0 release, with the last rolling
-builds of the `dev` and `phase2` branches under `builds/`; 1.1.0-beta.1 to beta.4 into
-`vitamoon-v1.5.0-betas.zip` on the 1.5.0 release. Branches removed that day, each already part of
-`main` or kept under a tag: `dev` (last at `d9ca626`), `phase2` (`39f8447`), `vita` (`984603b`, the
-same commit as `legacy/vita-moonlight-0.13.2`, which stays), and `sdk-export` (two commits outside
-`main`, kept under the tag `archive/sdk-export`: a temporary workflow that copied the Vita SDK for
-compile checks outside CI; its 136 MB copy of that public SDK was not kept).
+builds of the former `dev` and `phase2` branches under `builds/`; 1.1.0-beta.1 to beta.4 into
+`vitamoon-v1.5.0-betas.zip` on the 1.5.0 release.
+
+Other branches: `dev` (last at `d9ca626`) and `phase2` (`39f8447`) are entirely part of `main`, and
+`vita` (`984603b`) is the same commit as `legacy/vita-moonlight-0.13.2`, the version VitaMoon started
+from; none of them is needed any more. `sdk-export` holds two commits outside `main`: a temporary
+workflow that copied the Vita SDK used by CI (release `sdk-export`, a copy of that public SDK) for
+compile checks outside CI.
