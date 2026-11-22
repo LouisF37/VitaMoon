@@ -168,6 +168,9 @@ In function ‘snprintf’,
   ok    round trip: stream.fps
   ok    round trip: stream.bitrate
   ok    round trip: auto_bitrate
+  ok    round trip: away
+  ok    round trip: away_bitrate
+  ok    round trip: away_auto_bitrate
   ok    round trip: stream.packetSize
   ok    round trip: sops
   ok    round trip: localaudio
@@ -221,6 +224,9 @@ In function ‘snprintf’,
   ok    reorder wait clamped to 50 ms
   ok    negative reorder wait clamped to 0
   ok    old bitrate line read as a manual bitrate
+  ok    away bitrate and connection read
+  ok    unknown connection value: Home
+  ok    sanitize: absurd away bitrate back to automatic
   ok    sanitize: resolution back to 960x544
   ok    sanitize: fps back to 60
   ok    sanitize: absurd bitrate back to automatic
@@ -248,11 +254,18 @@ In function ‘snprintf’,
   ok    auto bitrate grows with the resolution
   ok    auto bitrate lower at 30 fps
   ok    auto bitrate stays within 20 Mbps
+  ok    away auto bitrate: 6 Mbps at 960x544, 60 fps
+  ok    away auto bitrate: 7.5 Mbps at 1280x720, 60 fps
+  ok    auto bitrates applied: Home 8000, Away 6000
+  ok    a manual Away bitrate is left alone
+  ok    Home connection: the stream uses the Home bitrate
+  ok    Away connection: the stream uses the Away bitrate
   ok    settings file that cannot be written: logged, app keeps running
   ok    default theme: Eclipse (theme 4)
   ok    default sky: moving (Medium), twinkling, clockwise
   ok    config_set_defaults sets the stream and the rest as config_parse did
-[config] 99 checks, 0 failed
+  ok    default connection: Home, automatic Away bitrate, not optimised for the Internet
+[config] 112 checks, 0 failed
 
 [sps rewrite]
   ok    test SPS built
@@ -558,6 +571,45 @@ In function ‘snprintf’,
   ok    a 120 px cover has 10 px corners, like the tiles
   ok    a cover drawn at its own size keeps the picture's radius
 [cover_shape] 12 checks, 0 failed
+
+[route]
+  ok    dotted IPv4 addresses
+  ok    anything else is not an IPv4 address
+  ok    names are not IPs
+  ok    private, shared, link-local and loopback ranges
+  ok    public addresses and names are not private
+  ok    a public IP or a name is an Internet address
+  ok    empty or a home address is no Internet address
+  ok    an empty address or an IP may be refreshed
+  ok    a name typed by the user is never replaced
+  ok    Home uses the home address, Away the Internet address
+  ok    a new home address leaves the Internet address alone
+  ok    a new Internet address leaves the home address alone
+  ok    the Internet address can be forgotten
+  ok    no Internet address yet: the public address becomes it
+  ok    the same public address: no change, nothing to save
+  ok    the box's address changed: the Internet address follows
+  ok    a private address is never taken as the public one
+  ok    nonsense is refused
+  ok    a name typed by the user is kept
+  ok    an old copy of the home address (versions up to 1.5) is replaced
+  ok    Home: answers at its home address
+  ok    Home: no answer
+  ok    Home: seen at another address
+  ok    Home: a new address waits to be confirmed
+  ok    Home: the Away flag means nothing
+  ok    Away: answers over the Internet
+  ok    Away: no answer over the Internet
+  ok    Away but heard on this network: at home, even when the box answers from outside
+  ok    Away, heard at home, no answer from outside: at home
+  ok    Away: a pending home address is not the Away connection's business
+  ok    Away with no Internet address
+  ok    Away with only a copy of the home address: no Internet address
+  ok    Away with a name
+  ok    1.5's both-public PC at home: its address changed
+  ok    after Yes: home address 192.168.1.24, the Internet address kept
+  ok    then Home and Away both reach it
+[route] 36 checks, 0 failed
 
 [archive_betas] all passed
 all tests passed
