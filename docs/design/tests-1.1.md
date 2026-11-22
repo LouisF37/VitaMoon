@@ -1,8 +1,9 @@
 # Tests of the 1.1 betas
 
 VitaMoon 1.1.0-beta.1 adds options to measure, not to keep: each is set to 1.0's behaviour by default,
-grouped in *Settings > Tests (beta)*. Sessions with and without each one decide what 1.1.0 keeps as a
-default; the category then goes away. One change at a time, five minutes at the same place in the
+grouped in *Settings > Tests (beta)*. Sessions with and without each one decide what a later version
+keeps as a default; the category then goes away. 1.5.0 was released before these sessions: it keeps
+the category, every option still off by default. One change at a time, five minutes at the same place in the
 same game, and the `stats` files and the log of each session.
 
 | Option | What it changes | Where to look |

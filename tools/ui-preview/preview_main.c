@@ -37,6 +37,7 @@
 #include "gui/splash.h"
 #include "reconnect.h"
 #include "gui/boxart.h"
+#include "gui/cover_shape.h"
 #include "video/stream_stats.h"
 #include "input/vita.h"
 
@@ -103,9 +104,50 @@ int sceIoMkdir(const char *dir, int mode) { return 0; }
 int sceDisplayGetRefreshRate(float *fps) { *fps = 59.94f; return 0; }
 void LiInitializeStreamConfiguration(PSTREAM_CONFIGURATION c) { memset(c, 0, sizeof(*c)); }
 void boxart_prefetch(PSERVER_DATA server, PAPP_LIST apps) {}
-vita2d_texture *boxart_load_texture(PSERVER_DATA server, int app_id) { return NULL; }
+
+/* PREVIEW_COVERS=1: some games have a downloaded cover, drawn here as
+ * abstract pictures (two light, two dark, one bright), rounded as the Vita's
+ * loader does; the others keep their coloured tile. Otherwise no game has a
+ * cover yet. */
+static vita2d_texture *fake_cover(int app_id) {
+  static const struct { int id; uint8_t top[3], bottom[3], disc[3], band[3]; } art[] = {
+    {1000, {246, 240, 226}, {214, 226, 240}, {255, 255, 255}, {170, 190, 215}},   /* light */
+    {1002, {22, 28, 64}, {70, 36, 96}, {236, 200, 120}, {12, 14, 30}},           /* dark */
+    {1006, {28, 30, 36}, {20, 70, 80}, {200, 230, 235}, {10, 12, 14}},           /* dark */
+    {1007, {250, 214, 226}, {255, 244, 232}, {255, 120, 150}, {240, 170, 190}},  /* light */
+    {1001, {170, 30, 40}, {240, 140, 40}, {255, 230, 170}, {90, 10, 20}},        /* bright */
+  };
+  if (!getenv("PREVIEW_COVERS"))
+    return NULL;
+  int k = -1;
+  for (int i = 0; i < (int)(sizeof(art) / sizeof(art[0])); i++)
+    if (art[i].id == app_id) k = i;
+  if (k < 0)
+    return NULL;
+  vita2d_texture *tex = vita2d_create_empty_texture(BOXART_W, BOXART_H);
+  uint8_t *data = vita2d_texture_get_datap(tex);
+  unsigned stride = vita2d_texture_get_stride(tex);
+  for (int y = 0; y < BOXART_H; y++) {
+    for (int x = 0; x < BOXART_W; x++) {
+      uint8_t *p = data + (size_t)y * stride + x * 4;
+      float t = (float)y / (BOXART_H - 1);
+      for (int c = 0; c < 3; c++)
+        p[c] = (uint8_t)(art[k].top[c] + (art[k].bottom[c] - art[k].top[c]) * t);
+      float dx = x - 120.0f, dy = y - 86.0f;
+      if (dx * dx + dy * dy < 46.0f * 46.0f)
+        memcpy(p, art[k].disc, 3);
+      if (y > 188 && y < 226)
+        memcpy(p, art[k].band, 3);
+      p[3] = 255;
+    }
+  }
+  /* what boxart_load_texture_from() does to a loaded cover */
+  cover_round_corners(data, BOXART_W, BOXART_H, stride, COVER_RADIUS_TEX);
+  return tex;
+}
+vita2d_texture *boxart_load_texture(PSERVER_DATA server, int app_id) { return fake_cover(app_id); }
 void boxart_cover_dir(PSERVER_DATA server, char *out, size_t len) { snprintf(out, len, "%s", "ux0:data/vitamoon/boxart/AA-BB-CC-DD-EE-FF"); }
-vita2d_texture *boxart_load_texture_from(const char *dir, int app_id) { return NULL; }
+vita2d_texture *boxart_load_texture_from(const char *dir, int app_id) { return fake_cover(app_id); }
 /* Sessions already played, for the library (the preview's clock says
  * 2026-11-15 21:42): Final Fantasy IX today, Chrono Cross yesterday, Hollow
  * Knight five days ago. */

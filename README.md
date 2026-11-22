@@ -24,15 +24,17 @@ interface, and the tools to measure what the Vita actually does. What was taken 
 what was measured by whom, is listed in [docs/design/performance.md](docs/design/performance.md). Up to
 1.0.0-beta.1 it was called *Lune*.
 
-> **Status: 1.0.0.** Measured on a Vita with Sunshine at 1280x720, 60 fps: 96 % of the frames the PC
-> sends are shown, 97 ms median from a frame's arrival to the screen, no crash over 34 minutes. Known:
-> short gaps in the sound (cause not found yet). On a PC, the menus are checked in three languages,
-> every journey from opening a PC to the end of a game is replayed against an imitation of Sunshine,
-> and the stream logic is covered by tests. See [the checkpoint report](docs/checkpoints/2026-11-17.md).
+> **Status: 1.5.0.** Since 1.0.0: a new home screen, a Help page, bigger covers with rounded corners
+> ([changelog](CHANGELOG.md)). The stream behaves as in 1.0.0, measured on a Vita with Sunshine at
+> 1280x720, 60 fps: 96 % of the frames the PC sends are shown, 97 ms median from a frame's arrival to
+> the screen, no crash over 34 minutes. Known: short gaps in the sound (cause not found yet). On a PC,
+> the menus are checked in three languages, every journey from opening a PC to the end of a game is
+> replayed against an imitation of Sunshine, and the stream logic is covered by tests. See
+> [the checkpoint report](docs/checkpoints/2026-11-17.md).
 >
-> **Testing: 1.1.0-beta.1.** Options to measure the decoder's delay, late frames, immediate display
-> and 5 ms sound packets (*Settings > Tests (beta)*, all off by default), and a press-to-picture test
-> from the quick menu. See [the tests of the 1.1 betas](docs/design/tests-1.1.md).
+> **To measure: *Settings > Tests (beta)*.** Options for the decoder's delay, late frames, immediate
+> display and 5 ms sound packets (all off by default), and a press-to-picture test from the quick
+> menu. See [the tests of the 1.1 betas](docs/design/tests-1.1.md).
 
 ## Screenshots
 

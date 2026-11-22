@@ -23,9 +23,9 @@ set(TITLE "VitaMoon")
 set(LIVEAREA_TITLE "VITAMOON")
 set(LIVEAREA_SUBTITLE "GAME STREAMING\nFROM YOUR PC")
 set(VERSION_MAJOR "1")
-set(VERSION_MINOR "1")
+set(VERSION_MINOR "5")
 set(VERSION_PATCH "0")
-set(VERSION_LABEL "beta.4")         # empty for a final release, e.g. "beta.1" before one
+set(VERSION_LABEL "")         # empty for a final release, e.g. "beta.1" before one
 set(VERSION_NAME "Premier Croissant")  # milestone name, shown in the docs
 if(VERSION_LABEL)
 	set(VERSION_TEXT "v${VERSION_MAJOR}.${VERSION_MINOR}.${VERSION_PATCH}-${VERSION_LABEL}")
@@ -111,6 +111,7 @@ add_executable(${PROJECT_NAME}.elf
 	src/video/stream_stats.c
 	src/video/latency_test.c
 	src/gui/boxart.c
+	src/gui/cover_shape.c
 	src/gui/ui_library.c
 	src/gui/ui_home.c
 	src/gui/ui_help.c

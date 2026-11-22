@@ -1,6 +1,8 @@
 # VitaMoon : guide d'utilisation et de test
 
-VitaMoon est un client Moonlight pour PS Vita. Version 1.0.0 « Nouvelle Lune », préparée par onze
+VitaMoon est un client Moonlight pour PS Vita. Version 1.5.0 « Premier Croissant » (22 novembre 2026) :
+nouvel accueil, page Aide, jaquettes plus grandes aux coins arrondis, après les quatre bêtas de la 1.1.0
+(détail dans [CHANGELOG.md](../CHANGELOG.md)). La 1.0.0 « Nouvelle Lune » avait été préparée par onze
 versions d'essai (bêta 1 à 11, les 15 et 16 novembre 2026 ; la bêta 1 s'appelait Lune), détaillées dans
 [history/betas.md](history/betas.md).
 
@@ -9,7 +11,7 @@ Téléchargement :
 - dernière compilation de la branche `main` :
   https://github.com/LouisF37/VitaMoon/releases/download/build-main/vitamoon-main.vpk
 
-L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.0.0  main-xxxxxxx`.
+L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.5.0  main-xxxxxxx`.
 
 **Installation à côté de Moonlight.** VitaMoon a son propre identifiant (`VMOON0001`), sa propre bulle et
 son propre dossier (`ux0:data/vitamoon`) : il ne touche pas à Moonlight, qui reste installé. Il faut donc
@@ -41,7 +43,10 @@ paquets en retard (juanjsebgarcia), crochets Vita (priorité et cœur des fils, 
 droite, l'aperçu de l'entrée sous le curseur.
 - Un seul élément est sélectionné à la fois : il est légèrement agrandi, éclairé, avec une bordure épaisse
   et un halo de la couleur du thème. Le bouton d'une carte ne prend la couleur du thème que lorsque la
-  carte est sélectionnée.
+  carte est sélectionnée. Une jaquette sélectionnée (ici comme dans la Bibliothèque) a un cadre blanc,
+  séparé d'elle par un trait sombre : il se voit sur une jaquette claire comme sur une sombre.
+- Les jaquettes ont les coins arrondis, comme les tuiles de couleur affichées tant qu'elles ne sont pas
+  téléchargées.
 - Partout pareil : la flèche droite entre dans l'aperçu (Accueil, Bibliothèque, Ordinateurs, Réglages,
   Aide), les flèches s'y déplacent, ✕ agit sur l'élément sélectionné, la flèche gauche depuis la première
   colonne ou ○ revient au menu. ✕ sur une entrée du menu ouvre toujours sa page en plein écran ; dans le

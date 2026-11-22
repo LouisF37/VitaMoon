@@ -9,6 +9,7 @@
  * Box art download and cache; see boxart.h.
  */
 #include "boxart.h"
+#include "cover_shape.h"
 #include "../config.h"
 #include "../debug.h"
 #include "../connection.h"
@@ -265,6 +266,8 @@ vita2d_texture *boxart_load_texture_from(const char *dir, int app_id) {
           tex = NULL;
         }
       }
+      if (tex)
+        cover_round_corners(data, BOXART_W, BOXART_H, stride, COVER_RADIUS_TEX);
     }
   }
   sceIoClose(fd);

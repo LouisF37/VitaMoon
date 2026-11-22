@@ -167,7 +167,7 @@ Moonlight, which keeps `ux0:data/moonlight`.
 | `stats/session-<date>.csv`, `.txt` | per stream: one line per second, settings and percentiles |
 | `stats/last_<app>.txt` | figures of the last session of each game, for the library (when it was last played, its order, its figures) |
 | `favorites.txt` | the library's favourites, one app id per line |
-| `boxart/<PC>/<app>.cover` | cover art, resized for the library |
+| `boxart/<PC>/<app>.cover` | cover art, resized for the library (192 x 256 RGBA; its corners are made transparent when it is loaded, `src/gui/cover_shape.c`) |
 | `logs/vitamoon-<date>.log` | the log of each run, named after its start; the last 30 kept (`src/log.c`, `src/log_files.h`) |
 
 ## Log

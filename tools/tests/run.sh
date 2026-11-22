@@ -2,7 +2,7 @@
 # PC-side tests of the parts of the app that do not need a Vita: pacing of
 # the "Paced" display, late frames, press-to-picture test, settings file, SPS rewrite, URL encoding, session
 # percentiles, quick menu, log ring, title font coverage, waiting moon,
-# start-up screen, library order, home screen, twinkling stars and trackpad tap.
+# start-up screen, library order, home screen, rounded covers, twinkling stars and trackpad tap.
 # Built with AddressSanitizer and UBSan.
 #   VITASDK=/path/to/vitasdk tools/tests/run.sh
 set -e
@@ -37,6 +37,7 @@ $cc -I"$here" -I"$root/src/gui" -I"$root/src" -I"$root/third_party/moonlight-com
 $cc -I"$here" -I"$out/inc" -I"$root/src/gui" "$here/test_splash.c" -o "$out/test_splash" -lm
 $cc -I"$here" -I"$root/src/gui" -I"$root/src/input" "$here/test_library.c" -o "$out/test_library" -lm
 $cc -I"$here" -I"$root/src/gui" "$here/test_home.c" -o "$out/test_home"
+$cc -I"$here" -I"$root/src/gui" "$here/test_cover.c" "$root/src/gui/cover_shape.c" -o "$out/test_cover" -lm
 
 hb="$root/third_party/h264bitstream"
 $cc -w -I"$here" -I"$root/libgamestream" -I"$hb" -I"$root/third_party/moonlight-common-c/src" \
@@ -44,7 +45,7 @@ $cc -w -I"$here" -I"$root/libgamestream" -I"$hb" -I"$root/third_party/moonlight-
     -o "$out/test_sps"
 
 status=0
-for t in test_pacing test_late test_latency test_misc test_config test_sps test_quickmenu test_log test_ui test_mdns test_splash test_library test_home; do
+for t in test_pacing test_late test_latency test_misc test_config test_sps test_quickmenu test_log test_ui test_mdns test_splash test_library test_home test_cover; do
   "$out/$t" || status=1
 done
 if [ $status -eq 0 ]; then echo "all tests passed"; else echo "SOME TESTS FAILED"; fi

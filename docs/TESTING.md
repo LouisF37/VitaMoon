@@ -39,6 +39,12 @@ theme (`themes/`), then lists any text that does not fit its box. Needs gcc and 
 `PREVIEW_SANITIZE=1` builds it with AddressSanitizer and UBSan, which then checks the menus for
 memory errors and leaks as well.
 
+The preview cannot download covers, so its games show their coloured tiles. `PREVIEW_COVERS=1` gives
+five of them a downloaded cover instead, abstract pictures (two light, two dark, one bright) made in
+`preview_main.c` and rounded by the same `cover_round_corners()` as the Vita's loader: `run.sh` renders
+the home and library screens so in French (`covers/`), to check the selection frame on light and dark
+covers.
+
 The fake vita2d draws at once, while the Vita's GPU reads textures only after a frame is submitted.
 It therefore checks two rules of the console and stops with a message when one is broken: no wait
 for the GPU while a frame is open, and no texture freed before the GPU has finished every frame that

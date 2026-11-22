@@ -21,6 +21,7 @@
 #include "ui_library.h"
 #include "preview_hooks.h"
 #include "boxart.h"
+#include "cover_shape.h"
 #include "guilib.h"
 #include "theme.h"
 #include "../config.h"
@@ -259,12 +260,17 @@ static int draw_action(int x, int y, const char *caption, bool primary) {
 
 static void draw_cover(lib_item *it, float x, float bottom, float w, float h, bool focused, bool running) {
   float y = bottom - h;
-  theme_rounded_rect(x + 2, y + 6, w, h, 10, RGBA8(0, 0, 0, 90));  /* shadow */
+  float r = cover_radius(w);
+  if (focused)
+    theme_cover_ring(x, y, w, h, r);   /* the frame: light ring, dark line */
+  else
+    theme_rounded_rect(x + 2, y + 6, w, h, r, RGBA8(0, 0, 0, 90));  /* shadow */
   if (it->tex) {
+    /* the corners of a loaded cover are already transparent (cover_shape.c) */
     vita2d_draw_texture_scale(it->tex, x, y, w / BOXART_W, h / BOXART_H);
   } else {
     /* no cover yet: a coloured tile with the initials and the name */
-    theme_rounded_rect(x, y, w, h, 10, it->tint);
+    theme_rounded_rect(x, y, w, h, r, it->tint);
     /* the initials move down when the "running" badge takes the top-left corner */
     theme_text(x + 12, y + (running ? 66 : 42), RGBA8(255, 255, 255, 225), TS_TITLE, it->initials);
     theme_rounded_rect(x + 6, y + h - 30, w - 12, 24, 7, theme_alpha(TH_INK, 120));
@@ -283,11 +289,6 @@ static void draw_cover(lib_item *it, float x, float bottom, float w, float h, bo
     int sw = vita2d_font_text_width(font, ICON_STAR_SIZE, ICON_STAR);
     vita2d_font_draw_text(font, (int)(cx - sw / 2.0f + 0.5f), (int)(cy + ICON_STAR_SIZE * 0.36f + 0.5f),
                           theme_color(LIB_STAR_COLOR), ICON_STAR_SIZE, ICON_STAR);
-  }
-  if (focused) {
-    float r = it->tex ? 4 : 11;
-    theme_rounded_outline(x - 2, y - 2, w + 4, h + 4, r, TH_TEXT);
-    theme_rounded_outline(x - 3, y - 3, w + 6, h + 6, r + 1, RGBA8(255, 255, 255, 140));
   }
 }
 

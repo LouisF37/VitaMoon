@@ -3,6 +3,45 @@
 All notable changes of this project. Versions follow [Semantic Versioning](https://semver.org);
 milestones are named after the phases of the moon ([docs/RELEASING.md](docs/RELEASING.md)).
 
+## 1.5.0 "Premier Croissant" (2026-11-22)
+
+The first final version since 1.0.0: everything of the four 1.1.0 betas (in short at the end of this
+section), and rounded covers with a selection frame that shows on any cover. It follows 1.1.0-beta.4 directly: there is no final 1.1 to
+1.4. Settings and pairings are kept; the stream behaves as in 1.0.0 unless an option of *Tests (beta)*
+is turned on.
+
+### New since 1.1.0-beta.4
+
+- Covers have rounded corners, like the coloured tiles shown until they are downloaded: a twelfth of
+  their width (10 px for a 120 px cover), so the selected cover, drawn larger, keeps the same shape.
+  The corners are made transparent once, when a cover is loaded (`src/gui/cover_shape.c`): drawing
+  costs nothing more, it looks right over the moving sky, and covers already downloaded are rounded
+  too. Tiles and shadows take the same radius.
+- The selected cover, on the home screen as in the library, still grows and now has a 3 px white
+  frame, set off from it by a 2 px dark line, so that it shows on a light cover as on a dark one (it
+  was a thin gold line on the home and a thin white line in the library, lost on light covers). The
+  home keeps its halo in the theme's colour.
+- Tests: `tools/tests/test_cover.c` (12 checks: transparent corners, a smooth edge, the four corners
+  alike, nothing else touched); `PREVIEW_COVERS=1` gives games of the preview abstract covers (two
+  light, two dark, one bright), rendered by `tools/ui-preview/run.sh` in `covers/`.
+
+### Since 1.0.0, in short
+
+- Home screen: a side menu (Home, Library, Computers, Settings, Help, Quit) with a preview of each
+  entry; a large card that says what X does (continue the last game, resume a paused stream, wake the
+  PC...) and a row of covers (games played last, favourites, *See all*); one element selected at a
+  time, clearly shown; the right arrow enters a preview.
+- Help page: shortcuts during a stream, touch, adding games in Sunshine, Wi-Fi.
+- Bigger covers: 120 x 160 on the home, 140 x 187 in the library (168 x 224 selected).
+- Look: Eclipse and the moving sky at a first start (settings already saved are kept).
+- Statistics overlay on one line: frames shown per second, receive to screen, bitrate.
+- Quick menu: the stream's duration, the battery time left, and a press-to-picture test.
+- *Settings > Touch*: the rear touch pad can be turned off.
+- *Settings > Tests (beta)*: five options to measure (decoder delay mode, decoder reference frames,
+  skip late frames, show frames at once, 5 ms sound packets), all off by default; they stay until
+  sessions with them decide what to keep ([docs/design/tests-1.1.md](docs/design/tests-1.1.md)).
+- The decoder's memory is freed whatever step of its creation failed.
+
 ## 1.1.0-beta.4 "Premier Croissant" (2026-11-19)
 
 Bigger covers, after a test on a Vita: at 96 x 128 they could not be read well. Nothing else changes.

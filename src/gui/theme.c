@@ -574,6 +574,12 @@ void theme_rounded_rect(float x, float y, float w, float h, float r, unsigned in
   vita2d_draw_array(SCE_GXM_PRIMITIVE_TRIANGLE_FAN, v, k);
 }
 
+void theme_cover_ring(float x, float y, float w, float h, float r) {
+  const float o = THEME_COVER_RING, d = 2.0f;   /* 3 px light, then 2 px dark */
+  theme_rounded_rect(x - o, y - o, w + 2 * o, h + 2 * o, r + o, TH_TEXT);
+  theme_rounded_rect(x - d, y - d, w + 2 * d, h + 2 * d, r + d, theme_alpha(TH_INK, 255));
+}
+
 void theme_rounded_outline(float x, float y, float w, float h, float r, unsigned int color) {
   if (w <= 0 || h <= 0)
     return;

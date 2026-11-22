@@ -27,6 +27,7 @@
 #include "cover_look.h"
 #include "library_logic.h"
 #include "boxart.h"
+#include "cover_shape.h"
 #include "guilib.h"
 #include "theme.h"
 #include "splash.h"
@@ -451,14 +452,19 @@ static void card_box(float x, float y, float w, float h, float r, bool focused) 
 }
 
 /* A game's cover, or its coloured tile with the initials until it is downloaded. */
-static void draw_cover(const home_game *g, float x, float y, float w, float h, int initials_size) {
-  theme_rounded_rect(x + 2, y + 5, w, h, 10, RGBA8(0, 0, 0, 90));
+static void draw_cover(const home_game *g, float x, float y, float w, float h, int initials_size, bool focused) {
+  float r = cover_radius(w);
+  if (focused)
+    theme_cover_ring(x, y, w, h, r);
+  else
+    theme_rounded_rect(x + 2, y + 5, w, h, r, RGBA8(0, 0, 0, 90));
   vita2d_texture *tex = cover_of(g->id);
   if (tex) {
+    /* the corners of a loaded cover are already transparent (cover_shape.c) */
     vita2d_draw_texture_tint_scale(tex, x, y, w / BOXART_W, h / BOXART_H, theme_color(RGBA8(255, 255, 255, 255)));
     return;
   }
-  theme_rounded_rect(x, y, w, h, 10, cover_tint(g->id));
+  theme_rounded_rect(x, y, w, h, r, cover_tint(g->id));
   char initials[4];
   cover_initials(g->name, initials);
   theme_text(x + 10, y + initials_size + 8, RGBA8(255, 255, 255, 225), initials_size, initials);
@@ -468,7 +474,8 @@ static void draw_cover(const home_game *g, float x, float y, float w, float h, i
   }
 }
 
-/* A cover that can be selected: when it is, it grows a little and gets a ring. */
+/* A cover that can be selected: when it is, it grows a little and gets a
+ * frame (a light ring, set off by a dark line) and a halo. */
 static void draw_pick_cover(const home_game *g, float x, float y, float w, float h, int initials_size, bool focused) {
   if (focused) {
     float ex = 4.0f * lift, ey = ex * h / w;
@@ -476,11 +483,10 @@ static void draw_pick_cover(const home_game *g, float x, float y, float w, float
     y -= ey;
     w += 2 * ex;
     h += 2 * ey;
-    halo(x - 3, y - 3, w + 6, h + 6, 13);
-    theme_rounded_outline(x - 3, y - 3, w + 6, h + 6, 13, TH_ACCENT);
-    theme_rounded_outline(x - 4, y - 4, w + 8, h + 8, 14, TH_ACCENT);
+    float o = THEME_COVER_RING;
+    halo(x - o, y - o, w + 2 * o, h + 2 * o, cover_radius(w) + o);
   }
-  draw_cover(g, x, y, w, h, initials_size);
+  draw_cover(g, x, y, w, h, initials_size, focused);
 }
 
 /* A filled (primary) or outlined button with an optional icon. */
@@ -780,10 +786,10 @@ static void draw_hero(bool focused) {
   }
 
   if (game && (game->id || game->name[0])) {
-    draw_cover(game, cover_x, cover_y, cw, ch, TS_TITLE);
+    draw_cover(game, cover_x, cover_y, cw, ch, TS_TITLE, false);
   } else {
-    theme_rounded_rect(cover_x, cover_y, cw, ch, 10, TH_FILL_SOFT);
-    theme_rounded_outline(cover_x, cover_y, cw, ch, 10, TH_DIVIDER);
+    theme_rounded_rect(cover_x, cover_y, cw, ch, cover_radius(cw), TH_FILL_SOFT);
+    theme_rounded_outline(cover_x, cover_y, cw, ch, cover_radius(cw), TH_DIVIDER);
     draw_icon_centered(kind == HERO_LIBRARY ? ICON_GRID : ICON_DESKTOP, cover_x + cw / 2, cover_y + ch / 2 - 8,
                        TH_TEXT3);
     if (kind != HERO_LIBRARY)

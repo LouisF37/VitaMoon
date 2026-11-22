@@ -23,6 +23,12 @@ for journey in $("$out/preview" journeys en "$out/journeys"); do
   grep -v "^TRUNCATED" "$out/journeys/$journey.txt" >> "$out/report.txt" || true
 done
 
+# Covers instead of tiles (PREVIEW_COVERS=1): the selection frame on light and dark covers (French).
+mkdir -p "$out/covers"
+for scenario in home library library_running; do
+  PREVIEW_COVERS=1 "$out/preview" "$scenario" fr "$out/covers" 2>/dev/null || echo "covers/$scenario: exit $?" >> "$out/report.txt"
+done
+
 # The colour themes, on a few screens (French).
 themes="night dawn aurora twilight eclipse"
 i=0
@@ -33,5 +39,5 @@ for theme in $themes; do
   done
   i=$((i + 1))
 done
-echo "screens: $out/{en,fr,es}/*.png, $out/themes/*/*.png; journeys: $(ls "$out/journeys" | wc -l)"
+echo "screens: $out/{en,fr,es}/*.png, $out/covers/*.png, $out/themes/*/*.png; journeys: $(ls "$out/journeys" | wc -l)"
 if [ -s "$out/report.txt" ]; then echo "text that does not fit:"; cat "$out/report.txt"; else echo "all text fits"; fi

@@ -156,6 +156,11 @@ void theme_draw_background(void);
 void theme_rect(float x, float y, float w, float h, unsigned int color);
 void theme_rounded_rect(float x, float y, float w, float h, float r, unsigned int color);
 void theme_rounded_outline(float x, float y, float w, float h, float r, unsigned int color);
+/* The frame of the selected cover, drawn before the cover (x, y, w, h, r are
+ * the cover's): a thin dark line against the cover, then a light ring, so it
+ * shows on light covers as well as dark ones. Reaches THEME_COVER_RING px out. */
+#define THEME_COVER_RING 5.0f
+void theme_cover_ring(float x, float y, float w, float h, float r);
 void theme_circle(float cx, float cy, float r, unsigned int color);
 void theme_ring(float cx, float cy, float r, float thickness, unsigned int color);
 void theme_stroke(float x0, float y0, float x1, float y1, float thickness, unsigned int color);
