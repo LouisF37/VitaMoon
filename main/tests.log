@@ -559,4 +559,5 @@ In function ‘snprintf’,
   ok    a cover drawn at its own size keeps the picture's radius
 [cover_shape] 12 checks, 0 failed
 
+[archive_betas] all passed
 all tests passed
