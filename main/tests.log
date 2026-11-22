@@ -1,6 +1,6 @@
 /home/runner/work/VitaMoon/VitaMoon/third_party/mdnsniff/udp_sniffer_vita.c: In function ‘udp_sniffer_vita_poll’:
-/home/runner/work/VitaMoon/VitaMoon/third_party/mdnsniff/udp_sniffer_vita.c:197:104: warning: pointer targets in passing argument 6 of ‘sceNetRecvfrom’ differ in signedness [-Wpointer-sign]
-  197 |     int n = sceNetRecvfrom(sock, buffer, sizeof(buffer), SCE_NET_MSG_DONTWAIT, (SceNetSockaddr*)&from, &fromlen);
+/home/runner/work/VitaMoon/VitaMoon/third_party/mdnsniff/udp_sniffer_vita.c:212:104: warning: pointer targets in passing argument 6 of ‘sceNetRecvfrom’ differ in signedness [-Wpointer-sign]
+  212 |     int n = sceNetRecvfrom(sock, buffer, sizeof(buffer), SCE_NET_MSG_DONTWAIT, (SceNetSockaddr*)&from, &fromlen);
       |                                                                                                        ^~~~~~~~
       |                                                                                                        |
       |                                                                                                        int *
@@ -604,12 +604,25 @@ In function ‘snprintf’,
   ok    Away, heard at home, no answer from outside: at home
   ok    Away: a pending home address is not the Away connection's business
   ok    Away with no Internet address
+  ok    Away with no Internet address but at home: at home first (switching back is what helps)
   ok    Away with only a copy of the home address: no Internet address
   ok    Away with a name
+  ok    Home: no answer at home, an answer over the Internet: away
+  ok    Home: an answer at home wins
+  ok    Home: a new home address wins
+  ok    Away: the Home flag means nothing
+  ok    spaces around an address dropped
+  ok    the menus' "address : port" form: the port dropped
+  ok    a name with a port: the port dropped
+  ok    digits at the end of a name are kept
+  ok    empty stays empty
+  ok    a port alone gives nothing
+  ok    NULL gives nothing
+  ok    both setters clean what they are given
   ok    1.5's both-public PC at home: its address changed
   ok    after Yes: home address 192.168.1.24, the Internet address kept
   ok    then Home and Away both reach it
-[route] 36 checks, 0 failed
+[route] 49 checks, 0 failed
 
 [archive_betas] all passed
 all tests passed
