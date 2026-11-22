@@ -1,0 +1,59 @@
+name: Archive pre-releases
+
+# Moves pre-release pages, and the VPKs of pre-release versions parked on the
+# development build, into one zip on a final release (tools/dev/archive_betas.py),
+# so that the Releases page lists only final versions and the development build.
+# Run by hand; "Build PSVita (CMake)" runs the same script when it publishes a
+# final version. Without "apply", a dry run: the log says what would change.
+on:
+  workflow_dispatch:
+    inputs:
+      final:
+        description: Tag of the final release that receives the zip (e.g. v1.0.0)
+        required: true
+      betas:
+        description: Tag prefix of pre-release pages to archive (e.g. v1.0.0-beta.)
+        required: false
+        default: ''
+      also:
+        description: Other releases to keep whole in the zip, then delete (space-separated tags)
+        required: false
+        default: ''
+      from_dev_build:
+        description: Also the pre-release VPKs parked on build-main
+        type: boolean
+        default: true
+      apply:
+        description: Change GitHub (otherwise a dry run)
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  archive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Test the archive script
+        run: python3 tools/dev/test_archive_betas.py
+
+      - name: Archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FINAL: ${{ inputs.final }}
+          BETAS: ${{ inputs.betas }}
+          ALSO: ${{ inputs.also }}
+          FROM_DEV_BUILD: ${{ inputs.from_dev_build }}
+          APPLY: ${{ inputs.apply }}
+        run: |
+          set -e
+          args=(--repo "$GITHUB_REPOSITORY" --final "$FINAL")
+          if [ -n "$BETAS" ]; then args+=(--betas "$BETAS"); fi
+          for tag in $ALSO; do args+=(--also "$tag"); done
+          if [ "$FROM_DEV_BUILD" = true ]; then args+=(--from-dev-build); fi
+          if [ "$APPLY" = true ]; then args+=(--apply); fi
+          python3 tools/dev/archive_betas.py "${args[@]}"

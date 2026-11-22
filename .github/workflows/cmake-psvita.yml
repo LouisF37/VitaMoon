@@ -1,8 +1,11 @@
 name: Build PSVita (CMake)
 
-# Builds a VPK for every pushed branch (except the log branch), publishes it as a
-# rolling pre-release with a fixed download link, and stores the build log on the
-# "ci-logs" branch so it can be read with plain git.
+# Builds a VPK for every pushed branch (except the log branch) and stores the build
+# log on the "ci-logs" branch so it can be read with plain git. Pushes to main also
+# refresh the development build (one pre-release, build-main, with a fixed download
+# link) and publish the version set in CMakeLists.txt: a final version gets its
+# release page; a pre-release version only a tag and its VPK parked on the
+# development build, archived into the final release's zip later (docs/RELEASING.md).
 on:
   push:
     branches-ignore: [ ci-logs ]
@@ -101,28 +104,39 @@ jobs:
           name: vitamoon-vpk
           path: build/*.vpk
 
-      # Fixed link: https://github.com/<owner>/<repo>/releases/download/build-<branch>/vitamoon-<branch>.vpk
-      - name: Publish rolling pre-release
-        if: github.event_name != 'pull_request'
+      # Fixed link: https://github.com/<owner>/<repo>/releases/download/build-main/vitamoon-main.vpk
+      # Updated in place: its tag moves to this commit and its VPK is replaced, so the
+      # VPKs of pre-release versions parked on it stay until their final release.
+      - name: Publish development build
+        if: github.event_name == 'push' && github.ref_name == env.RELEASE_BRANCH
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          SAFE_BRANCH="${BUILD_BRANCH//\//-}"
-          TAG="build-$SAFE_BRANCH"
+          set -e
+          TAG="build-$BUILD_BRANCH"
           VPK="$(ls build/*.vpk | head -1)"
-          cp "$VPK" "vitamoon-$SAFE_BRANCH.vpk"
-          gh release delete "$TAG" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag || true
-          gh release create "$TAG" "vitamoon-$SAFE_BRANCH.vpk" \
-            --repo "$GITHUB_REPOSITORY" \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --title "Build $BUILD_BRANCH (${GITHUB_SHA::7})" \
-            --notes "Automatic build of branch $BUILD_BRANCH, commit ${GITHUB_SHA::7}, $(date -u +%Y-%m-%dT%H:%MZ)."
+          cp "$VPK" "vitamoon-$BUILD_BRANCH.vpk"
+          TITLE="Build $BUILD_BRANCH (${GITHUB_SHA::7})"
+          NOTES="Development build of branch $BUILD_BRANCH, commit ${GITHUB_SHA::7}, $(date -u +%Y-%m-%dT%H:%MZ): \`vitamoon-$BUILD_BRANCH.vpk\`.
+          Pre-release versions are not published as releases: their VPK (\`vitamoon-v<version>.vpk\`) waits here, then goes into the zip of their final release."
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$GITHUB_SHA" -F force=true > /dev/null
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes "$NOTES" --prerelease
+            gh release upload "$TAG" "vitamoon-$BUILD_BRANCH.vpk" --repo "$GITHUB_REPOSITORY" --clobber
+          else
+            gh release create "$TAG" "vitamoon-$BUILD_BRANCH.vpk" --repo "$GITHUB_REPOSITORY" \
+              --prerelease --target "$GITHUB_SHA" --title "$TITLE" --notes "$NOTES"
+          fi
 
-      # A version without a release yet is published once built and tested: tag
-      # v<version> on this commit, its CHANGELOG.md section as notes, the VPK
-      # (docs/RELEASING.md). Pushes that keep the same version change nothing.
-      - name: Publish version release
+      # A version not published yet, once built and tested (docs/RELEASING.md):
+      # - final (no label): tag v<version> on this commit, a release with its
+      #   CHANGELOG.md section as notes and the VPK; then the VPKs of pre-release
+      #   versions parked on the development build go into vitamoon-v<version>-betas.zip
+      #   on it (tools/dev/archive_betas.py);
+      # - pre-release (a label such as beta.1): the tag, and the VPK parked on the
+      #   development build as vitamoon-v<version>.vpk, without a release page.
+      # Pushes that keep the same version change nothing.
+      - name: Publish version
         if: github.event_name == 'push' && github.ref_name == env.RELEASE_BRANCH
         env:
           GH_TOKEN: ${{ github.token }}
@@ -130,20 +144,28 @@ jobs:
           set -e
           python3 tools/dev/release_info.py --repo "$GITHUB_REPOSITORY" --notes ci/release-notes.md > ci/release.env
           source ci/release.env
+          VPK="$(ls build/*.vpk | head -1)"
+          cp "$VPK" "vitamoon-$TAG.vpk"
+          if [ "$PRERELEASE" = 1 ]; then
+            if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" > /dev/null 2>&1; then
+              echo "$TAG is already tagged"
+              exit 0
+            fi
+            gh api "repos/$GITHUB_REPOSITORY/git/refs" -f ref="refs/tags/$TAG" -f sha="$GITHUB_SHA" > /dev/null
+            gh release upload "build-$BUILD_BRANCH" "vitamoon-$TAG.vpk" --repo "$GITHUB_REPOSITORY" --clobber
+            echo "$TAG tagged, its VPK parked on build-$BUILD_BRANCH"
+            exit 0
+          fi
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
             echo "$TAG is already released"
             exit 0
           fi
-          VPK="$(ls build/*.vpk | head -1)"
-          cp "$VPK" "vitamoon-$TAG.vpk"
-          flags=()
-          [ "$PRERELEASE" = 1 ] && flags+=(--prerelease)
           gh release create "$TAG" "vitamoon-$TAG.vpk" \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
             --title "$TITLE" \
-            --notes-file ci/release-notes.md \
-            "${flags[@]}"
+            --notes-file ci/release-notes.md
+          python3 tools/dev/archive_betas.py --repo "$GITHUB_REPOSITORY" --final "$TAG" --from-dev-build --apply
 
       # Always store the logs (also on failure) on the ci-logs branch, one folder per branch.
       - name: Publish build log

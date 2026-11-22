@@ -7,7 +7,7 @@
   <h3>Moonlight game streaming for the PS Vita, built for a smooth picture over Wi-Fi</h3>
 
   [![Build](https://img.shields.io/github/actions/workflow/status/LouisF37/VitaMoon/cmake-psvita.yml?branch=main&label=build)](../../actions)
-  [![Release](https://img.shields.io/github/v/release/LouisF37/VitaMoon?include_prereleases&label=release)](../../releases)
+  [![Release](https://img.shields.io/github/v/release/LouisF37/VitaMoon?label=release)](../../releases/latest)
   [![Platform](https://img.shields.io/badge/platform-PS%20Vita%20%7C%20PS%20TV-1B4A8F)](#requirements)
   [![License: GPL v3](https://img.shields.io/badge/license-GPLv3-blue.svg)](LICENSE)
 </div>

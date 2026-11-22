@@ -7,8 +7,10 @@ versions d'essai (bêta 1 à 11, les 15 et 16 novembre 2026 ; la bêta 1 s'appel
 [history/betas.md](history/betas.md).
 
 Téléchargement :
-- versions publiées : https://github.com/LouisF37/VitaMoon/releases
-- dernière compilation de la branche `main` :
+- versions publiées : https://github.com/LouisF37/VitaMoon/releases (seulement les versions finales ;
+  les bêtas de chaque version, avec leurs VPK et leurs notes, sont dans le fichier
+  `vitamoon-v<version>-betas.zip` joint à cette version)
+- dernière compilation de la branche `main` (et VPK des bêtas en cours) :
   https://github.com/LouisF37/VitaMoon/releases/download/build-main/vitamoon-main.vpk
 
 L'écran d'accueil affiche la version exacte en bas à gauche, par exemple `v1.5.0  main-xxxxxxx`.

@@ -31,9 +31,11 @@ The result is `build/vitamoon.vpk` (and `build/vitamoon.elf` with debug symbols,
 
 ## Continuous integration
 
-Every push builds the VPK, runs the PC tests and publishes a pre-release named `build-<branch>` with a
-fixed download link (`moonlight-<branch>.vpk`). Build and test logs go to the `ci-logs` branch
-(`<branch>/build.log`, `tests.log`, `status.txt`), readable with plain git.
+Every push builds the VPK and runs the PC tests; the VPK is kept as an artifact of the workflow run.
+Pushes to `main` also refresh the development build, a single pre-release named `build-main` with a
+fixed download link (`vitamoon-main.vpk`), and publish the version set in `CMakeLists.txt`
+([RELEASING.md](RELEASING.md)). Build and test logs go to the `ci-logs` branch (`<branch>/build.log`,
+`tests.log`, `status.txt`), readable with plain git.
 
 ## Developer scripts (`tools/dev`)
 

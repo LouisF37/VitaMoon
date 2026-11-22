@@ -48,5 +48,8 @@ status=0
 for t in test_pacing test_late test_latency test_misc test_config test_sps test_quickmenu test_log test_ui test_mdns test_splash test_library test_home test_cover; do
   "$out/$t" || status=1
 done
+# The release archiving script (tools/dev/archive_betas.py), against an imitation of GitHub.
+python3 "$root/tools/dev/test_archive_betas.py" > "$out/test_archive_betas.log" 2>&1 || { cat "$out/test_archive_betas.log"; status=1; }
+tail -1 "$out/test_archive_betas.log"
 if [ $status -eq 0 ]; then echo "all tests passed"; else echo "SOME TESTS FAILED"; fi
 exit $status
